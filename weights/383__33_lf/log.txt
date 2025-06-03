@@ -1,0 +1,532 @@
+[05/07 14:19:11] d2.data.datasets.coco INFO: Loading ./data/egoism-hoi-dataset/annotations/r_test_coco.json takes 1.55 seconds.
+[05/07 14:19:11] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/07 14:19:11] d2.data.datasets.coco INFO: Loaded 11221 images in COCO format from ./data/egoism-hoi-dataset/annotations/r_test_coco.json
+[05/07 14:19:12] d2.data.common INFO: Serializing 11221 elements to byte tensors and concatenating them all ...
+[05/07 14:19:12] d2.data.common INFO: Serialized dataset takes 7.26 MiB
+[05/07 14:19:12] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/07 14:19:14] d2.evaluation.evaluator INFO: Start inference on 11221 batches
+[05/07 14:19:17] d2.evaluation.evaluator INFO: Inference done 11/11221. Dataloading: 0.0037 s/iter. Inference: 0.0953 s/iter. Eval: 0.0016 s/iter. Total: 0.1007 s/iter. ETA=0:18:48
+[05/07 14:19:22] d2.evaluation.evaluator INFO: Inference done 54/11221. Dataloading: 0.0037 s/iter. Inference: 0.1096 s/iter. Eval: 0.0021 s/iter. Total: 0.1155 s/iter. ETA=0:21:29
+[05/07 14:19:27] d2.evaluation.evaluator INFO: Inference done 98/11221. Dataloading: 0.0038 s/iter. Inference: 0.1096 s/iter. Eval: 0.0021 s/iter. Total: 0.1156 s/iter. ETA=0:21:25
+[05/07 14:19:33] d2.evaluation.evaluator INFO: Inference done 143/11221. Dataloading: 0.0038 s/iter. Inference: 0.1088 s/iter. Eval: 0.0021 s/iter. Total: 0.1148 s/iter. ETA=0:21:11
+[05/07 14:19:38] d2.evaluation.evaluator INFO: Inference done 188/11221. Dataloading: 0.0038 s/iter. Inference: 0.1081 s/iter. Eval: 0.0021 s/iter. Total: 0.1141 s/iter. ETA=0:20:58
+[05/07 14:19:43] d2.evaluation.evaluator INFO: Inference done 232/11221. Dataloading: 0.0038 s/iter. Inference: 0.1083 s/iter. Eval: 0.0022 s/iter. Total: 0.1143 s/iter. ETA=0:20:55
+[05/07 14:19:48] d2.evaluation.evaluator INFO: Inference done 280/11221. Dataloading: 0.0038 s/iter. Inference: 0.1067 s/iter. Eval: 0.0021 s/iter. Total: 0.1126 s/iter. ETA=0:20:32
+[05/07 14:19:53] d2.evaluation.evaluator INFO: Inference done 325/11221. Dataloading: 0.0038 s/iter. Inference: 0.1066 s/iter. Eval: 0.0021 s/iter. Total: 0.1125 s/iter. ETA=0:20:26
+[05/07 14:19:58] d2.evaluation.evaluator INFO: Inference done 371/11221. Dataloading: 0.0038 s/iter. Inference: 0.1062 s/iter. Eval: 0.0021 s/iter. Total: 0.1121 s/iter. ETA=0:20:16
+[05/07 14:20:03] d2.evaluation.evaluator INFO: Inference done 417/11221. Dataloading: 0.0037 s/iter. Inference: 0.1059 s/iter. Eval: 0.0021 s/iter. Total: 0.1118 s/iter. ETA=0:20:07
+[05/07 14:20:08] d2.evaluation.evaluator INFO: Inference done 465/11221. Dataloading: 0.0037 s/iter. Inference: 0.1052 s/iter. Eval: 0.0020 s/iter. Total: 0.1111 s/iter. ETA=0:19:54
+[05/07 14:20:13] d2.evaluation.evaluator INFO: Inference done 515/11221. Dataloading: 0.0037 s/iter. Inference: 0.1044 s/iter. Eval: 0.0020 s/iter. Total: 0.1102 s/iter. ETA=0:19:39
+[05/07 14:20:18] d2.evaluation.evaluator INFO: Inference done 561/11221. Dataloading: 0.0037 s/iter. Inference: 0.1044 s/iter. Eval: 0.0020 s/iter. Total: 0.1102 s/iter. ETA=0:19:34
+[05/07 14:20:23] d2.evaluation.evaluator INFO: Inference done 608/11221. Dataloading: 0.0037 s/iter. Inference: 0.1042 s/iter. Eval: 0.0020 s/iter. Total: 0.1100 s/iter. ETA=0:19:27
+[05/12 15:14:25] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 15:14:25] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 15:14:25] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 15:14:25] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 15:14:25] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 15:14:25] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 15:14:28] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0039 s/iter. Inference: 0.1053 s/iter. Eval: 0.0018 s/iter. Total: 0.1110 s/iter. ETA=0:01:21
+[05/12 15:14:33] d2.evaluation.evaluator INFO: Inference done 59/744. Dataloading: 0.0029 s/iter. Inference: 0.1019 s/iter. Eval: 0.0019 s/iter. Total: 0.1067 s/iter. ETA=0:01:13
+[05/12 15:14:39] d2.evaluation.evaluator INFO: Inference done 107/744. Dataloading: 0.0031 s/iter. Inference: 0.1015 s/iter. Eval: 0.0020 s/iter. Total: 0.1067 s/iter. ETA=0:01:07
+[05/12 15:14:44] d2.evaluation.evaluator INFO: Inference done 156/744. Dataloading: 0.0031 s/iter. Inference: 0.1003 s/iter. Eval: 0.0020 s/iter. Total: 0.1055 s/iter. ETA=0:01:02
+[05/12 15:14:49] d2.evaluation.evaluator INFO: Inference done 202/744. Dataloading: 0.0033 s/iter. Inference: 0.1011 s/iter. Eval: 0.0020 s/iter. Total: 0.1065 s/iter. ETA=0:00:57
+[05/12 15:14:54] d2.evaluation.evaluator INFO: Inference done 248/744. Dataloading: 0.0033 s/iter. Inference: 0.1016 s/iter. Eval: 0.0020 s/iter. Total: 0.1070 s/iter. ETA=0:00:53
+[05/12 15:14:59] d2.evaluation.evaluator INFO: Inference done 295/744. Dataloading: 0.0033 s/iter. Inference: 0.1017 s/iter. Eval: 0.0020 s/iter. Total: 0.1071 s/iter. ETA=0:00:48
+[05/12 15:15:04] d2.evaluation.evaluator INFO: Inference done 342/744. Dataloading: 0.0033 s/iter. Inference: 0.1017 s/iter. Eval: 0.0020 s/iter. Total: 0.1071 s/iter. ETA=0:00:43
+[05/12 15:15:09] d2.evaluation.evaluator INFO: Inference done 391/744. Dataloading: 0.0034 s/iter. Inference: 0.1012 s/iter. Eval: 0.0020 s/iter. Total: 0.1067 s/iter. ETA=0:00:37
+[05/12 15:15:14] d2.evaluation.evaluator INFO: Inference done 435/744. Dataloading: 0.0033 s/iter. Inference: 0.1020 s/iter. Eval: 0.0020 s/iter. Total: 0.1074 s/iter. ETA=0:00:33
+[05/12 15:15:19] d2.evaluation.evaluator INFO: Inference done 482/744. Dataloading: 0.0033 s/iter. Inference: 0.1021 s/iter. Eval: 0.0020 s/iter. Total: 0.1075 s/iter. ETA=0:00:28
+[05/12 15:15:24] d2.evaluation.evaluator INFO: Inference done 529/744. Dataloading: 0.0033 s/iter. Inference: 0.1020 s/iter. Eval: 0.0020 s/iter. Total: 0.1074 s/iter. ETA=0:00:23
+[05/12 15:15:29] d2.evaluation.evaluator INFO: Inference done 572/744. Dataloading: 0.0034 s/iter. Inference: 0.1027 s/iter. Eval: 0.0020 s/iter. Total: 0.1081 s/iter. ETA=0:00:18
+[05/12 15:15:34] d2.evaluation.evaluator INFO: Inference done 616/744. Dataloading: 0.0033 s/iter. Inference: 0.1033 s/iter. Eval: 0.0020 s/iter. Total: 0.1087 s/iter. ETA=0:00:13
+[05/12 15:15:39] d2.evaluation.evaluator INFO: Inference done 665/744. Dataloading: 0.0034 s/iter. Inference: 0.1028 s/iter. Eval: 0.0020 s/iter. Total: 0.1083 s/iter. ETA=0:00:08
+[05/12 15:15:44] d2.evaluation.evaluator INFO: Inference done 711/744. Dataloading: 0.0034 s/iter. Inference: 0.1029 s/iter. Eval: 0.0020 s/iter. Total: 0.1084 s/iter. ETA=0:00:03
+[05/12 15:15:48] d2.evaluation.evaluator INFO: Total inference time: 0:01:20.536009 (0.108980 s / iter per device, on 1 devices)
+[05/12 15:15:48] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:16 (0.103426 s / iter per device, on 1 devices)
+[05/12 15:15:48] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 15:15:48] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 15:15:48] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 15:15:51] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 15:15:51] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 15:15:51] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 15:59:57] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 15:59:57] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 15:59:57] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 15:59:57] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 15:59:57] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 15:59:58] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 16:00:01] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0025 s/iter. Inference: 0.1439 s/iter. Eval: 0.0017 s/iter. Total: 0.1481 s/iter. ETA=0:01:48
+[05/12 16:00:06] d2.evaluation.evaluator INFO: Inference done 60/744. Dataloading: 0.0037 s/iter. Inference: 0.1030 s/iter. Eval: 0.0019 s/iter. Total: 0.1086 s/iter. ETA=0:01:14
+[05/12 16:00:12] d2.evaluation.evaluator INFO: Inference done 104/744. Dataloading: 0.0037 s/iter. Inference: 0.1054 s/iter. Eval: 0.0020 s/iter. Total: 0.1112 s/iter. ETA=0:01:11
+[05/12 16:00:17] d2.evaluation.evaluator INFO: Inference done 152/744. Dataloading: 0.0035 s/iter. Inference: 0.1039 s/iter. Eval: 0.0020 s/iter. Total: 0.1094 s/iter. ETA=0:01:04
+[05/12 16:00:22] d2.evaluation.evaluator INFO: Inference done 200/744. Dataloading: 0.0035 s/iter. Inference: 0.1029 s/iter. Eval: 0.0019 s/iter. Total: 0.1085 s/iter. ETA=0:00:59
+[05/12 16:00:27] d2.evaluation.evaluator INFO: Inference done 246/744. Dataloading: 0.0035 s/iter. Inference: 0.1031 s/iter. Eval: 0.0019 s/iter. Total: 0.1086 s/iter. ETA=0:00:54
+[05/12 16:00:32] d2.evaluation.evaluator INFO: Inference done 294/744. Dataloading: 0.0035 s/iter. Inference: 0.1028 s/iter. Eval: 0.0019 s/iter. Total: 0.1083 s/iter. ETA=0:00:48
+[05/12 16:00:37] d2.evaluation.evaluator INFO: Inference done 338/744. Dataloading: 0.0036 s/iter. Inference: 0.1034 s/iter. Eval: 0.0020 s/iter. Total: 0.1090 s/iter. ETA=0:00:44
+[05/12 16:00:42] d2.evaluation.evaluator INFO: Inference done 385/744. Dataloading: 0.0036 s/iter. Inference: 0.1033 s/iter. Eval: 0.0019 s/iter. Total: 0.1088 s/iter. ETA=0:00:39
+[05/12 16:00:47] d2.evaluation.evaluator INFO: Inference done 435/744. Dataloading: 0.0035 s/iter. Inference: 0.1025 s/iter. Eval: 0.0019 s/iter. Total: 0.1080 s/iter. ETA=0:00:33
+[05/12 16:00:52] d2.evaluation.evaluator INFO: Inference done 481/744. Dataloading: 0.0035 s/iter. Inference: 0.1026 s/iter. Eval: 0.0019 s/iter. Total: 0.1081 s/iter. ETA=0:00:28
+[05/12 16:00:57] d2.evaluation.evaluator INFO: Inference done 525/744. Dataloading: 0.0035 s/iter. Inference: 0.1032 s/iter. Eval: 0.0019 s/iter. Total: 0.1087 s/iter. ETA=0:00:23
+[05/12 16:01:02] d2.evaluation.evaluator INFO: Inference done 571/744. Dataloading: 0.0035 s/iter. Inference: 0.1033 s/iter. Eval: 0.0019 s/iter. Total: 0.1088 s/iter. ETA=0:00:18
+[05/12 16:01:07] d2.evaluation.evaluator INFO: Inference done 617/744. Dataloading: 0.0035 s/iter. Inference: 0.1034 s/iter. Eval: 0.0019 s/iter. Total: 0.1088 s/iter. ETA=0:00:13
+[05/12 16:01:12] d2.evaluation.evaluator INFO: Inference done 663/744. Dataloading: 0.0035 s/iter. Inference: 0.1035 s/iter. Eval: 0.0019 s/iter. Total: 0.1090 s/iter. ETA=0:00:08
+[05/12 16:01:17] d2.evaluation.evaluator INFO: Inference done 709/744. Dataloading: 0.0035 s/iter. Inference: 0.1036 s/iter. Eval: 0.0019 s/iter. Total: 0.1090 s/iter. ETA=0:00:03
+[05/12 16:01:21] d2.evaluation.evaluator INFO: Total inference time: 0:01:20.312366 (0.108677 s / iter per device, on 1 devices)
+[05/12 16:01:21] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:16 (0.103081 s / iter per device, on 1 devices)
+[05/12 16:01:21] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 16:01:21] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 16:01:21] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 16:01:23] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 16:01:23] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 16:01:23] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 16:43:43] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 16:43:43] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 16:43:43] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 16:43:43] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 16:43:43] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 16:43:43] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 16:43:46] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0033 s/iter. Inference: 0.1181 s/iter. Eval: 0.0020 s/iter. Total: 0.1234 s/iter. ETA=0:01:30
+[05/12 16:43:51] d2.evaluation.evaluator INFO: Inference done 60/744. Dataloading: 0.0033 s/iter. Inference: 0.0993 s/iter. Eval: 0.0019 s/iter. Total: 0.1046 s/iter. ETA=0:01:11
+[05/12 16:43:56] d2.evaluation.evaluator INFO: Inference done 106/744. Dataloading: 0.0033 s/iter. Inference: 0.1018 s/iter. Eval: 0.0020 s/iter. Total: 0.1072 s/iter. ETA=0:01:08
+[05/12 16:44:01] d2.evaluation.evaluator INFO: Inference done 153/744. Dataloading: 0.0035 s/iter. Inference: 0.1020 s/iter. Eval: 0.0020 s/iter. Total: 0.1076 s/iter. ETA=0:01:03
+[05/12 16:44:06] d2.evaluation.evaluator INFO: Inference done 201/744. Dataloading: 0.0034 s/iter. Inference: 0.1014 s/iter. Eval: 0.0019 s/iter. Total: 0.1068 s/iter. ETA=0:00:57
+[05/12 16:44:11] d2.evaluation.evaluator INFO: Inference done 249/744. Dataloading: 0.0033 s/iter. Inference: 0.1011 s/iter. Eval: 0.0019 s/iter. Total: 0.1064 s/iter. ETA=0:00:52
+[05/12 16:44:16] d2.evaluation.evaluator INFO: Inference done 296/744. Dataloading: 0.0032 s/iter. Inference: 0.1013 s/iter. Eval: 0.0019 s/iter. Total: 0.1064 s/iter. ETA=0:00:47
+[05/12 16:44:21] d2.evaluation.evaluator INFO: Inference done 344/744. Dataloading: 0.0032 s/iter. Inference: 0.1010 s/iter. Eval: 0.0019 s/iter. Total: 0.1061 s/iter. ETA=0:00:42
+[05/12 16:44:26] d2.evaluation.evaluator INFO: Inference done 393/744. Dataloading: 0.0031 s/iter. Inference: 0.1009 s/iter. Eval: 0.0019 s/iter. Total: 0.1060 s/iter. ETA=0:00:37
+[05/12 16:44:32] d2.evaluation.evaluator INFO: Inference done 439/744. Dataloading: 0.0031 s/iter. Inference: 0.1013 s/iter. Eval: 0.0019 s/iter. Total: 0.1064 s/iter. ETA=0:00:32
+[05/12 16:44:37] d2.evaluation.evaluator INFO: Inference done 485/744. Dataloading: 0.0031 s/iter. Inference: 0.1016 s/iter. Eval: 0.0019 s/iter. Total: 0.1067 s/iter. ETA=0:00:27
+[05/12 16:44:42] d2.evaluation.evaluator INFO: Inference done 531/744. Dataloading: 0.0031 s/iter. Inference: 0.1019 s/iter. Eval: 0.0019 s/iter. Total: 0.1069 s/iter. ETA=0:00:22
+[05/12 16:44:47] d2.evaluation.evaluator INFO: Inference done 577/744. Dataloading: 0.0031 s/iter. Inference: 0.1022 s/iter. Eval: 0.0019 s/iter. Total: 0.1072 s/iter. ETA=0:00:17
+[05/12 16:44:52] d2.evaluation.evaluator INFO: Inference done 625/744. Dataloading: 0.0031 s/iter. Inference: 0.1022 s/iter. Eval: 0.0019 s/iter. Total: 0.1072 s/iter. ETA=0:00:12
+[05/12 16:44:57] d2.evaluation.evaluator INFO: Inference done 676/744. Dataloading: 0.0031 s/iter. Inference: 0.1015 s/iter. Eval: 0.0019 s/iter. Total: 0.1065 s/iter. ETA=0:00:07
+[05/12 16:45:02] d2.evaluation.evaluator INFO: Inference done 720/744. Dataloading: 0.0030 s/iter. Inference: 0.1020 s/iter. Eval: 0.0019 s/iter. Total: 0.1070 s/iter. ETA=0:00:02
+[05/12 16:45:04] d2.evaluation.evaluator INFO: Total inference time: 0:01:18.865119 (0.106719 s / iter per device, on 1 devices)
+[05/12 16:45:04] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:15 (0.101568 s / iter per device, on 1 devices)
+[05/12 16:45:04] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 16:45:04] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 16:45:04] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 16:45:07] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 16:45:07] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 16:45:07] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 16:46:37] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 16:46:37] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 16:46:37] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 16:46:37] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 16:46:37] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 16:46:38] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 16:46:41] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0042 s/iter. Inference: 0.1193 s/iter. Eval: 0.0020 s/iter. Total: 0.1255 s/iter. ETA=0:01:32
+[05/12 16:46:46] d2.evaluation.evaluator INFO: Inference done 62/744. Dataloading: 0.0035 s/iter. Inference: 0.0972 s/iter. Eval: 0.0019 s/iter. Total: 0.1026 s/iter. ETA=0:01:09
+[05/12 16:46:51] d2.evaluation.evaluator INFO: Inference done 111/744. Dataloading: 0.0034 s/iter. Inference: 0.0976 s/iter. Eval: 0.0020 s/iter. Total: 0.1031 s/iter. ETA=0:01:05
+[05/12 16:46:56] d2.evaluation.evaluator INFO: Inference done 159/744. Dataloading: 0.0036 s/iter. Inference: 0.0978 s/iter. Eval: 0.0020 s/iter. Total: 0.1035 s/iter. ETA=0:01:00
+[05/12 16:47:01] d2.evaluation.evaluator INFO: Inference done 204/744. Dataloading: 0.0037 s/iter. Inference: 0.0997 s/iter. Eval: 0.0020 s/iter. Total: 0.1055 s/iter. ETA=0:00:56
+[05/12 16:47:06] d2.evaluation.evaluator INFO: Inference done 251/744. Dataloading: 0.0036 s/iter. Inference: 0.1002 s/iter. Eval: 0.0020 s/iter. Total: 0.1059 s/iter. ETA=0:00:52
+[05/12 16:47:11] d2.evaluation.evaluator INFO: Inference done 298/744. Dataloading: 0.0036 s/iter. Inference: 0.1005 s/iter. Eval: 0.0020 s/iter. Total: 0.1061 s/iter. ETA=0:00:47
+[05/12 16:47:16] d2.evaluation.evaluator INFO: Inference done 344/744. Dataloading: 0.0035 s/iter. Inference: 0.1009 s/iter. Eval: 0.0020 s/iter. Total: 0.1065 s/iter. ETA=0:00:42
+[05/12 16:47:21] d2.evaluation.evaluator INFO: Inference done 389/744. Dataloading: 0.0035 s/iter. Inference: 0.1015 s/iter. Eval: 0.0020 s/iter. Total: 0.1071 s/iter. ETA=0:00:38
+[05/12 16:47:26] d2.evaluation.evaluator INFO: Inference done 435/744. Dataloading: 0.0034 s/iter. Inference: 0.1019 s/iter. Eval: 0.0020 s/iter. Total: 0.1073 s/iter. ETA=0:00:33
+[05/12 16:47:32] d2.evaluation.evaluator INFO: Inference done 483/744. Dataloading: 0.0034 s/iter. Inference: 0.1017 s/iter. Eval: 0.0020 s/iter. Total: 0.1072 s/iter. ETA=0:00:27
+[05/12 16:47:37] d2.evaluation.evaluator INFO: Inference done 530/744. Dataloading: 0.0034 s/iter. Inference: 0.1017 s/iter. Eval: 0.0020 s/iter. Total: 0.1071 s/iter. ETA=0:00:22
+[05/12 16:47:42] d2.evaluation.evaluator INFO: Inference done 576/744. Dataloading: 0.0033 s/iter. Inference: 0.1019 s/iter. Eval: 0.0020 s/iter. Total: 0.1073 s/iter. ETA=0:00:18
+[05/12 16:47:47] d2.evaluation.evaluator INFO: Inference done 622/744. Dataloading: 0.0033 s/iter. Inference: 0.1021 s/iter. Eval: 0.0020 s/iter. Total: 0.1075 s/iter. ETA=0:00:13
+[05/12 16:47:52] d2.evaluation.evaluator INFO: Inference done 668/744. Dataloading: 0.0034 s/iter. Inference: 0.1022 s/iter. Eval: 0.0020 s/iter. Total: 0.1076 s/iter. ETA=0:00:08
+[05/12 16:47:57] d2.evaluation.evaluator INFO: Inference done 714/744. Dataloading: 0.0034 s/iter. Inference: 0.1023 s/iter. Eval: 0.0020 s/iter. Total: 0.1077 s/iter. ETA=0:00:03
+[05/12 16:48:00] d2.evaluation.evaluator INFO: Total inference time: 0:01:20.005103 (0.108261 s / iter per device, on 1 devices)
+[05/12 16:48:00] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:15 (0.102740 s / iter per device, on 1 devices)
+[05/12 16:48:00] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 16:48:00] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 16:48:00] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 16:48:03] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 16:48:03] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 16:48:03] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 17:06:50] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 17:06:50] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 17:06:50] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 17:06:50] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 17:06:50] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 17:06:51] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 17:06:54] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0027 s/iter. Inference: 0.1032 s/iter. Eval: 0.0018 s/iter. Total: 0.1077 s/iter. ETA=0:01:18
+[05/12 17:06:59] d2.evaluation.evaluator INFO: Inference done 57/744. Dataloading: 0.0036 s/iter. Inference: 0.1032 s/iter. Eval: 0.0020 s/iter. Total: 0.1089 s/iter. ETA=0:01:14
+[05/12 17:07:04] d2.evaluation.evaluator INFO: Inference done 105/744. Dataloading: 0.0034 s/iter. Inference: 0.1019 s/iter. Eval: 0.0020 s/iter. Total: 0.1073 s/iter. ETA=0:01:08
+[05/12 17:07:09] d2.evaluation.evaluator INFO: Inference done 154/744. Dataloading: 0.0033 s/iter. Inference: 0.1006 s/iter. Eval: 0.0019 s/iter. Total: 0.1059 s/iter. ETA=0:01:02
+[05/12 17:07:14] d2.evaluation.evaluator INFO: Inference done 204/744. Dataloading: 0.0034 s/iter. Inference: 0.0994 s/iter. Eval: 0.0019 s/iter. Total: 0.1048 s/iter. ETA=0:00:56
+[05/12 17:07:19] d2.evaluation.evaluator INFO: Inference done 254/744. Dataloading: 0.0034 s/iter. Inference: 0.0985 s/iter. Eval: 0.0019 s/iter. Total: 0.1038 s/iter. ETA=0:00:50
+[05/12 17:07:24] d2.evaluation.evaluator INFO: Inference done 303/744. Dataloading: 0.0034 s/iter. Inference: 0.0985 s/iter. Eval: 0.0019 s/iter. Total: 0.1040 s/iter. ETA=0:00:45
+[05/12 17:07:29] d2.evaluation.evaluator INFO: Inference done 351/744. Dataloading: 0.0034 s/iter. Inference: 0.0987 s/iter. Eval: 0.0019 s/iter. Total: 0.1041 s/iter. ETA=0:00:40
+[05/12 17:07:34] d2.evaluation.evaluator INFO: Inference done 400/744. Dataloading: 0.0033 s/iter. Inference: 0.0985 s/iter. Eval: 0.0019 s/iter. Total: 0.1039 s/iter. ETA=0:00:35
+[05/12 17:07:39] d2.evaluation.evaluator INFO: Inference done 449/744. Dataloading: 0.0034 s/iter. Inference: 0.0985 s/iter. Eval: 0.0019 s/iter. Total: 0.1038 s/iter. ETA=0:00:30
+[05/12 17:07:44] d2.evaluation.evaluator INFO: Inference done 498/744. Dataloading: 0.0033 s/iter. Inference: 0.0984 s/iter. Eval: 0.0019 s/iter. Total: 0.1037 s/iter. ETA=0:00:25
+[05/12 17:07:49] d2.evaluation.evaluator INFO: Inference done 546/744. Dataloading: 0.0033 s/iter. Inference: 0.0985 s/iter. Eval: 0.0019 s/iter. Total: 0.1039 s/iter. ETA=0:00:20
+[05/12 17:07:54] d2.evaluation.evaluator INFO: Inference done 591/744. Dataloading: 0.0033 s/iter. Inference: 0.0992 s/iter. Eval: 0.0019 s/iter. Total: 0.1045 s/iter. ETA=0:00:15
+[05/12 17:07:59] d2.evaluation.evaluator INFO: Inference done 637/744. Dataloading: 0.0033 s/iter. Inference: 0.0995 s/iter. Eval: 0.0019 s/iter. Total: 0.1049 s/iter. ETA=0:00:11
+[05/12 17:08:04] d2.evaluation.evaluator INFO: Inference done 689/744. Dataloading: 0.0033 s/iter. Inference: 0.0989 s/iter. Eval: 0.0019 s/iter. Total: 0.1042 s/iter. ETA=0:00:05
+[05/12 17:08:09] d2.evaluation.evaluator INFO: Inference done 736/744. Dataloading: 0.0033 s/iter. Inference: 0.0992 s/iter. Eval: 0.0019 s/iter. Total: 0.1044 s/iter. ETA=0:00:00
+[05/12 17:08:10] d2.evaluation.evaluator INFO: Total inference time: 0:01:17.348096 (0.104666 s / iter per device, on 1 devices)
+[05/12 17:08:10] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:13 (0.099297 s / iter per device, on 1 devices)
+[05/12 17:08:10] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 17:08:10] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 17:08:10] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 17:08:13] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 17:08:13] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 17:08:13] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 17:09:33] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 17:09:33] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 17:09:33] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 17:09:33] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 17:09:33] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 17:09:33] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 17:09:36] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0024 s/iter. Inference: 0.0993 s/iter. Eval: 0.0018 s/iter. Total: 0.1035 s/iter. ETA=0:01:15
+[05/12 17:09:41] d2.evaluation.evaluator INFO: Inference done 59/744. Dataloading: 0.0033 s/iter. Inference: 0.1008 s/iter. Eval: 0.0019 s/iter. Total: 0.1060 s/iter. ETA=0:01:12
+[05/12 17:09:46] d2.evaluation.evaluator INFO: Inference done 106/744. Dataloading: 0.0032 s/iter. Inference: 0.1014 s/iter. Eval: 0.0019 s/iter. Total: 0.1065 s/iter. ETA=0:01:07
+[05/12 17:09:51] d2.evaluation.evaluator INFO: Inference done 156/744. Dataloading: 0.0033 s/iter. Inference: 0.0997 s/iter. Eval: 0.0019 s/iter. Total: 0.1050 s/iter. ETA=0:01:01
+[05/12 17:09:56] d2.evaluation.evaluator INFO: Inference done 201/744. Dataloading: 0.0033 s/iter. Inference: 0.1012 s/iter. Eval: 0.0019 s/iter. Total: 0.1065 s/iter. ETA=0:00:57
+[05/12 17:10:01] d2.evaluation.evaluator INFO: Inference done 249/744. Dataloading: 0.0033 s/iter. Inference: 0.1011 s/iter. Eval: 0.0019 s/iter. Total: 0.1063 s/iter. ETA=0:00:52
+[05/12 17:10:06] d2.evaluation.evaluator INFO: Inference done 296/744. Dataloading: 0.0032 s/iter. Inference: 0.1013 s/iter. Eval: 0.0019 s/iter. Total: 0.1064 s/iter. ETA=0:00:47
+[05/12 17:10:11] d2.evaluation.evaluator INFO: Inference done 345/744. Dataloading: 0.0032 s/iter. Inference: 0.1010 s/iter. Eval: 0.0019 s/iter. Total: 0.1061 s/iter. ETA=0:00:42
+[05/12 17:10:16] d2.evaluation.evaluator INFO: Inference done 393/744. Dataloading: 0.0032 s/iter. Inference: 0.1008 s/iter. Eval: 0.0019 s/iter. Total: 0.1059 s/iter. ETA=0:00:37
+[05/12 17:10:21] d2.evaluation.evaluator INFO: Inference done 439/744. Dataloading: 0.0032 s/iter. Inference: 0.1012 s/iter. Eval: 0.0019 s/iter. Total: 0.1063 s/iter. ETA=0:00:32
+[05/12 17:10:27] d2.evaluation.evaluator INFO: Inference done 491/744. Dataloading: 0.0032 s/iter. Inference: 0.1004 s/iter. Eval: 0.0019 s/iter. Total: 0.1055 s/iter. ETA=0:00:26
+[05/12 17:10:32] d2.evaluation.evaluator INFO: Inference done 536/744. Dataloading: 0.0032 s/iter. Inference: 0.1009 s/iter. Eval: 0.0019 s/iter. Total: 0.1060 s/iter. ETA=0:00:22
+[05/12 17:10:37] d2.evaluation.evaluator INFO: Inference done 579/744. Dataloading: 0.0032 s/iter. Inference: 0.1018 s/iter. Eval: 0.0019 s/iter. Total: 0.1069 s/iter. ETA=0:00:17
+[05/12 17:10:42] d2.evaluation.evaluator INFO: Inference done 624/744. Dataloading: 0.0033 s/iter. Inference: 0.1022 s/iter. Eval: 0.0019 s/iter. Total: 0.1074 s/iter. ETA=0:00:12
+[05/12 17:10:47] d2.evaluation.evaluator INFO: Inference done 669/744. Dataloading: 0.0033 s/iter. Inference: 0.1026 s/iter. Eval: 0.0019 s/iter. Total: 0.1078 s/iter. ETA=0:00:08
+[05/12 17:10:52] d2.evaluation.evaluator INFO: Inference done 713/744. Dataloading: 0.0032 s/iter. Inference: 0.1031 s/iter. Eval: 0.0019 s/iter. Total: 0.1082 s/iter. ETA=0:00:03
+[05/12 17:10:55] d2.evaluation.evaluator INFO: Total inference time: 0:01:20.140702 (0.108445 s / iter per device, on 1 devices)
+[05/12 17:10:55] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:16 (0.103124 s / iter per device, on 1 devices)
+[05/12 17:10:56] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 17:10:56] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 17:10:56] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 17:10:58] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 17:10:58] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 17:10:58] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 17:12:03] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 17:12:03] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 17:12:03] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 17:12:04] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 17:12:04] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 17:12:04] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 17:12:07] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0029 s/iter. Inference: 0.1161 s/iter. Eval: 0.0023 s/iter. Total: 0.1214 s/iter. ETA=0:01:28
+[05/12 17:12:12] d2.evaluation.evaluator INFO: Inference done 58/744. Dataloading: 0.0037 s/iter. Inference: 0.1037 s/iter. Eval: 0.0020 s/iter. Total: 0.1095 s/iter. ETA=0:01:15
+[05/12 17:12:17] d2.evaluation.evaluator INFO: Inference done 107/744. Dataloading: 0.0034 s/iter. Inference: 0.1010 s/iter. Eval: 0.0020 s/iter. Total: 0.1065 s/iter. ETA=0:01:07
+[05/12 17:12:22] d2.evaluation.evaluator INFO: Inference done 154/744. Dataloading: 0.0034 s/iter. Inference: 0.1013 s/iter. Eval: 0.0020 s/iter. Total: 0.1067 s/iter. ETA=0:01:02
+[05/12 17:12:27] d2.evaluation.evaluator INFO: Inference done 200/744. Dataloading: 0.0033 s/iter. Inference: 0.1023 s/iter. Eval: 0.0020 s/iter. Total: 0.1077 s/iter. ETA=0:00:58
+[05/12 17:12:33] d2.evaluation.evaluator INFO: Inference done 249/744. Dataloading: 0.0033 s/iter. Inference: 0.1016 s/iter. Eval: 0.0020 s/iter. Total: 0.1069 s/iter. ETA=0:00:52
+[05/12 17:12:38] d2.evaluation.evaluator INFO: Inference done 294/744. Dataloading: 0.0033 s/iter. Inference: 0.1023 s/iter. Eval: 0.0020 s/iter. Total: 0.1077 s/iter. ETA=0:00:48
+[05/12 17:12:43] d2.evaluation.evaluator INFO: Inference done 342/744. Dataloading: 0.0032 s/iter. Inference: 0.1020 s/iter. Eval: 0.0020 s/iter. Total: 0.1073 s/iter. ETA=0:00:43
+[05/12 17:12:48] d2.evaluation.evaluator INFO: Inference done 387/744. Dataloading: 0.0032 s/iter. Inference: 0.1025 s/iter. Eval: 0.0019 s/iter. Total: 0.1077 s/iter. ETA=0:00:38
+[05/12 17:12:53] d2.evaluation.evaluator INFO: Inference done 437/744. Dataloading: 0.0032 s/iter. Inference: 0.1020 s/iter. Eval: 0.0019 s/iter. Total: 0.1072 s/iter. ETA=0:00:32
+[05/12 17:12:58] d2.evaluation.evaluator INFO: Inference done 483/744. Dataloading: 0.0032 s/iter. Inference: 0.1021 s/iter. Eval: 0.0019 s/iter. Total: 0.1073 s/iter. ETA=0:00:28
+[05/12 17:13:03] d2.evaluation.evaluator INFO: Inference done 526/744. Dataloading: 0.0032 s/iter. Inference: 0.1029 s/iter. Eval: 0.0019 s/iter. Total: 0.1081 s/iter. ETA=0:00:23
+[05/12 17:13:08] d2.evaluation.evaluator INFO: Inference done 573/744. Dataloading: 0.0032 s/iter. Inference: 0.1029 s/iter. Eval: 0.0019 s/iter. Total: 0.1081 s/iter. ETA=0:00:18
+[05/12 17:13:13] d2.evaluation.evaluator INFO: Inference done 622/744. Dataloading: 0.0032 s/iter. Inference: 0.1025 s/iter. Eval: 0.0019 s/iter. Total: 0.1077 s/iter. ETA=0:00:13
+[05/12 17:13:18] d2.evaluation.evaluator INFO: Inference done 666/744. Dataloading: 0.0032 s/iter. Inference: 0.1030 s/iter. Eval: 0.0019 s/iter. Total: 0.1083 s/iter. ETA=0:00:08
+[05/12 17:13:23] d2.evaluation.evaluator INFO: Inference done 710/744. Dataloading: 0.0032 s/iter. Inference: 0.1035 s/iter. Eval: 0.0019 s/iter. Total: 0.1088 s/iter. ETA=0:00:03
+[05/12 17:13:27] d2.evaluation.evaluator INFO: Total inference time: 0:01:20.316424 (0.108683 s / iter per device, on 1 devices)
+[05/12 17:13:27] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:16 (0.103353 s / iter per device, on 1 devices)
+[05/12 17:13:27] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 17:13:27] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 17:13:27] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 17:13:29] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 17:13:29] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 17:13:29] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 17:18:50] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 17:18:50] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 17:18:50] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 17:18:50] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 17:18:50] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 17:18:50] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 17:18:53] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0028 s/iter. Inference: 0.1007 s/iter. Eval: 0.0021 s/iter. Total: 0.1056 s/iter. ETA=0:01:17
+[05/12 17:18:58] d2.evaluation.evaluator INFO: Inference done 59/744. Dataloading: 0.0032 s/iter. Inference: 0.0994 s/iter. Eval: 0.0020 s/iter. Total: 0.1047 s/iter. ETA=0:01:11
+[05/12 17:19:03] d2.evaluation.evaluator INFO: Inference done 104/744. Dataloading: 0.0033 s/iter. Inference: 0.1027 s/iter. Eval: 0.0020 s/iter. Total: 0.1081 s/iter. ETA=0:01:09
+[05/12 17:19:09] d2.evaluation.evaluator INFO: Inference done 153/744. Dataloading: 0.0032 s/iter. Inference: 0.1017 s/iter. Eval: 0.0020 s/iter. Total: 0.1069 s/iter. ETA=0:01:03
+[05/12 17:19:14] d2.evaluation.evaluator INFO: Inference done 202/744. Dataloading: 0.0032 s/iter. Inference: 0.1011 s/iter. Eval: 0.0020 s/iter. Total: 0.1064 s/iter. ETA=0:00:57
+[05/12 17:19:19] d2.evaluation.evaluator INFO: Inference done 248/744. Dataloading: 0.0031 s/iter. Inference: 0.1016 s/iter. Eval: 0.0020 s/iter. Total: 0.1068 s/iter. ETA=0:00:52
+[05/12 17:19:24] d2.evaluation.evaluator INFO: Inference done 293/744. Dataloading: 0.0032 s/iter. Inference: 0.1022 s/iter. Eval: 0.0020 s/iter. Total: 0.1075 s/iter. ETA=0:00:48
+[05/12 17:19:29] d2.evaluation.evaluator INFO: Inference done 342/744. Dataloading: 0.0033 s/iter. Inference: 0.1016 s/iter. Eval: 0.0020 s/iter. Total: 0.1070 s/iter. ETA=0:00:43
+[05/12 17:19:34] d2.evaluation.evaluator INFO: Inference done 391/744. Dataloading: 0.0033 s/iter. Inference: 0.1012 s/iter. Eval: 0.0020 s/iter. Total: 0.1065 s/iter. ETA=0:00:37
+[05/12 17:19:39] d2.evaluation.evaluator INFO: Inference done 437/744. Dataloading: 0.0033 s/iter. Inference: 0.1014 s/iter. Eval: 0.0020 s/iter. Total: 0.1068 s/iter. ETA=0:00:32
+[05/12 17:19:44] d2.evaluation.evaluator INFO: Inference done 485/744. Dataloading: 0.0033 s/iter. Inference: 0.1012 s/iter. Eval: 0.0020 s/iter. Total: 0.1065 s/iter. ETA=0:00:27
+[05/12 17:19:49] d2.evaluation.evaluator INFO: Inference done 534/744. Dataloading: 0.0033 s/iter. Inference: 0.1010 s/iter. Eval: 0.0020 s/iter. Total: 0.1063 s/iter. ETA=0:00:22
+[05/12 17:19:54] d2.evaluation.evaluator INFO: Inference done 581/744. Dataloading: 0.0032 s/iter. Inference: 0.1011 s/iter. Eval: 0.0020 s/iter. Total: 0.1063 s/iter. ETA=0:00:17
+[05/12 17:19:59] d2.evaluation.evaluator INFO: Inference done 625/744. Dataloading: 0.0033 s/iter. Inference: 0.1016 s/iter. Eval: 0.0020 s/iter. Total: 0.1069 s/iter. ETA=0:00:12
+[05/12 17:20:04] d2.evaluation.evaluator INFO: Inference done 672/744. Dataloading: 0.0032 s/iter. Inference: 0.1016 s/iter. Eval: 0.0020 s/iter. Total: 0.1069 s/iter. ETA=0:00:07
+[05/12 17:20:09] d2.evaluation.evaluator INFO: Inference done 720/744. Dataloading: 0.0032 s/iter. Inference: 0.1015 s/iter. Eval: 0.0020 s/iter. Total: 0.1067 s/iter. ETA=0:00:02
+[05/12 17:20:12] d2.evaluation.evaluator INFO: Total inference time: 0:01:19.110995 (0.107051 s / iter per device, on 1 devices)
+[05/12 17:20:12] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:15 (0.101703 s / iter per device, on 1 devices)
+[05/12 17:20:12] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 17:20:12] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 17:20:12] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 17:20:14] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 17:20:14] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 17:20:14] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 17:29:34] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 17:29:34] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 17:29:34] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 17:29:34] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 17:29:34] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 17:29:35] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 17:29:37] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0025 s/iter. Inference: 0.1098 s/iter. Eval: 0.0021 s/iter. Total: 0.1144 s/iter. ETA=0:01:23
+[05/12 17:29:42] d2.evaluation.evaluator INFO: Inference done 57/744. Dataloading: 0.0039 s/iter. Inference: 0.1044 s/iter. Eval: 0.0020 s/iter. Total: 0.1103 s/iter. ETA=0:01:15
+[05/12 17:29:48] d2.evaluation.evaluator INFO: Inference done 105/744. Dataloading: 0.0033 s/iter. Inference: 0.1024 s/iter. Eval: 0.0019 s/iter. Total: 0.1077 s/iter. ETA=0:01:08
+[05/12 17:29:53] d2.evaluation.evaluator INFO: Inference done 154/744. Dataloading: 0.0032 s/iter. Inference: 0.1007 s/iter. Eval: 0.0019 s/iter. Total: 0.1059 s/iter. ETA=0:01:02
+[05/12 17:29:58] d2.evaluation.evaluator INFO: Inference done 201/744. Dataloading: 0.0031 s/iter. Inference: 0.1012 s/iter. Eval: 0.0019 s/iter. Total: 0.1063 s/iter. ETA=0:00:57
+[05/12 17:30:03] d2.evaluation.evaluator INFO: Inference done 249/744. Dataloading: 0.0032 s/iter. Inference: 0.1010 s/iter. Eval: 0.0019 s/iter. Total: 0.1062 s/iter. ETA=0:00:52
+[05/12 17:30:08] d2.evaluation.evaluator INFO: Inference done 296/744. Dataloading: 0.0032 s/iter. Inference: 0.1012 s/iter. Eval: 0.0019 s/iter. Total: 0.1064 s/iter. ETA=0:00:47
+[05/12 17:30:13] d2.evaluation.evaluator INFO: Inference done 344/744. Dataloading: 0.0032 s/iter. Inference: 0.1011 s/iter. Eval: 0.0019 s/iter. Total: 0.1063 s/iter. ETA=0:00:42
+[05/12 17:30:18] d2.evaluation.evaluator INFO: Inference done 393/744. Dataloading: 0.0032 s/iter. Inference: 0.1008 s/iter. Eval: 0.0019 s/iter. Total: 0.1060 s/iter. ETA=0:00:37
+[05/12 17:30:23] d2.evaluation.evaluator INFO: Inference done 442/744. Dataloading: 0.0032 s/iter. Inference: 0.1005 s/iter. Eval: 0.0019 s/iter. Total: 0.1057 s/iter. ETA=0:00:31
+[05/12 17:30:28] d2.evaluation.evaluator INFO: Inference done 493/744. Dataloading: 0.0032 s/iter. Inference: 0.0999 s/iter. Eval: 0.0019 s/iter. Total: 0.1050 s/iter. ETA=0:00:26
+[05/12 17:30:33] d2.evaluation.evaluator INFO: Inference done 541/744. Dataloading: 0.0032 s/iter. Inference: 0.1001 s/iter. Eval: 0.0019 s/iter. Total: 0.1052 s/iter. ETA=0:00:21
+[05/12 17:30:38] d2.evaluation.evaluator INFO: Inference done 588/744. Dataloading: 0.0031 s/iter. Inference: 0.1003 s/iter. Eval: 0.0019 s/iter. Total: 0.1054 s/iter. ETA=0:00:16
+[05/12 17:30:43] d2.evaluation.evaluator INFO: Inference done 638/744. Dataloading: 0.0031 s/iter. Inference: 0.1001 s/iter. Eval: 0.0019 s/iter. Total: 0.1051 s/iter. ETA=0:00:11
+[05/12 17:30:48] d2.evaluation.evaluator INFO: Inference done 685/744. Dataloading: 0.0031 s/iter. Inference: 0.1002 s/iter. Eval: 0.0019 s/iter. Total: 0.1053 s/iter. ETA=0:00:06
+[05/12 17:30:53] d2.evaluation.evaluator INFO: Inference done 733/744. Dataloading: 0.0031 s/iter. Inference: 0.1001 s/iter. Eval: 0.0019 s/iter. Total: 0.1052 s/iter. ETA=0:00:01
+[05/12 17:30:55] d2.evaluation.evaluator INFO: Total inference time: 0:01:18.011317 (0.105563 s / iter per device, on 1 devices)
+[05/12 17:30:55] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:14 (0.100343 s / iter per device, on 1 devices)
+[05/12 17:30:55] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 17:30:55] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 17:30:55] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 17:30:57] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 17:30:57] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 17:30:57] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 17:31:34] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 17:31:34] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 17:31:34] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 17:31:34] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 17:31:34] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 17:31:35] d2.evaluation.evaluator INFO: Start inference on 744 batches
+[05/12 17:31:38] d2.evaluation.evaluator INFO: Inference done 11/744. Dataloading: 0.0025 s/iter. Inference: 0.1067 s/iter. Eval: 0.0019 s/iter. Total: 0.1111 s/iter. ETA=0:01:21
+[05/12 17:31:43] d2.evaluation.evaluator INFO: Inference done 60/744. Dataloading: 0.0028 s/iter. Inference: 0.0988 s/iter. Eval: 0.0018 s/iter. Total: 0.1035 s/iter. ETA=0:01:10
+[05/12 17:31:48] d2.evaluation.evaluator INFO: Inference done 110/744. Dataloading: 0.0029 s/iter. Inference: 0.0977 s/iter. Eval: 0.0018 s/iter. Total: 0.1025 s/iter. ETA=0:01:04
+[05/12 17:31:53] d2.evaluation.evaluator INFO: Inference done 160/744. Dataloading: 0.0029 s/iter. Inference: 0.0978 s/iter. Eval: 0.0018 s/iter. Total: 0.1025 s/iter. ETA=0:00:59
+[05/12 17:31:58] d2.evaluation.evaluator INFO: Inference done 203/744. Dataloading: 0.0032 s/iter. Inference: 0.1004 s/iter. Eval: 0.0019 s/iter. Total: 0.1055 s/iter. ETA=0:00:57
+[05/12 17:32:03] d2.evaluation.evaluator INFO: Inference done 250/744. Dataloading: 0.0032 s/iter. Inference: 0.1006 s/iter. Eval: 0.0019 s/iter. Total: 0.1058 s/iter. ETA=0:00:52
+[05/12 17:32:08] d2.evaluation.evaluator INFO: Inference done 301/744. Dataloading: 0.0031 s/iter. Inference: 0.0999 s/iter. Eval: 0.0018 s/iter. Total: 0.1049 s/iter. ETA=0:00:46
+[05/12 17:32:13] d2.evaluation.evaluator INFO: Inference done 351/744. Dataloading: 0.0031 s/iter. Inference: 0.0993 s/iter. Eval: 0.0018 s/iter. Total: 0.1043 s/iter. ETA=0:00:40
+[05/12 17:32:18] d2.evaluation.evaluator INFO: Inference done 397/744. Dataloading: 0.0031 s/iter. Inference: 0.0998 s/iter. Eval: 0.0018 s/iter. Total: 0.1049 s/iter. ETA=0:00:36
+[05/12 17:32:23] d2.evaluation.evaluator INFO: Inference done 441/744. Dataloading: 0.0031 s/iter. Inference: 0.1007 s/iter. Eval: 0.0018 s/iter. Total: 0.1058 s/iter. ETA=0:00:32
+[05/12 17:32:28] d2.evaluation.evaluator INFO: Inference done 489/744. Dataloading: 0.0031 s/iter. Inference: 0.1008 s/iter. Eval: 0.0018 s/iter. Total: 0.1058 s/iter. ETA=0:00:26
+[05/12 17:32:33] d2.evaluation.evaluator INFO: Inference done 537/744. Dataloading: 0.0031 s/iter. Inference: 0.1007 s/iter. Eval: 0.0018 s/iter. Total: 0.1057 s/iter. ETA=0:00:21
+[05/12 17:32:38] d2.evaluation.evaluator INFO: Inference done 584/744. Dataloading: 0.0031 s/iter. Inference: 0.1009 s/iter. Eval: 0.0018 s/iter. Total: 0.1059 s/iter. ETA=0:00:16
+[05/12 17:32:43] d2.evaluation.evaluator INFO: Inference done 629/744. Dataloading: 0.0031 s/iter. Inference: 0.1013 s/iter. Eval: 0.0018 s/iter. Total: 0.1062 s/iter. ETA=0:00:12
+[05/12 17:32:48] d2.evaluation.evaluator INFO: Inference done 675/744. Dataloading: 0.0031 s/iter. Inference: 0.1016 s/iter. Eval: 0.0019 s/iter. Total: 0.1066 s/iter. ETA=0:00:07
+[05/12 17:32:53] d2.evaluation.evaluator INFO: Inference done 719/744. Dataloading: 0.0030 s/iter. Inference: 0.1021 s/iter. Eval: 0.0018 s/iter. Total: 0.1071 s/iter. ETA=0:00:02
+[05/12 17:32:56] d2.evaluation.evaluator INFO: Total inference time: 0:01:19.011116 (0.106916 s / iter per device, on 1 devices)
+[05/12 17:32:56] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:15 (0.101817 s / iter per device, on 1 devices)
+[05/12 17:32:56] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format ...
+[05/12 17:32:56] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[05/12 17:32:56] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[05/12 17:32:58] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 82.658 | 82.658 |  nan   | 37.709 | 86.078 | 90.173 |
+[05/12 17:32:58] d2.evaluation.coco_evaluation INFO: Some metrics cannot be computed and is shown as NaN.
+[05/12 17:32:58] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 90.569 | oscilloscope           | 90.341 | welder station               | 89.645 |
+| electric screwdriver | 78.285 | screwdriver            | 66.745 | pliers                       | 67.892 |
+| welder probe tip     | 68.664 | oscilloscope probe tip | 70.237 | low voltage board            | 88.539 |
+| high voltage board   | 76.327 | register               | 90.844 | electric screwdriver battery | 72.110 |
+| working area         | 78.826 | welder base            | 89.011 | socket                       | 81.644 |
+| left red button      | 90.909 | left green button      | 90.909 | right red button             | 90.909 |
+| right green button   | 90.502 | hand                   | 90.260 |                              |        |
+[05/12 17:36:01] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 17:36:01] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 17:36:01] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 17:36:01] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 17:36:01] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/12 17:50:43] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/12 17:50:43] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/12 17:50:43] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/12 17:50:43] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/12 17:50:43] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/20 12:38:27] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/20 12:38:27] d2.data.datasets.coco INFO: Loaded 744 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[05/20 12:38:27] d2.data.common INFO: Serializing 744 elements to byte tensors and concatenating them all ...
+[05/20 12:38:27] d2.data.common INFO: Serialized dataset takes 1.76 MiB
+[05/20 12:38:27] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/20 14:19:12] d2.data.datasets.coco INFO: Loading ./data/_egoism-hoi-dataset/annotations/r_test_coco.json takes 1.03 seconds.
+[05/20 14:19:12] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/20 14:19:12] d2.data.datasets.coco INFO: Loaded 11221 images in COCO format from ./data/_egoism-hoi-dataset/annotations/r_test_coco.json
+[05/20 14:19:13] d2.data.common INFO: Serializing 11221 elements to byte tensors and concatenating them all ...
+[05/20 14:19:13] d2.data.common INFO: Serialized dataset takes 7.26 MiB
+[05/20 14:19:13] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/20 14:19:15] d2.evaluation.evaluator INFO: Start inference on 11221 batches
+[05/20 14:22:26] d2.data.datasets.coco INFO: Loading ./data/_egoism-hoi-dataset/annotations/r_test_coco.json takes 1.40 seconds.
+[05/20 14:22:26] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/20 14:22:26] d2.data.datasets.coco INFO: Loaded 11221 images in COCO format from ./data/_egoism-hoi-dataset/annotations/r_test_coco.json
+[05/20 14:22:26] d2.data.common INFO: Serializing 11221 elements to byte tensors and concatenating them all ...
+[05/20 14:22:26] d2.data.common INFO: Serialized dataset takes 7.26 MiB
+[05/20 14:22:26] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/20 14:22:28] d2.evaluation.evaluator INFO: Start inference on 11221 batches
+[05/20 14:25:25] d2.data.datasets.coco INFO: Loading ./data/_egoism-hoi-dataset/annotations/r_test_coco.json takes 1.15 seconds.
+[05/20 14:25:25] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/20 14:25:25] d2.data.datasets.coco INFO: Loaded 11221 images in COCO format from ./data/_egoism-hoi-dataset/annotations/r_test_coco.json
+[05/20 14:25:26] d2.data.common INFO: Serializing 11221 elements to byte tensors and concatenating them all ...
+[05/20 14:25:26] d2.data.common INFO: Serialized dataset takes 7.26 MiB
+[05/20 14:25:26] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/20 14:25:28] d2.evaluation.evaluator INFO: Start inference on 11221 batches
+[05/20 14:28:44] d2.data.datasets.coco INFO: Loading ./data/_egoism-hoi-dataset/annotations/r_test_coco.json takes 1.64 seconds.
+[05/20 14:28:44] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/20 14:28:44] d2.data.datasets.coco INFO: Loaded 11221 images in COCO format from ./data/_egoism-hoi-dataset/annotations/r_test_coco.json
+[05/20 14:28:44] d2.data.common INFO: Serializing 11221 elements to byte tensors and concatenating them all ...
+[05/20 14:28:45] d2.data.common INFO: Serialized dataset takes 7.26 MiB
+[05/20 14:28:45] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/20 14:28:47] d2.evaluation.evaluator INFO: Start inference on 11221 batches
+[05/21 16:17:09] d2.data.datasets.coco INFO: Loading ./data/_egoism-hoi-dataset/annotations/r_test_coco.json takes 1.26 seconds.
+[05/21 16:17:09] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[05/21 16:17:10] d2.data.datasets.coco INFO: Loaded 11221 images in COCO format from ./data/_egoism-hoi-dataset/annotations/r_test_coco.json
+[05/21 16:17:10] d2.data.common INFO: Serializing 11221 elements to byte tensors and concatenating them all ...
+[05/21 16:17:10] d2.data.common INFO: Serialized dataset takes 7.27 MiB
+[05/21 16:17:10] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[05/21 16:17:12] d2.evaluation.evaluator INFO: Start inference on 11221 batches
+[05/21 16:17:15] d2.evaluation.evaluator INFO: Inference done 11/11221. Dataloading: 0.0024 s/iter. Inference: 0.1030 s/iter. Eval: 0.0016 s/iter. Total: 0.1071 s/iter. ETA=0:20:00
+[05/21 16:17:20] d2.evaluation.evaluator INFO: Inference done 54/11221. Dataloading: 0.0035 s/iter. Inference: 0.1098 s/iter. Eval: 0.0025 s/iter. Total: 0.1159 s/iter. ETA=0:21:34
+[05/21 16:17:25] d2.evaluation.evaluator INFO: Inference done 100/11221. Dataloading: 0.0034 s/iter. Inference: 0.1072 s/iter. Eval: 0.0024 s/iter. Total: 0.1131 s/iter. ETA=0:20:58
