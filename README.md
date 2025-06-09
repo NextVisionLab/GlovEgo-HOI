@@ -97,5 +97,3 @@ Check more about argparse parameters in `inference.py`.
 
 ## Ackowledgements
 This research is supported by [Next Vision](https://www.nextvisionlab.it/) s.r.l., by MISE - PON I\&C 2014-2020 - Progetto ENIGMA  - Prog n. F/190050/02/X44 – CUP: B61B19000520008, and by the project Future Artificial Intelligence Research (FAIR) – PNRR MUR Cod. PE0000013 - CUP: E63C22001940006.
-
->>>>>>> master
