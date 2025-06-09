@@ -21,7 +21,9 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
 		if not self.is_train:  return self.inference(dataset_dict)
 
 		dataset_dict = copy.deepcopy(dataset_dict)
-		image = cv2.imread(dataset_dict["file_name"])
+		base_path = "./data/egoism-hoi-dataset/images"
+		image_name = os.path.basename(dataset_dict["file_name"])
+		image = cv2.imread(os.path.join(base_path, image_name))
 		
 		new_anns = []
 		annotations_sup = [x for x in self._data_anns_sup['annotations'] if x['image_id'] == dataset_dict['image_id']]
