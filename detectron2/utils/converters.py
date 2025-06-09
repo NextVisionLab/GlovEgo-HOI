@@ -38,7 +38,24 @@ class Converter:
         tmp_dateset = {"annotations": [], "images": copy.deepcopy(coco_all.dataset["images"]), "info": [], "licenses": []}
         tmp_dateset["categories"] = copy.deepcopy(coco_all.dataset["categories"])
         tmp_dateset["categories"].pop(self._id_hand)
-        tmp_dateset["annotations"] = [{"id": x["id"], "image_id": x["image_id"], "category_id": x["category_id_obj"], "area": x["area_obj"], "bbox": x["bbox_obj"], "iscrowd": 0} for x in coco_hands.anns.values() if x["contact_state"] == 1]
+        annotations = []
+        for x in coco_hands.anns.values():
+            if x["contact_state"] == 1:
+                category_id = x.get("category_id_obj", x.get("id_obj", 0))
+                area = x.get("area_obj", x.get("area", 0))
+                
+                bbox_obj = x["bbox_obj"]
+                if bbox_obj != [-1, -1, -1, -1]:
+                    annotations.append({
+                        "id": x["id"], 
+                        "image_id": x["image_id"], 
+                        "category_id": category_id, 
+                        "area": area, 
+                        "bbox": bbox_obj, 
+                        "iscrowd": 0
+                    })
+
+        tmp_dateset["annotations"] = annotations
         coco.dataset = tmp_dateset
         return coco
 

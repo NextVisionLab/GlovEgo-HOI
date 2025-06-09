@@ -1,3 +1,5 @@
+import os
+import cv2
 import torch
 from torch import nn
 import numpy as np
@@ -148,8 +150,102 @@ class DepthModule(MidasNet):
         super().__init__(self.path_weights, self.features, self.non_negative, use_pretrained = self.pretrained)
 
     def preprocess_batch(self, x):
-        batch_images = np.array([e["image_for_depth_module"] for e in x])
-        return torch.from_numpy(batch_images).to(self.device)
+        """
+        Preprocesses the batch of images for the depth module.
+        """
+        batch_images = []
+        
+        for batch_input in x:
+            if "image_for_depth_module" in batch_input:
+                image_data = batch_input["image_for_depth_module"]
+                
+                if isinstance(image_data, np.ndarray):
+                    if image_data.shape[0] == 3:
+                        image_hwc = image_data.transpose(1, 2, 0)  # (H, W, C)
+                    else:
+                        image_hwc = image_data
+                    
+                    image_resized = cv2.resize(image_hwc, (384, 384))
+                    
+                    if image_resized.max() > 1.0:
+                        image_resized = image_resized.astype(np.float32) / 255.0
+                    else:
+                        image_resized = image_resized.astype(np.float32)
+                    
+                    image_chw = image_resized.transpose(2, 0, 1)
+                    image_tensor = torch.from_numpy(image_chw)
+                    batch_images.append(image_tensor)
+                    
+                else:
+                    image_tensor = image_data
+                    
+                    if image_tensor.shape != (3, 384, 384):
+                        if image_tensor.dim() == 3 and image_tensor.shape[0] == 3:
+                            image_hwc = image_tensor.permute(1, 2, 0).numpy()
+                            image_resized = cv2.resize(image_hwc, (384, 384))
+                            
+                            if image_resized.max() > 1.0:
+                                image_resized = image_resized.astype(np.float32) / 255.0
+                            else:
+                                image_resized = image_resized.astype(np.float32)
+                            
+                            image_tensor = torch.from_numpy(image_resized.transpose(2, 0, 1))
+                        else:
+                            image_tensor = torch.zeros(3, 384, 384)
+                    
+                    batch_images.append(image_tensor)
+                    
+            elif "file_name" in batch_input:
+                file_path = batch_input["file_name"]
+                
+                if not file_path.startswith('./data/'):
+                    full_path = f"./data/egoism-hoi-dataset/images/{file_path}"
+                else:
+                    full_path = file_path
+                
+                if not os.path.exists(full_path):
+                    base_name = os.path.basename(full_path)
+                    
+                    if base_name.startswith('camera_'):
+                        id_part = base_name.replace('camera_', '').replace('.png', '')
+                        alt_path = f"./data/egoism-hoi-dataset/images/rgb_{id_part}.png"
+                        if os.path.exists(alt_path):
+                            full_path = alt_path
+                            
+                    elif base_name.startswith('rgb_'):
+                        id_part = base_name.replace('rgb_', '').replace('.png', '')
+                        alt_path = f"./data/egoism-hoi-dataset/images/camera_{id_part}.png"
+                        if os.path.exists(alt_path):
+                            full_path = alt_path
+                    else:
+                        if not base_name.startswith(('rgb_', 'camera_')):
+                            alt_path = f"./data/egoism-hoi-dataset/images/rgb_{base_name}"
+                            if os.path.exists(alt_path):
+                                full_path = alt_path
+                
+                image = cv2.imread(full_path)
+                if image is not None:
+                    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    
+                    image_resized = cv2.resize(image_rgb, (384, 384))
+                    
+                    image_normalized = image_resized.astype(np.float32) / 255.0
+                    
+                    image_tensor = torch.from_numpy(image_normalized.transpose(2, 0, 1))
+                    
+                    batch_images.append(image_tensor)
+                    
+                    batch_input["image_for_depth_module"] = image_tensor.numpy()
+                    
+                else:
+                    batch_images.append(torch.zeros(3, 384, 384))
+                    
+            else:
+                batch_images.append(torch.zeros(3, 384, 384))
+        
+        result_tensor = torch.stack(batch_images).to(self.device)
+        
+        return result_tensor
 
     def forward(self, x):
         images = self.preprocess_batch(x)
@@ -268,32 +364,68 @@ class ContactStateKeypointFusionClassificationModule(nn.Module):
             nn.Dropout(0.1),
             nn.Linear(256, 1)
         )
-        
+
     def forward(self, rgb_features=None, cnn_features=None, keypoint_features=None, gt=None):
-        """
-        Early Fusion of RGB, CNN and Keypoint features
-        Args:
-            rgb_features: Features from RGB [N, 1024]
-            cnn_features: Features from CNN (depth/mask) [N, 1000]
-            keypoint_features: Features from Keypoints [N, 128]
-            gt: Ground truth labels
-        Returns:
-            output: Fused features [N, 1]
-            loss: Binary cross-entropy loss if gt is provided
-        """
-        features_to_fuse = []
+        import torch.nn as nn
+        import torch.nn.functional as F
         
-        if self.use_rgb and rgb_features is not None:
-            features_to_fuse.append(rgb_features)
-        if self.use_cnn and cnn_features is not None:
-            features_to_fuse.append(cnn_features)
-        if self.use_keypoints and keypoint_features is not None:
-            features_to_fuse.append(keypoint_features)
+        reduced_features = []
+        target_dim = 256  # Reduce all features to this size
         
-        if len(features_to_fuse) == 0:
-            raise ValueError("No features to fuse. At least one modality must be provided.")
+        # Process each feature type
+        features = [
+            ("rgb", rgb_features),
+            ("cnn", cnn_features),
+            ("keypoint", keypoint_features)
+        ]
         
-        fused_features = torch.cat(features_to_fuse, dim=1)
+        for name, feat in features:
+            if feat is not None:
+                # Check if this feature type should be used
+                if name == "rgb" and not self.use_rgb:
+                    continue
+                if name == "cnn" and not self.use_cnn:
+                    continue
+                if name == "keypoint" and not self.use_keypoints:
+                    continue
+                    
+                # Flatten if needed
+                if feat.dim() > 2:
+                    feat = torch.flatten(feat, start_dim=1)
+                elif feat.dim() == 1:
+                    feat = feat.unsqueeze(0)
+                
+                # Reduce dimension if too large
+                if feat.shape[1] > target_dim:
+                    # Create reducer if not exists
+                    reducer_attr = f'{name}_reducer'
+                    if not hasattr(self, reducer_attr):
+                        setattr(self, reducer_attr, 
+                            nn.Linear(feat.shape[1], target_dim).to(feat.device))
+                    feat = getattr(self, reducer_attr)(feat)
+                
+                reduced_features.append(feat)
+        
+        # Concatenate
+        if reduced_features:
+            fused_features = torch.cat(reduced_features, dim=1)
+        else:
+            device = next(self.parameters()).device
+            fused_features = torch.zeros(1, target_dim, device=device)
+                
+        # Rebuild network if input size doesn't match
+        expected_input = fused_features.shape[1]
+        if self.fusion_net[0].in_features != expected_input:
+            self.fusion_net = nn.Sequential(
+                nn.Linear(expected_input, 512),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(512, 256),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(256, 1)
+            ).to(fused_features.device)
+        
         output = self.fusion_net(fused_features)
         
         if gt is None: 
@@ -306,8 +438,8 @@ class ContactStateKeypointFusionClassificationModule(nn.Module):
         loss = nn.functional.binary_cross_entropy_with_logits(output, gt_tensor)
         loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
         
-        return output, loss
-    
+        return output, loss        
+
     @property
     def device(self):
         return next(self.parameters()).device

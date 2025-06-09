@@ -129,7 +129,7 @@ class EHOIEvaluator(DatasetEvaluator):
             tmp_results = {}
 
             for idx_class, class_name in enumerate(self._class_names_objs):  
-                cocoGT_filtred.dataset["annotations"] = [ann for _, ann in enumerate(self._coco_gt.dataset["annotations"]) if ann["category_id_obj"] == idx_class]
+                cocoGT_filtred.dataset["annotations"] = [ann for _, ann in enumerate(self._coco_gt.dataset["annotations"]) if ann.get("category_id_obj", ann.get("id_obj", 0)) == idx_class]                
                 cocoGT_filtred.createIndex()
                 new_anns = []
                 for ann_gt in cocoGT_filtred.anns.values():
@@ -167,7 +167,7 @@ class EHOIEvaluator(DatasetEvaluator):
             ##### HAND + TARGET
             tmp_results = {}
             for idx_class, class_name in enumerate(self._class_names_objs):  
-                cocoGT_filtred.dataset["annotations"] = [ann for _, ann in enumerate(self._coco_gt.dataset["annotations"]) if ann["category_id_obj"] == idx_class]
+                cocoGT_filtred.dataset["annotations"] = [ann for _, ann in enumerate(self._coco_gt.dataset["annotations"]) if ann.get("category_id_obj", ann.get("id_obj", 0)) == idx_class]                
                 cocoGT_filtred.createIndex()
                 cocoPreds_filtred.dataset["annotations"] = [ann for _, ann in enumerate(cocoPreds.dataset["annotations"]) if ann["category_id_obj"] == idx_class]
                 cocoPreds_filtred.createIndex()
@@ -179,11 +179,11 @@ class EHOIEvaluator(DatasetEvaluator):
                 cocoEval.summarize()
                 tmp_results[class_name] = round(cocoEval.stats[0] * 100, 2) if round(cocoEval.stats[0] * 100, 2) > 0 else 0
                 if len(cocoGT_filtred.anns) == 0: tmp_results[class_name] = 1 if len(cocoPreds_filtred.anns) == 0 else 0
-            coco_results["mAP Hand + Target Objects"] = round(np.array([tmp_results[class_name] for idx_class, class_name in enumerate(self._class_names_objs)]).mean(), 2)
-            
+                coco_results["mAP Hand + Target Objects"] = round(np.array([tmp_results.get(class_name, 0.0) for idx_class, class_name in enumerate(self._class_names_objs)]).mean(), 2)
+
             ##### HAND + ALL
             for idx_class, class_name in enumerate(self._class_names_objs):  
-                cocoGT_filtred.dataset["annotations"] = [ann for _, ann in enumerate(self._coco_gt.dataset["annotations"]) if ann["category_id_obj"] == idx_class]
+                cocoGT_filtred.dataset["annotations"] = [ann for _, ann in enumerate(self._coco_gt.dataset["annotations"]) if ann.get("category_id_obj", ann.get("id_obj", 0)) == idx_class]                
                 cocoGT_filtred.createIndex()
                 cocoPreds_filtred.dataset["annotations"] = [ann for _, ann in enumerate(cocoPreds.dataset["annotations"]) if ann["category_id_obj"] == idx_class]
                 cocoPreds_filtred.createIndex()

@@ -115,16 +115,35 @@ class EhoiDatasetMapperDepthv1(EhoiDatasetMapperv1):
 				image_interpolation_method=cv2.INTER_NEAREST)])
 
 	def __call__(self, dataset_dict):
-		if not self.is_train: return self.inference(dataset_dict)
+		if not self.is_train: 
+			return self.inference(dataset_dict)
+			
 		element = super().__call__(dataset_dict)
 		img = midas_utils.read_image(dataset_dict["file_name"])
 		element["image_for_depth_module"] = self.transform({"image": img})["image"]
+		
 		if self._gt: 
-			depth_path = dataset_dict["file_name"].replace("images", "depth_maps").replace("camera", "map").replace("jpg", "png")
-			if os.path.exists(depth_path):
-				depth = cv2.imread(depth_path, cv2.IMREAD_GRAYSCALE) if self._gt else []
-				depth = np.ascontiguousarray((self.transform_depth({"image": depth})["image"].astype(np.float32)))
-				element["depth_gt"] = np.subtract(255, depth) 
+			file_name = dataset_dict["file_name"]
+			base_name = os.path.basename(file_name)
+			
+			import re
+			if base_name.startswith('rgb_'):
+				image_id = base_name.replace('rgb_', '').replace('.png', '')
+			elif base_name.startswith('camera_'):
+				image_id = base_name.replace('camera_', '').replace('.png', '')
+			else:
+				numbers = re.findall(r'\d+', base_name)
+				image_id = numbers[0] if numbers else None
+			
+			if image_id:
+				depth_path = f"./data/egoism-hoi-dataset/depth_maps/map_{image_id}.png"
+				
+				if os.path.exists(depth_path):
+					depth = cv2.imread(depth_path, cv2.IMREAD_GRAYSCALE)
+					if depth is not None:
+						depth_resized = cv2.resize(depth, (self.net_w, self.net_h), interpolation=cv2.INTER_NEAREST)
+						depth_final = depth_resized.astype(np.float32)
+						element["depth_gt"] = np.subtract(255, depth_final)
 		return element
 
 	def inference(self, dataset_dict):

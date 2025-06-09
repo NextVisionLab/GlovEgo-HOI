@@ -5,7 +5,7 @@ import numpy as np
 import time
 import kornia.augmentation as K
 import kornia
-import cv2
+import torch.nn.functional as F
 
 from detectron2.structures import Instances
 from detectron2.structures.boxes import Boxes
@@ -65,7 +65,8 @@ class MMEhoiNetv1(EhoiNet):
             if len(hand_instances) == 0:
                 continue
                 
-            for instance in hand_instances:
+            for i in range(len(hand_instances)):
+                instance = hand_instances[i]
                 if self.training and hasattr(instance, 'gt_keypoints') and instance.gt_keypoints is not None:
                     # Training: use ground truth keypoints
                     kpts = instance.gt_keypoints.tensor
@@ -190,6 +191,13 @@ class MMEhoiNetv1(EhoiNet):
                 c_roi = self._roi_align_cnn_contact_state(rgb_images, [box.tensor for box in boxes_padded_depth])
             else:
                 depths = torch.divide(self._depth_maps_predicted.detach().unsqueeze(1), 255)
+                if rgb_images.shape[2:] != depths.shape[2:]:  
+                    target_h, target_w = rgb_images.shape[2], rgb_images.shape[3]
+                    depths = F.interpolate(depths, 
+                                        size=(target_h, target_w), 
+                                        mode='bilinear', 
+                                        align_corners=False)
+
                 rgbd_images = torch.cat((rgb_images, depths), dim=1)
                 c_roi = self._roi_align_cnn_contact_state(rgbd_images, [box.tensor for box in boxes_padded_depth])    
             if "mask" in self._contact_state_modality:
@@ -235,7 +243,14 @@ class MMEhoiNetv1(EhoiNet):
                 c_roi = self._roi_align_cnn_contact_state(rgb_images, [boxes_padded_rescaled.tensor])
             else:
                 depths = torch.divide(self._depth_maps_predicted.unsqueeze(1), 255)
-                rgbd_images = torch.cat((rgb_images, depths), dim=1)
+                if rgb_images.shape[2:] != depths.shape[2:]:
+                    target_h, target_w = rgb_images.shape[2], rgb_images.shape[3]                    
+                    depths = F.interpolate(depths, 
+                                        size=(target_h, target_w), 
+                                        mode='bilinear', 
+                                        align_corners=False)
+
+                rgbd_images = torch.cat((rgb_images, depths), dim=1)    
                 c_roi = self._roi_align_cnn_contact_state(rgbd_images, [boxes_padded_rescaled.tensor])
             if "mask" in self._contact_state_modality:
                 masks = extract_masks_and_resize([instances_hands], batched_inputs[0]["image_for_depth_module"].shape[1:], self._id_hand)
@@ -280,7 +295,7 @@ class MMEhoiNetv1(EhoiNet):
         self._prepare_gt_labels(proposals_match)
 
         # Depth module + loss
-        if self._use_depth_module: 
+        if self._use_depth_module:
             self._last_extracted_features["depth"], self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
             if "depth_gt" in batched_inputs[0]:
                 gt_depth_maps = torch.tensor(np.array([e["depth_gt"] for e in batched_inputs])).to(self.device)
