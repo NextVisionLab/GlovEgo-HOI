@@ -23,6 +23,7 @@ from detectron2.engine import default_writers
 from detectron2.solver import build_lr_scheduler
 from detectron2.utils.events import EventStorage
 import detectron2.utils.comm as comm
+from detectron2.config import get_cfg, CfgNode as CN
 
 ##### ArgumentParser
 parser = argparse.ArgumentParser(description='Train script')
@@ -37,8 +38,46 @@ parser.add_argument('--no_predict_mask', dest='predict_mask', action='store_fals
 parser.add_argument('--mask_gt', action='store_true', default=False)
 parser.add_argument('--no_depth_module', dest='depth_module', action='store_false', default=True)
 
+# UPDATED: Extended choices to include all keypoint combinations
 parser.add_argument('--contact_state_modality', default="mask+rgb+depth+fusion", help="contact state modality", type=str, 
-                    choices=["rgb", "cnn_rgb", "depth", "mask", "rgb+depth", "mask+rgb", "mask+depth", "mask+rgb+depth", "mask+rgb+depth+fusion", "mask+rgb+fusion", "rgb+depth+fusion", "rgb+fusion", "keypoints+fusion"])
+                    choices=[
+                        "rgb", 
+                        "cnn_rgb", 
+                        "depth", 
+                        "mask", 
+                        "rgb+depth", 
+                        "mask+rgb", 
+                        "mask+depth", 
+                        "mask+rgb+depth", 
+                        "mask+rgb+depth+fusion", 
+                        "mask+rgb+fusion", 
+                        "rgb+depth+fusion", 
+                        "rgb+fusion",
+                        # Keypoint-only modalities
+                        "keypoints",
+                        "keypoints+fusion",
+                        # Keypoint + RGB combinations
+                        "rgb+keypoints",
+                        "rgb+keypoints+fusion",
+                        # Keypoint + Depth combinations
+                        "depth+keypoints",
+                        "depth+keypoints+fusion",
+                        # Keypoint + Mask combinations
+                        "mask+keypoints",
+                        "mask+keypoints+fusion",
+                        # Keypoint + RGB + Depth combinations
+                        "rgb+depth+keypoints",
+                        "rgb+depth+keypoints+fusion",
+                        # Keypoint + Mask + RGB combinations
+                        "mask+rgb+keypoints",
+                        "mask+rgb+keypoints+fusion",
+                        # Keypoint + Mask + Depth combinations
+                        "mask+depth+keypoints",
+                        "mask+depth+keypoints+fusion",
+                        # Full multimodal combinations
+                        "mask+rgb+depth+keypoints",
+                        "mask+rgb+depth+keypoints+fusion"
+                    ])
 parser.add_argument('--contact_state_cnn_input_size', default="128", help="input size for the CNN contact state classification module", type=int)
 
 # Keypoint related arguments
@@ -68,17 +107,28 @@ def parse_args():
     if len(args.test_json) != len(args.test_dataset_names): 
         assert False, "len of test_json and test_dataset_names must be the same"
     
-    if args.keypoint_early_fusion and not args.use_keypoints:
-        print("Warning: keypoint_early_fusion enabled but use_keypoints is False. Enabling use_keypoints automatically.")
-        args.use_keypoints = True
-    
+    # Auto-enable keypoints if specified in modality
     if "keypoints" in args.contact_state_modality:
         if not args.use_keypoints:
-            print("Warning: keypoints in contact_state_modality but use_keypoints is False. Enabling use_keypoints automatically.")
+            print("INFO: keypoints detected in contact_state_modality. Automatically enabling --use_keypoints")
             args.use_keypoints = True
         if not args.keypoint_early_fusion:
-            print("Warning: keypoints in contact_state_modality but keypoint_early_fusion is False. Enabling keypoint_early_fusion automatically.")
+            print("INFO: keypoints detected in contact_state_modality. Automatically enabling --keypoint_early_fusion")
             args.keypoint_early_fusion = True
+    
+    # Validation: keypoint_early_fusion requires use_keypoints
+    if args.keypoint_early_fusion and not args.use_keypoints:
+        print("WARNING: --keypoint_early_fusion enabled but --use_keypoints is False. Automatically enabling --use_keypoints")
+        args.use_keypoints = True
+    
+    if args.use_keypoints:
+        print("=== KEYPOINT CONFIGURATION ===")
+        print(f"Use Keypoints: {args.use_keypoints}")
+        print(f"Early Fusion: {args.keypoint_early_fusion}")
+        print(f"Contact State Modality: {args.contact_state_modality}")
+        print(f"Number of Keypoints: {args.num_keypoints}")
+        print(f"Keypoint Loss Weight: {args.keypoint_loss_weight}")
+        print("==============================")
     
     return args
 
