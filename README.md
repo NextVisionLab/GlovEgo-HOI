@@ -1,7 +1,4 @@
-<<<<<<< HEAD
 # HOIE-Algorithm
-=======
-# Exploiting Multimodal Synthetic Data for Egocentric Human-Object Interaction Detection in an Industrial Scenario
 
 ![](assets/images/pipeline-loop.gif)
 
