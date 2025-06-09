@@ -118,7 +118,7 @@ class EhoiDatasetMapperDepthv1(EhoiDatasetMapperv1):
 		img = midas_utils.read_image(dataset_dict["file_name"])
 		element["image_for_depth_module"] = self.transform({"image": img})["image"]
 		if self._gt: 
-			depth_path = dataset_dict["file_name"].replace("images", "depth_maps").replace("rgb", "map").replace("jpg", "png")
+			depth_path = dataset_dict["file_name"].replace("images", "depth_maps").replace("camera", "map").replace("jpg", "png")
 			if os.path.exists(depth_path):
 				depth = cv2.imread(depth_path, cv2.IMREAD_GRAYSCALE) if self._gt else []
 				depth = np.ascontiguousarray((self.transform_depth({"image": depth})["image"].astype(np.float32)))
