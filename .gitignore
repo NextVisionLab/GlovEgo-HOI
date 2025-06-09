@@ -43,6 +43,7 @@ _darcs
 /datasets/*
 /models
 /snippet
+/data/egoism-hoi-dataset/*
 
 ###img and video
 *.jpg
