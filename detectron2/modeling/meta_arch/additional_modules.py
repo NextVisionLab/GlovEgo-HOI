@@ -186,3 +186,222 @@ class DepthModule(MidasNet):
     @property
     def device(self):
         return next(self.parameters()).device
+    
+
+class KeypointFeatureExtractor(nn.Module):
+    """Extractor di features dai keypoints per il modulo Contact State"""
+    def __init__(self, cfg):
+        super(KeypointFeatureExtractor, self).__init__()
+        self.num_keypoints = cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS if hasattr(cfg.MODEL, 'ROI_KEYPOINT_HEAD') else 21
+        self.keypoint_dim = 3  # x, y, visibility
+        self.normalize_coords = cfg.ADDITIONAL_MODULES.NORMALIZE_KEYPOINT_COORDS if hasattr(cfg.ADDITIONAL_MODULES, 'NORMALIZE_KEYPOINT_COORDS') else True
+        
+        # Feature extractor per keypoints
+        self.keypoint_encoder = nn.Sequential(
+            nn.Linear(self.num_keypoints * self.keypoint_dim, 512),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(256, 128)
+        )
+        
+    def forward(self, keypoints, image_size=None):
+        """
+        Args:
+            keypoints: Tensor [N, num_keypoints, 3] or [N, num_keypoints*3]
+            image_size: Tuple (height, width) 
+        Returns:
+            features: Tensor [N, 128]
+        """
+        if len(keypoints) == 0:
+            return torch.empty(0, 128).to(self.device)
+            
+        if len(keypoints.shape) == 3:
+            # Flatten keypoints [N, num_keypoints, 3] to [N, num_keypoints*3]
+            keypoints = keypoints.view(keypoints.size(0), -1)
+        
+        if self.normalize_coords and image_size is not None:
+            kpts_reshaped = keypoints.view(-1, self.num_keypoints, 3)
+            kpts_reshaped[:, :, 0] /= image_size[1]  # normalize x
+            kpts_reshaped[:, :, 1] /= image_size[0]  # normalize y
+            keypoints = kpts_reshaped.view(keypoints.size(0), -1)
+        
+        return self.keypoint_encoder(keypoints)
+    
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
+class ContactStateKeypointFusionClassificationModule(nn.Module):
+    """Early Fusion Module per Contact State con Keypoints, RGB e CNN"""
+    def __init__(self, cfg):
+        super(ContactStateKeypointFusionClassificationModule, self).__init__()
+        
+        self.rgb_dim = 1024  # from ROI Head
+        self.cnn_dim = 1000  # from CNN (depth/mask)
+        self.keypoint_dim = 128  # from Keypoint Feature Extractor
+        
+        self.use_rgb = "rgb" in cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY
+        self.use_cnn = any(x in cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY for x in ["depth", "mask", "cnn"])
+        self.use_keypoints = "keypoints" in cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY
+        
+        total_dim = 0
+        if self.use_rgb:
+            total_dim += self.rgb_dim
+        if self.use_cnn:
+            total_dim += self.cnn_dim
+        if self.use_keypoints:
+            total_dim += self.keypoint_dim
+            
+        if total_dim == 0:
+            raise ValueError("Almeno una modalità deve essere attiva per la fusion")
+        
+        # Fusion Network
+        self.fusion_net = nn.Sequential(
+            nn.Linear(total_dim, 512),
+            nn.ReLU(),
+            nn.Dropout(cfg.ADDITIONAL_MODULES.CONTACT_STATE_CLASSIFICATION_MODULE_DROPOUT),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(256, 1)
+        )
+        
+    def forward(self, rgb_features=None, cnn_features=None, keypoint_features=None, gt=None):
+        """
+        Early Fusion of RGB, CNN and Keypoint features
+        Args:
+            rgb_features: Features from RGB [N, 1024]
+            cnn_features: Features from CNN (depth/mask) [N, 1000]
+            keypoint_features: Features from Keypoints [N, 128]
+            gt: Ground truth labels
+        Returns:
+            output: Fused features [N, 1]
+            loss: Binary cross-entropy loss if gt is provided
+        """
+        features_to_fuse = []
+        
+        if self.use_rgb and rgb_features is not None:
+            features_to_fuse.append(rgb_features)
+        if self.use_cnn and cnn_features is not None:
+            features_to_fuse.append(cnn_features)
+        if self.use_keypoints and keypoint_features is not None:
+            features_to_fuse.append(keypoint_features)
+        
+        if len(features_to_fuse) == 0:
+            raise ValueError("No features to fuse. At least one modality must be provided.")
+        
+        fused_features = torch.cat(features_to_fuse, dim=1)
+        output = self.fusion_net(fused_features)
+        
+        if gt is None: 
+            return output
+            
+        if len(gt) == 0: 
+            return None, torch.tensor([0], dtype=torch.float32).to(self.device)
+            
+        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
+        loss = nn.functional.binary_cross_entropy_with_logits(output, gt_tensor)
+        loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
+        
+        return output, loss
+    
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
+class ContactStateKeypointOnlyClassificationModule(nn.Module):
+    """Classification Module per Contact State con solo Keypoints"""
+    def __init__(self, cfg):
+        super(ContactStateKeypointOnlyClassificationModule, self).__init__()
+        
+        self.layers = nn.Sequential(
+            nn.Linear(128, 256),  
+            nn.ReLU(),
+            nn.Dropout(cfg.ADDITIONAL_MODULES.CONTACT_STATE_CLASSIFICATION_MODULE_DROPOUT),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(128, 1)
+        )
+        
+    def forward(self, keypoint_features, gt=None):
+        """
+        Args:
+            keypoint_features: Features from keypoints [N, 128]
+            gt: Ground truth labels
+        """
+        output = self.layers(keypoint_features)
+        
+        if gt is None: 
+            return output
+            
+        if len(gt) == 0: 
+            return None, torch.tensor([0], dtype=torch.float32).to(self.device)
+            
+        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
+        loss = nn.functional.binary_cross_entropy_with_logits(output, gt_tensor)
+        loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
+        
+        return output, loss
+    
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
+def build_contact_state_module(cfg):
+    """Factory function per creare il modulo contact state appropriato"""
+    modality = cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY
+    
+    if "keypoints" in modality and "fusion" in modality:
+        # Early Fusion with keypoints
+        return ContactStateKeypointFusionClassificationModule(cfg)
+    elif modality == "keypoints":
+        # Solo keypoints
+        return ContactStateKeypointOnlyClassificationModule(cfg)
+    elif modality == "rgb":
+        # Solo RGB 
+        return ContactStateRGBClassificationModule(cfg)
+    elif "fusion" in modality:
+        # Fusion senza keypoints 
+        return ContactStateFusionClassificationModule(cfg)
+    else:
+        # CNN only 
+        return ContactStateCNNClassificationModule(cfg)
+
+def extract_keypoints_from_annotation(annotation, image_size=None):
+    """
+    Extract keypoints from COCO-style annotation
+    Args:
+        annotation: Dict with 'keypoints' field
+        image_size: Tuple (height, width) for normalization
+    """
+    if 'keypoints' not in annotation or len(annotation['keypoints']) == 0:
+        return torch.zeros(21, 3)
+    
+    kpts = np.array(annotation['keypoints']).reshape(-1, 3)
+    kpts_tensor = torch.tensor(kpts, dtype=torch.float32)
+    
+    if image_size is not None:
+        kpts_tensor[:, 0] /= image_size[1]  # x
+        kpts_tensor[:, 1] /= image_size[0]  # y
+    
+    return kpts_tensor
+
+def validate_keypoints(keypoints, threshold=0.3):
+    """
+    Validate keypoints based on visibility threshold
+    Args:
+        keypoints: Tensor of shape [N, num_keypoints, 3] or [N, num_keypoints*3]
+        threshold: Visibility threshold for keypoints
+    """
+    if len(keypoints) == 0:
+        return torch.tensor([], dtype=torch.bool)
+    
+    visible_count = (keypoints[:, :, 2] > threshold).sum(dim=1)
+    
+    valid_mask = visible_count >= 10
+    
+    return valid_mask

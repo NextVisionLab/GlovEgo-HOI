@@ -79,6 +79,11 @@ To train the system enter the following command:
 ```
 python train.py --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json --test_dataset_names val --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth --mask_gt
 ```
+
+```bash
+python train.py --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json --test_dataset_names val --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth --mask_gt --use_keypoints --contact_state_modality "mask+rgb+depth+keypoints+fusion" --keypoint_loss_weight 1.0
+````
+
 Check more about argparse parameters in `train.py`.
 
 ### Test
@@ -86,6 +91,11 @@ To test the models run the command below:
 ```
 python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/r_test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/383__33_lf/model_final.pth 
 ```
+
+```bash
+python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/r_test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/with_keypoints/model_final.pth --use_keypoints --contact_state_modality "mask+rgb+depth+keypoints+fusion"
+```
+
 Check more about argparse parameters in `test.py`.
 
 ### Inference
@@ -93,6 +103,11 @@ Run the command below for an example of inference. A new folder **output_detecti
 ```
 python inference.py --weights_path <weights_path> --images_path <images_path>
 ```
+
+```bash
+python inference.py --weights_path ./weights/full_model/model_final.pth --images_path ./data/test_images/ --use_keypoints --contact_state_modality "mask+rgb+depth+keypoints+fusion" --save_features --output_dir ./output_detection_keypoints/
+```
+
 Check more about argparse parameters in `inference.py`.
 
 ## Ackowledgements
