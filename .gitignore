@@ -50,4 +50,4 @@ _darcs
 *.png
 *.jpeg
 *.png
-*.diff
+*.diffdata/egoism-hoi-dataset/annotations/*.json
