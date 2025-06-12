@@ -227,28 +227,38 @@ class MMEhoiNetv1(EhoiNet):
         keypoint_losses = {}
         if self._use_keypoints:
             hand_proposals = []
-            for proposal_per_image in proposals_match:
+            hand_batch_indices = []  # Track which batches have hands
+            
+            for batch_idx, proposal_per_image in enumerate(proposals_match):
                 hand_mask = proposal_per_image.gt_classes == self._id_hand
                 if hand_mask.any():
                     hand_instances = proposal_per_image[hand_mask]
                     if not hasattr(hand_instances, 'proposal_boxes'):
                         hand_instances.proposal_boxes = hand_instances.gt_boxes
                     hand_proposals.append(hand_instances)
+                    hand_batch_indices.append(batch_idx)
                 
-            total_hands = sum(len(p) for p in hand_proposals if len(p) > 0)
+            total_hands = sum(len(p) for p in hand_proposals)
             
-            if total_hands > 0 and hasattr(self.roi_heads, 'keypoint_head'):
+            if total_hands > 0 and hasattr(self.roi_heads, 'keypoint_head') and len(hand_proposals) > 0:
+                # Extract features only for batches with hands
+                hand_features = [features[f] for f in self.roi_heads.keypoint_in_features]
+                hand_features_filtered = []
+                
+                for f in hand_features:
+                    # Select only the batch indices that have hands
+                    filtered_f = f[hand_batch_indices]
+                    hand_features_filtered.append(filtered_f)
+                
                 keypoint_features = self.roi_heads.keypoint_pooler(
-                    [features[f] for f in self.roi_heads.keypoint_in_features], 
-                    [p.proposal_boxes for p in hand_proposals if len(p) > 0]
+                    hand_features_filtered, 
+                    [p.proposal_boxes for p in hand_proposals]
                 )
                 
-                valid_hand_proposals = [p for p in hand_proposals if len(p) > 0]
-                
-                if len(valid_hand_proposals) > 0:
+                if len(hand_proposals) > 0:
                     keypoint_logits = self.roi_heads.keypoint_head.layers(keypoint_features)
                     from detectron2.modeling.roi_heads.keypoint_head import keypoint_rcnn_loss
-                    keypoint_loss = keypoint_rcnn_loss(keypoint_logits, valid_hand_proposals, normalizer=None)
+                    keypoint_loss = keypoint_rcnn_loss(keypoint_logits, hand_proposals, normalizer=None)
                     keypoint_losses["loss_keypoint"] = keypoint_loss * self.roi_heads.keypoint_head.loss_weight
                 else:
                     keypoint_losses["loss_keypoint"] = torch.tensor(0.0, device=self.device, requires_grad=True)
