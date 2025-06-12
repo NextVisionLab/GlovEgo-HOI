@@ -25,7 +25,6 @@ from detectron2.utils.events import EventStorage
 import detectron2.utils.comm as comm
 from detectron2.config import get_cfg, CfgNode as CN
 
-##### ArgumentParser
 parser = argparse.ArgumentParser(description='Train script')
 parser.add_argument('--train_json', dest='train_json', help='train json path', type=str, required = True)
 parser.add_argument('--weights_path', dest='weights', help='weights path', type=str, default="detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl")
@@ -38,8 +37,7 @@ parser.add_argument('--no_predict_mask', dest='predict_mask', action='store_fals
 parser.add_argument('--mask_gt', action='store_true', default=False)
 parser.add_argument('--no_depth_module', dest='depth_module', action='store_false', default=True)
 
-# UPDATED: Extended choices to include all keypoint combinations
-parser.add_argument('--contact_state_modality', default="mask+rgb+depth+fusion", help="contact state modality", type=str, 
+parser.add_argument('--contact_state_modality', default="mask+rgb+depth+keypoints+fusion", help="contact state modality", type=str, 
                     choices=[
                         "rgb", 
                         "cnn_rgb", 
@@ -53,39 +51,11 @@ parser.add_argument('--contact_state_modality', default="mask+rgb+depth+fusion",
                         "mask+rgb+fusion", 
                         "rgb+depth+fusion", 
                         "rgb+fusion",
-                        # Keypoint-only modalities
                         "keypoints",
-                        "keypoints+fusion",
-                        # Keypoint + RGB combinations
-                        "rgb+keypoints",
-                        "rgb+keypoints+fusion",
-                        # Keypoint + Depth combinations
-                        "depth+keypoints",
-                        "depth+keypoints+fusion",
-                        # Keypoint + Mask combinations
-                        "mask+keypoints",
-                        "mask+keypoints+fusion",
-                        # Keypoint + RGB + Depth combinations
-                        "rgb+depth+keypoints",
-                        "rgb+depth+keypoints+fusion",
-                        # Keypoint + Mask + RGB combinations
-                        "mask+rgb+keypoints",
-                        "mask+rgb+keypoints+fusion",
-                        # Keypoint + Mask + Depth combinations
-                        "mask+depth+keypoints",
-                        "mask+depth+keypoints+fusion",
-                        # Full multimodal combinations
-                        "mask+rgb+depth+keypoints",
-                        "mask+rgb+depth+keypoints+fusion"
+                        "keypoints+fusion", 
+                        "mask+rgb+depth+keypoints+fusion"  # DEFAULT with keypoints
                     ])
 parser.add_argument('--contact_state_cnn_input_size', default="128", help="input size for the CNN contact state classification module", type=int)
-
-# Keypoint related arguments
-parser.add_argument('--use_keypoints', action='store_true', default=False, help='Enable keypoint detection and Early Fusion')
-parser.add_argument('--keypoint_early_fusion', action='store_true', default=False, help='Use Early Fusion with keypoints for contact state')
-parser.add_argument('--num_keypoints', default=21, help='Number of keypoints (default: 21 for hands)', type=int)
-parser.add_argument('--keypoint_loss_weight', default=1.0, help='Weight for keypoint loss', type=float)
-parser.add_argument('--normalize_keypoint_coords', action='store_true', default=True, help='Normalize keypoint coordinates')
 
 parser.add_argument('--cuda_device', default=0, help='CUDA device id', type=int)
 parser.add_argument('--base_lr', default=0.001, help='base learning rate.', type=float)
@@ -107,44 +77,22 @@ def parse_args():
     if len(args.test_json) != len(args.test_dataset_names): 
         assert False, "len of test_json and test_dataset_names must be the same"
     
-    # Auto-enable keypoints if specified in modality
-    if "keypoints" in args.contact_state_modality:
-        if not args.use_keypoints:
-            print("INFO: keypoints detected in contact_state_modality. Automatically enabling --use_keypoints")
-            args.use_keypoints = True
-        if not args.keypoint_early_fusion:
-            print("INFO: keypoints detected in contact_state_modality. Automatically enabling --keypoint_early_fusion")
-            args.keypoint_early_fusion = True
-    
-    # Validation: keypoint_early_fusion requires use_keypoints
-    if args.keypoint_early_fusion and not args.use_keypoints:
-        print("WARNING: --keypoint_early_fusion enabled but --use_keypoints is False. Automatically enabling --use_keypoints")
-        args.use_keypoints = True
+    args.use_keypoints = "keypoints" in args.contact_state_modality
+    args.keypoint_early_fusion = "keypoints" in args.contact_state_modality and "fusion" in args.contact_state_modality
+    args.num_keypoints = 21  # Fixed for hand keypoints
+    args.keypoint_loss_weight = 1.0  # Standard weight
     
     if args.use_keypoints:
         print("=== KEYPOINT CONFIGURATION ===")
-        print(f"Use Keypoints: {args.use_keypoints}")
-        print(f"Early Fusion: {args.keypoint_early_fusion}")
         print(f"Contact State Modality: {args.contact_state_modality}")
-        print(f"Number of Keypoints: {args.num_keypoints}")
-        print(f"Keypoint Loss Weight: {args.keypoint_loss_weight}")
+        print(f"Keypoints: ENABLED (21 hand keypoints)")
+        print(f"Early Fusion: {'ENABLED' if args.keypoint_early_fusion else 'DISABLED'}")
         print("==============================")
     
     return args
 
-def get_evaluators(cfg, dataset_name, output_folder, converter):
-    cocoEvaluator = COCOEvaluator(dataset_name, output_dir=output_folder, tasks = ("bbox",)) 
-    return [cocoEvaluator, EHOIEvaluator(cfg, dataset_name, converter)]
 
-def do_test(cfg, model, * ,converter, mapper, data):
-    results = OrderedDict()
-    for dataset_name in cfg.DATASETS.TEST:
-        data_loader = build_detection_test_loader(cfg, dataset_name, mapper = mapper(cfg, data, is_train = False))
-        evaluators = get_evaluators(cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name), converter)
-        results_i = inference_on_dataset(model, data_loader, evaluators)
-        results[dataset_name] = results_i
-    if len(results) == 1: results = list(results.values())[0]
-    return results
+### Configurations
 
 def load_cfg(args, num_classes):
     cfg = get_cfg()
@@ -156,34 +104,35 @@ def load_cfg(args, num_classes):
     cfg.DATASETS.TEST = tuple(args.test_dataset_names)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
 
-    # CONFIGURAZIONI ESISTENTI
+    # Existing configurations
     cfg.ADDITIONAL_MODULES.USE_MASK_GT = args.mask_gt
     cfg.ADDITIONAL_MODULES.USE_MASK = True if "mask" in args.contact_state_modality else args.predict_mask
     cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE = True if "depth" in args.contact_state_modality else args.depth_module
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY = args.contact_state_modality
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_CNN_INPUT_SIZE = args.contact_state_cnn_input_size
     
-    # NUOVE CONFIGURAZIONI PER KEYPOINTS
-    cfg.ADDITIONAL_MODULES.USE_KEYPOINTS = args.use_keypoints or "keypoints" in args.contact_state_modality
-    cfg.ADDITIONAL_MODULES.USE_KEYPOINT_EARLY_FUSION = args.keypoint_early_fusion or "keypoints" in args.contact_state_modality
-    cfg.ADDITIONAL_MODULES.NORMALIZE_KEYPOINT_COORDS = args.normalize_keypoint_coords
+    # AUTO-CONFIGURE keypoints based on modality
+    cfg.ADDITIONAL_MODULES.USE_KEYPOINTS = args.use_keypoints
+    cfg.ADDITIONAL_MODULES.USE_KEYPOINT_EARLY_FUSION = args.keypoint_early_fusion
+    cfg.ADDITIONAL_MODULES.NORMALIZE_KEYPOINT_COORDS = True
     
-    # ROI KEYPOINT HEAD CONFIGURATION
+    # ROI KEYPOINT HEAD (auto-enabled if keypoints in modality)
     if cfg.ADDITIONAL_MODULES.USE_KEYPOINTS:
-        # Abilita keypoint head se non già presente
         cfg.MODEL.ROI_KEYPOINT_HEAD = CN()
         cfg.MODEL.ROI_KEYPOINT_HEAD.NAME = "KRCNNConvDeconvUpsampleHead"
         cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS = args.num_keypoints
         cfg.MODEL.ROI_KEYPOINT_HEAD.LOSS_WEIGHT = args.keypoint_loss_weight
         cfg.MODEL.ROI_KEYPOINT_HEAD.CONV_DIMS = (512, 512, 512, 512)
         cfg.MODEL.ROI_KEYPOINT_HEAD.NORMALIZE_LOSS_BY_VISIBLE_KEYPOINTS = True
+        cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION = 14
+        cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_SAMPLING_RATIO = 0
+        cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE = "ROIAlignV2"
         
-        # Aggiungi keypoints ai ROI HEADS
+        # Enable keypoint-capable ROI heads
+        cfg.MODEL.ROI_HEADS.NAME = "StandardROIHeads"
         cfg.MODEL.ROI_HEADS.IN_FEATURES = ["p2", "p3", "p4", "p5"]
-        if "keypoint" not in cfg.MODEL.ROI_HEADS.NAME:
-            cfg.MODEL.ROI_HEADS.NAME = "StandardROIHeads"  # Supporta keypoints
     
-    # SOLVER CONFIGURATIONS
+    # Solver configurations
     cfg.SOLVER.BASE_LR = args.base_lr
     cfg.SOLVER.IMS_PER_BATCH = args.ims_per_batch
     cfg.SOLVER.STEPS = tuple(args.solver_steps)
@@ -195,10 +144,9 @@ def load_cfg(args, num_classes):
     cfg.MODEL.WEIGHTS = args.weights
     cfg.OUTPUT_DIR = "./output_dir/last_training/"
     
-    # LOGGING E DEBUG
     if args.debug:
-        cfg.SOLVER.IMS_PER_BATCH = 1  # Batch size ridotto per debug
-        cfg.TEST.EVAL_PERIOD = 100    # Eval più frequente per debug
+        cfg.SOLVER.IMS_PER_BATCH = 1
+        cfg.TEST.EVAL_PERIOD = 100
         cfg.OUTPUT_DIR = "./output_dir/debug_training/"
     
     cfg.freeze()
@@ -207,7 +155,7 @@ def load_cfg(args, num_classes):
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
         f.write(cfg.dump())
     
-    # LOG DELLA CONFIGURAZIONE KEYPOINTS
+    # Log keypoint configuration
     logger = logging.getLogger("detectron2")
     if cfg.ADDITIONAL_MODULES.USE_KEYPOINTS:
         logger.info("=== KEYPOINT CONFIGURATION ===")

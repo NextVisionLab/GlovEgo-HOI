@@ -276,7 +276,7 @@ class MMEhoiNetv1(EhoiNet):
             self._c_hands_keypoint_features = None
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
-        """Forward pass with keypoint support"""
+        """Forward pass with keypoint support and proper loss calculation"""
         if not self.training: 
             return self.inference(batched_inputs)
 
@@ -294,6 +294,65 @@ class MMEhoiNetv1(EhoiNet):
         # Prepare ground truth labels
         self._prepare_gt_labels(proposals_match)
 
+        keypoint_losses = {}
+        if self._use_keypoints:
+            try:
+                # Extract hand proposals for keypoint training
+                hand_proposals = []
+                for proposal_per_image in proposals_match:
+                    hand_mask = proposal_per_image.gt_classes == self._id_hand
+                    if hand_mask.any():
+                        hand_instances = proposal_per_image[hand_mask]
+                        hand_proposals.append(hand_instances)
+                    else:
+                        # Create empty instance for batch consistency
+                        empty_instance = Instances(proposal_per_image.image_size)
+                        empty_instance.proposal_boxes = Boxes(torch.empty(0, 4, device=self.device))
+                        empty_instance.gt_classes = torch.empty(0, dtype=torch.long, device=self.device)
+                        hand_proposals.append(empty_instance)
+                
+                total_hands = sum(len(p) for p in hand_proposals)
+                logger.debug(f"Total hands for keypoint training: {total_hands}")
+                
+                if total_hands > 0:
+                    # Extract keypoint features using the keypoint pooler
+                    keypoint_features = self._keypoint_pooler(
+                        [features[f] for f in self._keypoint_in_features], 
+                        [p.proposal_boxes for p in hand_proposals]
+                    )
+                    
+                    # Predict keypoints using keypoint head
+                    pred_keypoint_logits = self._keypoint_head.layers(keypoint_features)
+                    
+                    # Calculate keypoint loss using detectron2's standard function
+                    from detectron2.modeling.roi_heads.keypoint_head import keypoint_rcnn_loss
+                    keypoint_loss = keypoint_rcnn_loss(pred_keypoint_logits, hand_proposals, normalizer=None)
+                    keypoint_losses["loss_keypoint"] = keypoint_loss * self._keypoint_head.loss_weight
+                    
+                    # Inference keypoints for feature extraction (training mode)
+                    from detectron2.modeling.roi_heads.keypoint_head import keypoint_rcnn_inference
+                    keypoint_rcnn_inference(pred_keypoint_logits, hand_proposals)
+                    
+                    # Update proposals_match with predicted keypoints
+                    hand_idx = 0
+                    for i, proposal_per_image in enumerate(proposals_match):
+                        hand_mask = proposal_per_image.gt_classes == self._id_hand
+                        if hand_mask.any():
+                            # Copy predicted keypoints back to proposals_match
+                            hand_count = hand_mask.sum().item()
+                            hand_pred_keypoints = hand_proposals[i].pred_keypoints
+                            proposals_match[i].pred_keypoints = torch.zeros(len(proposal_per_image), hand_pred_keypoints.shape[1], 3, device=self.device)
+                            proposals_match[i].pred_keypoints[hand_mask] = hand_pred_keypoints
+                    
+                    logger.info(f"Keypoint training successful: {total_hands} hands, loss: {keypoint_loss.item():.6f}")
+                else:
+                    keypoint_losses["loss_keypoint"] = torch.tensor(0.0, device=self.device, requires_grad=True)
+                    logger.debug("No hands found for keypoint training")
+                    
+            except Exception as e:
+                logger.error(f"Keypoint processing error: {e}")
+                keypoint_losses["loss_keypoint"] = torch.tensor(0.0, device=self.device, requires_grad=True)
+
         # Depth module + loss
         if self._use_depth_module:
             self._last_extracted_features["depth"], self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
@@ -303,7 +362,7 @@ class MMEhoiNetv1(EhoiNet):
             else:
                 loss_depth_estimation = torch.tensor([0], dtype=torch.float32).to(self.device)
 
-        # Mask head + loss (with safe inference)
+        # Mask head + loss (existing with safe inference)
         if self._predict_mask:
             try:
                 proposals_mask, _ = select_foreground_proposals(proposals_match, self._num_classes)
@@ -316,7 +375,6 @@ class MMEhoiNetv1(EhoiNet):
                     if self._mask_gt:
                         mask_losses = {"loss_mask": mask_rcnn_loss(pred_mask_logits, proposals_mask) * self._mask_rcnn_head.loss_weight}
                     
-                    # Use safe mask inference
                     proposals_match = self._safe_mask_inference_in_training(pred_mask_logits, proposals_mask)
                 else:
                     if self._mask_gt:
@@ -326,16 +384,14 @@ class MMEhoiNetv1(EhoiNet):
                 if self._mask_gt:
                     mask_losses = {"loss_mask": torch.tensor(0.0, device=self.device, requires_grad=True)}
 
-        # Prepare hands features
+        # Prepare hands features (now with predicted keypoints available)
         self._prepare_hands_features(batched_inputs, proposals_match)
         self._last_proposals_match = proposals_match
 
-        # Loss for hand left/right classification
+        # Existing losses (hand classification, contact state, vector regression)
         _, loss_classification_hand_lr = self.classification_hand_lr(self._c_hands_features, self._c_gt_hands_lr) 
 
-        # Loss for contact state classification
         if self._use_keypoint_early_fusion:
-            # Early fusion with keypoints
             if "keypoints" in self._contact_state_modality and "fusion" in self._contact_state_modality:
                 _, loss_classification_contact_state = self.classification_contact_state(
                     self._c_hands_features_padded,
@@ -349,7 +405,6 @@ class MMEhoiNetv1(EhoiNet):
                     self._c_gt_hands_contact_state
                 )
         else:
-            # Standard classification without keypoints
             if self._contact_state_modality == "rgb":   
                 _, loss_classification_contact_state = self.classification_contact_state(self._c_hands_features_padded, self._c_gt_hands_contact_state)
             elif "fusion" in self._contact_state_modality:
@@ -357,11 +412,10 @@ class MMEhoiNetv1(EhoiNet):
             else:
                 _, loss_classification_contact_state = self.classification_contact_state(self._c_hands_features_cnn, self._c_gt_hands_contact_state)
 
-        # Loss for vector regression
         indexes_contact = [i for i, x in enumerate(self._c_gt_hands_contact_state) if x == 1]
         _, loss_regression_vector = self.association_vector_regressor(self._c_hands_features_padded[indexes_contact], np.array(self._c_gt_hands_dxdymagnitude)[indexes_contact])            
 
-        # Combine all losses
+        # Combine all losses 
         total_loss = {}
         total_loss.update(detector_losses)
         total_loss.update(proposal_losses)
@@ -375,6 +429,8 @@ class MMEhoiNetv1(EhoiNet):
             total_loss['loss_depth'] = loss_depth_estimation
         if self._mask_gt: 
             total_loss.update(mask_losses)
+        
+        total_loss.update(keypoint_losses)
 
         return total_loss
 
