@@ -53,7 +53,7 @@ parser.add_argument('--contact_state_modality', default="mask+rgb+depth+keypoint
                         "rgb+fusion",
                         "keypoints",
                         "keypoints+fusion", 
-                        "mask+rgb+depth+keypoints+fusion"  # DEFAULT with keypoints
+                        "mask+rgb+depth+keypoints+fusion"
                     ])
 parser.add_argument('--contact_state_cnn_input_size', default="128", help="input size for the CNN contact state classification module", type=int)
 
@@ -79,20 +79,52 @@ def parse_args():
     
     args.use_keypoints = "keypoints" in args.contact_state_modality
     args.keypoint_early_fusion = "keypoints" in args.contact_state_modality and "fusion" in args.contact_state_modality
-    args.num_keypoints = 21  # Fixed for hand keypoints
-    args.keypoint_loss_weight = 1.0  # Standard weight
-    
-    if args.use_keypoints:
-        print("=== KEYPOINT CONFIGURATION ===")
-        print(f"Contact State Modality: {args.contact_state_modality}")
-        print(f"Keypoints: ENABLED (21 hand keypoints)")
-        print(f"Early Fusion: {'ENABLED' if args.keypoint_early_fusion else 'DISABLED'}")
-        print("==============================")
+    args.num_keypoints = 21
+    args.keypoint_loss_weight = 1.0
     
     return args
 
-
-### Configurations
+def setup_keypoint_metadata(dataset_name, use_keypoints=True):
+    if use_keypoints:
+        from detectron2.data import MetadataCatalog
+        
+        keypoint_names = [
+            "wrist",
+            "thumb_mcp", "thumb_pip", "thumb_dip", "thumb_tip",
+            "index_mcp", "index_pip", "index_dip", "index_tip", 
+            "middle_mcp", "middle_pip", "middle_dip", "middle_tip",
+            "ring_mcp", "ring_pip", "ring_dip", "ring_tip",
+            "pinky_mcp", "pinky_pip", "pinky_dip", "pinky_tip"
+        ]
+        
+        keypoint_connection_rules = [
+            ("wrist", "thumb_mcp", (255, 0, 0)),
+            ("thumb_mcp", "thumb_pip", (255, 0, 0)),
+            ("thumb_pip", "thumb_dip", (255, 0, 0)), 
+            ("thumb_dip", "thumb_tip", (255, 0, 0)),
+            ("wrist", "index_mcp", (0, 255, 0)),
+            ("index_mcp", "index_pip", (0, 255, 0)),
+            ("index_pip", "index_dip", (0, 255, 0)),
+            ("index_dip", "index_tip", (0, 255, 0)),
+            ("wrist", "middle_mcp", (0, 0, 255)),
+            ("middle_mcp", "middle_pip", (0, 0, 255)),
+            ("middle_pip", "middle_dip", (0, 0, 255)),
+            ("middle_dip", "middle_tip", (0, 0, 255)),
+            ("wrist", "ring_mcp", (255, 255, 0)),
+            ("ring_mcp", "ring_pip", (255, 255, 0)),
+            ("ring_pip", "ring_dip", (255, 255, 0)),
+            ("ring_dip", "ring_tip", (255, 255, 0)),
+            ("wrist", "pinky_mcp", (255, 0, 255)),
+            ("pinky_mcp", "pinky_pip", (255, 0, 255)), 
+            ("pinky_pip", "pinky_dip", (255, 0, 255)),
+            ("pinky_dip", "pinky_tip", (255, 0, 255)),
+        ]
+        
+        MetadataCatalog.get(dataset_name).set(
+            keypoint_names=keypoint_names,
+            keypoint_flip_map=[],
+            keypoint_connection_rules=keypoint_connection_rules
+        )
 
 def load_cfg(args, num_classes):
     cfg = get_cfg()
@@ -104,19 +136,18 @@ def load_cfg(args, num_classes):
     cfg.DATASETS.TEST = tuple(args.test_dataset_names)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
 
-    # Existing configurations
     cfg.ADDITIONAL_MODULES.USE_MASK_GT = args.mask_gt
     cfg.ADDITIONAL_MODULES.USE_MASK = True if "mask" in args.contact_state_modality else args.predict_mask
     cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE = True if "depth" in args.contact_state_modality else args.depth_module
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY = args.contact_state_modality
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_CNN_INPUT_SIZE = args.contact_state_cnn_input_size
     
-    # AUTO-CONFIGURE keypoints based on modality
     cfg.ADDITIONAL_MODULES.USE_KEYPOINTS = args.use_keypoints
     cfg.ADDITIONAL_MODULES.USE_KEYPOINT_EARLY_FUSION = args.keypoint_early_fusion
     cfg.ADDITIONAL_MODULES.NORMALIZE_KEYPOINT_COORDS = True
     
-    # ROI KEYPOINT HEAD (auto-enabled if keypoints in modality)
+    cfg.MODEL.KEYPOINT_ON = args.use_keypoints
+    
     if cfg.ADDITIONAL_MODULES.USE_KEYPOINTS:
         cfg.MODEL.ROI_KEYPOINT_HEAD = CN()
         cfg.MODEL.ROI_KEYPOINT_HEAD.NAME = "KRCNNConvDeconvUpsampleHead"
@@ -127,12 +158,13 @@ def load_cfg(args, num_classes):
         cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION = 14
         cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_SAMPLING_RATIO = 0
         cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE = "ROIAlignV2"
+        cfg.MODEL.ROI_KEYPOINT_HEAD.MIN_KEYPOINTS_PER_IMAGE = 1
+        cfg.MODEL.ROI_KEYPOINT_HEAD.POSITIVE_FRACTION = 0.25
+        cfg.MODEL.ROI_KEYPOINT_HEAD.BATCH_SIZE_PER_IMAGE = 64
         
-        # Enable keypoint-capable ROI heads
         cfg.MODEL.ROI_HEADS.NAME = "StandardROIHeads"
         cfg.MODEL.ROI_HEADS.IN_FEATURES = ["p2", "p3", "p4", "p5"]
     
-    # Solver configurations
     cfg.SOLVER.BASE_LR = args.base_lr
     cfg.SOLVER.IMS_PER_BATCH = args.ims_per_batch
     cfg.SOLVER.STEPS = tuple(args.solver_steps)
@@ -154,60 +186,89 @@ def load_cfg(args, num_classes):
 
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
         f.write(cfg.dump())
-    
-    # Log keypoint configuration
-    logger = logging.getLogger("detectron2")
-    if cfg.ADDITIONAL_MODULES.USE_KEYPOINTS:
-        logger.info("=== KEYPOINT CONFIGURATION ===")
-        logger.info(f"Use Keypoints: {cfg.ADDITIONAL_MODULES.USE_KEYPOINTS}")
-        logger.info(f"Early Fusion: {cfg.ADDITIONAL_MODULES.USE_KEYPOINT_EARLY_FUSION}")
-        logger.info(f"Num Keypoints: {cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS}")
-        logger.info(f"Contact State Modality: {cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY}")
-        logger.info("==============================")
 
     return cfg
 
+def log_epoch_summary(losses_accumulated, iteration, logger):
+    """Log epoch summary with all losses"""
+    if not losses_accumulated:
+        return
+    
+    # Calculate averages
+    avg_losses = {}
+    for loss_name, loss_values in losses_accumulated.items():
+        if loss_values:
+            avg_losses[loss_name] = sum(loss_values) / len(loss_values)
+    
+    # Log summary
+    logger.info("=" * 80)
+    logger.info(f"EPOCH SUMMARY - Iteration {iteration}")
+    logger.info("=" * 80)
+    
+    # Main losses
+    main_losses = ["total_loss", "loss_cls", "loss_box_reg", "loss_rpn_cls", "loss_rpn_loc"]
+    logger.info("Main Detection Losses:")
+    for loss_name in main_losses:
+        if loss_name in avg_losses:
+            logger.info(f"  {loss_name:<25}: {avg_losses[loss_name]:.6f}")
+    
+    # Task-specific losses
+    task_losses = ["loss_classification_contact_state", "loss_classification_hand_lr", 
+                   "loss_regression_dxdymagn", "loss_depth", "loss_mask", "loss_keypoint"]
+    logger.info("Task-Specific Losses:")
+    for loss_name in task_losses:
+        if loss_name in avg_losses:
+            logger.info(f"  {loss_name:<25}: {avg_losses[loss_name]:.6f}")
+    
+    logger.info("=" * 80)
+
 if __name__ == "__main__":
     args = parse_args()
-    print("=== TRAINING ARGUMENTS ===")
-    print(f"Use Keypoints: {args.use_keypoints}")
-    print(f"Keypoint Early Fusion: {args.keypoint_early_fusion}")
+    
+    # Clean startup log
+    print("=" * 60)
+    print("EHOI TRAINING PIPELINE")
+    print("=" * 60)
     print(f"Contact State Modality: {args.contact_state_modality}")
-    print(f"Number of Keypoints: {args.num_keypoints}")
-    print("==========================")
+    print(f"Keypoints: {'ENABLED' if args.use_keypoints else 'DISABLED'}")
+    if args.use_keypoints:
+        print(f"Early Fusion: {'ENABLED' if args.keypoint_early_fusion else 'DISABLED'}")
+    print(f"Max Iterations: {args.max_iter}")
+    print(f"Batch Size: {args.ims_per_batch}")
+    print(f"Learning Rate: {args.base_lr}")
+    print("=" * 60)
 
     if args.debug:
         debugpy.listen(56763)
-        print("Debug...")
+        print("Debug mode enabled, waiting for client...")
         debugpy.wait_for_client()
 
-    ###SET SEED
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
 
-    ###TRAIN REGISTER
     train_images_path = os.path.join(args.train_json[:[x for x, v in enumerate(args.train_json) if v == '/'][-2]], "images/")
     register_coco_instances("dataset_train", {}, args.train_json, train_images_path)
+    
+    setup_keypoint_metadata("dataset_train", args.use_keypoints)
+    
     dataset_train_metadata = MetadataCatalog.get("dataset_train")
     dataset_dict_train = DatasetCatalog.get("dataset_train")
     num_classes = len(dataset_train_metadata.as_dict()["thing_dataset_id_to_contiguous_id"])
+    
     with open(dataset_train_metadata.json_file) as json_file: 
         data_anns_train_sup = json.load(json_file)
     
-    ###TEST REGISTER
     for json_, name_ in zip(args.test_json, args.test_dataset_names):
         images_path = os.path.join(json_[:[x for x, v in enumerate(json_) if v == '/'][-2]], "images/")
-        print(json_, name_, images_path)
         register_coco_instances(name_, {}, json_, images_path)
+        setup_keypoint_metadata(name_, args.use_keypoints)
         dataset_test_dicts = DatasetCatalog.get(name_)
         test_metadata = MetadataCatalog.get(name_)
         test_metadata.set(coco_gt_hands = test_metadata.json_file.replace(".json", "_hands.json"))
 
-    ###LOAD CFG 
     cfg = load_cfg(args, num_classes=num_classes)
 
-    ###INIT MODEL 
     mapper = EhoiDatasetMapperDepthv1(cfg, data_anns_sup = data_anns_train_sup)
     mapper_test = EhoiDatasetMapperDepthv1
     if len(args.test_json): 
@@ -215,26 +276,18 @@ if __name__ == "__main__":
     
     model = MMEhoiNetv1(cfg, dataset_train_metadata)
 
-    ###LOAD WEIGHTS
     checkpointer = DetectionCheckpointer(model, cfg.OUTPUT_DIR)
     _ = checkpointer.load(cfg.MODEL.WEIGHTS)
 
-    ###MODEL TO DEVICE
     device = "cuda:" + str(args.cuda_device)
     model.to(device)
     model.train()
-    print("Modello caricato:", model.device)
     
-    # LOG 
     logger = logging.getLogger("detectron2")
+    logger.info(f"Model loaded on device: {device}")
     if cfg.ADDITIONAL_MODULES.USE_KEYPOINTS:
-        logger.info("Model initialized with KEYPOINT support")
-        if hasattr(model, 'keypoint_feature_extractor'):
-            logger.info("Keypoint feature extractor: LOADED")
-        if cfg.ADDITIONAL_MODULES.USE_KEYPOINT_EARLY_FUSION:
-            logger.info("Early Fusion for Contact State: ENABLED")
+        logger.info("Keypoint support: ENABLED")
 
-    ###OPTIMIZER AND SCHEDULER INIT
     base_parameters = [param for name, param in model.named_parameters() if 'depth_module' not in name]
     depth_parameters = [param for name, param in model.named_parameters() if 'depth_module' in name]
     optimizer = torch.optim.SGD([
@@ -245,29 +298,40 @@ if __name__ == "__main__":
             weight_decay = cfg["SOLVER"]["WEIGHT_DECAY"])
     scheduler = build_lr_scheduler(cfg, optimizer)
     
-    ###PARAMS
     start_iter = 1
     max_iter = cfg.SOLVER.MAX_ITER
     periodic_checkpointer = PeriodicCheckpointer(checkpointer, cfg.SOLVER.CHECKPOINT_PERIOD, max_iter=max_iter)
     writers = default_writers(cfg.OUTPUT_DIR, max_iter) if comm.is_main_process() else []
     data_loader = build_detection_train_loader(cfg, mapper = mapper)
 
-    logger = logging.getLogger("detectron2")
-    logger.info("Starting training from iteration {}".format(start_iter))
+    logger.info(f"Starting training from iteration {start_iter}")
+    logger.info(f"Total iterations: {max_iter}")
 
-    ###TRAIN LOOP
+    losses_accumulated = {}
+    
     with EventStorage(start_iter) as storage:
         for data, iteration in zip(data_loader, range(start_iter, max_iter)):
             storage.iter = iteration
             
             loss_dict = model(data)
-
             losses = sum(loss_dict.values())
             assert torch.isfinite(losses).all(), loss_dict
 
             loss_dict_reduced = {k: v.item() for k, v in comm.reduce_dict(loss_dict).items()}
             losses_reduced = sum(loss for loss in loss_dict_reduced.values())
-            if comm.is_main_process(): storage.put_scalars(total_loss=losses_reduced, **loss_dict_reduced)
+            
+            # Accumulate losses for epoch summary
+            for loss_name, loss_value in loss_dict_reduced.items():
+                if loss_name not in losses_accumulated:
+                    losses_accumulated[loss_name] = []
+                losses_accumulated[loss_name].append(loss_value)
+            
+            if "total_loss" not in losses_accumulated:
+                losses_accumulated["total_loss"] = []
+            losses_accumulated["total_loss"].append(losses_reduced)
+            
+            if comm.is_main_process(): 
+                storage.put_scalars(total_loss=losses_reduced, **loss_dict_reduced)
 
             optimizer.zero_grad()
             losses.backward()
@@ -275,10 +339,27 @@ if __name__ == "__main__":
             scheduler.step()
             storage.put_scalar("lr", optimizer.param_groups[0]["lr"], smoothing_hint=False)
             
+            # Log every 100 iterations with key metrics only
+            if iteration % 100 == 0:
+                logger.info(f"iter: {iteration:5d} | "
+                           f"total_loss: {losses_reduced:.4f} | "
+                           f"lr: {optimizer.param_groups[0]['lr']:.2e}")
+            
+            # Evaluation
             if len(args.test_json) and cfg.TEST.EVAL_PERIOD > 0 and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0:
+                log_epoch_summary(losses_accumulated, iteration, logger)
+                losses_accumulated = {}  # Reset for next epoch
+                
+                logger.info("Starting evaluation...")
                 results_val = do_test(cfg, model, converter = converter, mapper= mapper_test, data = data_anns_train_sup)
+                logger.info("Evaluation completed")
 
+            # Write and checkpoint
             if iteration - start_iter > 5 and ((iteration + 1) % 20 == 0 or iteration == max_iter - 1):
                 for writer in writers:
                     writer.write()
             periodic_checkpointer.step(iteration)
+    
+    # Final epoch summary
+    log_epoch_summary(losses_accumulated, max_iter, logger)
+    logger.info("Training completed successfully!")

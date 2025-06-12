@@ -55,7 +55,7 @@ class EHOIEvaluator(DatasetEvaluator):
             self._predictions_all.extend(self._converter.convert_instances_to_coco(confident_instances_all, image_id, convert_boxes_xywh_abs = True))
 
     def evaluate(self):
-        cocoPreds = self._coco_gt.loadRes(self._predictions)
+        cocoPreds = self._coco_gt_all.loadRes(self._predictions)
         cocoPreds_all = self._coco_gt_all.loadRes(self._predictions_all)
         if(len(self._predictions_targets)):
             cocoPreds_target = self._coco_gt_targets.loadRes(self._predictions_targets)

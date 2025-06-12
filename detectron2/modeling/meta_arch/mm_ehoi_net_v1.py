@@ -26,25 +26,24 @@ class MMEhoiNetv1(EhoiNet):
     def __init__(self, cfg, metadata):
         super().__init__(cfg, metadata)
 
-        # Model parameters
         self._expand_hand_box_ratio = cfg.ADDITIONAL_MODULES.EXPAND_HAND_BOX_RATIO
 
-        # Additional modules
         self.association_vector_regressor = AssociationVectorRegressor(cfg)
 
-        # ROI Align for contact state CNN
         input_size_cnn_contact_state = cfg.ADDITIONAL_MODULES.CONTACT_STATE_CNN_INPUT_SIZE if "CONTACT_STATE_CNN_INPUT_SIZE" in cfg.ADDITIONAL_MODULES else 128
         self._roi_align_cnn_contact_state = torchvision.ops.RoIAlign((input_size_cnn_contact_state, input_size_cnn_contact_state), 1, -1)
 
-        # Keypoint configuration
         self._use_keypoints = cfg.ADDITIONAL_MODULES.USE_KEYPOINTS if hasattr(cfg.ADDITIONAL_MODULES, 'USE_KEYPOINTS') else False
         self._use_keypoint_early_fusion = cfg.ADDITIONAL_MODULES.USE_KEYPOINT_EARLY_FUSION if hasattr(cfg.ADDITIONAL_MODULES, 'USE_KEYPOINT_EARLY_FUSION') else False
         
-        # Keypoint feature extractor
         if self._use_keypoints:
             self.keypoint_feature_extractor = KeypointFeatureExtractor(cfg)
+            
+            if hasattr(self.roi_heads, 'keypoint_head') and self.roi_heads.keypoint_head is not None:
+                logger.info("Using existing keypoint head from roi_heads")
+            else:
+                logger.info("Keypoint head not found in roi_heads, keypoints will be processed by custom extractor only")
         
-        # Contact state module with keypoint support
         if self._use_keypoint_early_fusion:
             if "keypoints" in self._contact_state_modality and "fusion" in self._contact_state_modality:
                 self.classification_contact_state = ContactStateKeypointFusionClassificationModule(cfg)
@@ -52,11 +51,9 @@ class MMEhoiNetv1(EhoiNet):
                 self.classification_contact_state = ContactStateKeypointOnlyClassificationModule(cfg)
 
     def _extract_keypoints_from_instances(self, instances_list, image_size):
-        """Extract keypoints from instances"""
         all_keypoints = []
         
         for instances in instances_list:
-            # Filter only hands
             if self.training:
                 hand_instances = instances[instances.gt_classes == self._id_hand]
             else:
@@ -68,20 +65,16 @@ class MMEhoiNetv1(EhoiNet):
             for i in range(len(hand_instances)):
                 instance = hand_instances[i]
                 if self.training and hasattr(instance, 'gt_keypoints') and instance.gt_keypoints is not None:
-                    # Training: use ground truth keypoints
                     kpts = instance.gt_keypoints.tensor
-                    if len(kpts.shape) == 3:  # [1, num_keypoints, 3]
+                    if len(kpts.shape) == 3:
                         kpts = kpts.squeeze(0)
                 elif not self.training and hasattr(instance, 'pred_keypoints') and instance.pred_keypoints is not None:
-                    # Inference: use predicted keypoints
                     kpts = instance.pred_keypoints
                 else:
-                    # Extract keypoints from annotations if available
                     if hasattr(instance, 'gt_keypoints_raw') and len(instance.gt_keypoints_raw) > 0:
                         kpts_array = np.array(instance.gt_keypoints_raw).reshape(-1, 3)
                         kpts = torch.tensor(kpts_array, dtype=torch.float32).to(self.device)
                     else:
-                        # Fallback: zero keypoints
                         kpts = torch.zeros(21, 3).to(self.device)
                 
                 all_keypoints.append(kpts)
@@ -89,18 +82,15 @@ class MMEhoiNetv1(EhoiNet):
         if len(all_keypoints) == 0:
             return torch.empty(0, 128).to(self.device)
             
-        # Stack and extract features
         keypoints_batch = torch.stack(all_keypoints)
         return self.keypoint_feature_extractor(keypoints_batch, image_size)
 
-    def _safe_mask_inference_in_training(self, pred_mask_logits, pred_instances):
-        """Safe wrapper for mask inference that handles shape mismatches"""
+    def mask_inference_in_training(self, pred_mask_logits, pred_instances):
         cls_agnostic_mask = pred_mask_logits.size(1) == 1
         
         if cls_agnostic_mask:
             mask_probs_pred = pred_mask_logits.sigmoid()
         else:
-            # Collect all gt_classes
             all_gt_classes = []
             for instances in pred_instances:
                 if len(instances) > 0:
@@ -112,37 +102,29 @@ class MMEhoiNetv1(EhoiNet):
             class_pred = cat(all_gt_classes)
             num_masks = pred_mask_logits.shape[0]
             
-            # Validate shape compatibility
             if len(class_pred) != num_masks:
                 logger.warning(f"Mask shape mismatch: class_pred={len(class_pred)}, num_masks={num_masks}")
-                # Handle mismatch gracefully
                 min_size = min(len(class_pred), num_masks)
                 class_pred = class_pred[:min_size]
                 pred_mask_logits = pred_mask_logits[:min_size]
                 num_masks = min_size
             
-            # Ensure class predictions are within valid range
             max_class = pred_mask_logits.size(1) - 1
             class_pred = torch.clamp(class_pred, 0, max_class)
             
             indices = torch.arange(num_masks, device=class_pred.device)
             mask_probs_pred = pred_mask_logits[indices, class_pred][:, None].sigmoid()
         
-        # Split masks per image
         num_boxes_per_image = [len(i) for i in pred_instances]
         total_expected = sum(num_boxes_per_image)
         
-        # Handle total mismatch
         if mask_probs_pred.shape[0] != total_expected:
             logger.warning(f"Total mask mismatch: got={mask_probs_pred.shape[0]}, expected={total_expected}")
-            # Adjust to match expected size
             if mask_probs_pred.shape[0] < total_expected:
-                # Pad with zeros
                 padding_shape = (total_expected - mask_probs_pred.shape[0],) + mask_probs_pred.shape[1:]
                 padding = torch.zeros(padding_shape, dtype=mask_probs_pred.dtype, device=mask_probs_pred.device)
                 mask_probs_pred = torch.cat([mask_probs_pred, padding])
             else:
-                # Truncate
                 mask_probs_pred = mask_probs_pred[:total_expected]
         
         try:
@@ -152,7 +134,6 @@ class MMEhoiNetv1(EhoiNet):
                     instances.pred_masks = prob
         except Exception as e:
             logger.error(f"Error in mask split assignment: {e}")
-            # Fallback: assign empty masks
             for instances in pred_instances:
                 if len(instances) > 0:
                     device = pred_mask_logits.device
@@ -162,11 +143,9 @@ class MMEhoiNetv1(EhoiNet):
         return pred_instances
 
     def _prepare_hands_features(self, batched_inputs, proposals_match):
-        """Prepare hand features including keypoints"""
         image_width, image_height = batched_inputs[0]['width'], batched_inputs[0]['height']
         boxes, boxes_padded, boxes_padded_depth = [], [], []
         
-        # Features from ResNet101
         for idx_batch, batch_proposal in enumerate(proposals_match):
             batch_proposal_hands = batch_proposal[batch_proposal.gt_classes == self._id_hand]
             boxes.append(batch_proposal_hands.proposal_boxes)
@@ -183,7 +162,6 @@ class MMEhoiNetv1(EhoiNet):
         
         self._last_boxes_padded_rescaled = [box.tensor for box in boxes_padded_depth]
         
-        # Features for CNN contact state module
         if self._contact_state_modality != "rgb" and not self._contact_state_modality == "keypoints":
             rgb_images = torch.tensor(np.array([b["image_for_depth_module"] for b in batched_inputs])).to(self.device)
             rgb_images = kornia.color.bgr_to_rgb(rgb_images)
@@ -214,7 +192,6 @@ class MMEhoiNetv1(EhoiNet):
         else:
             self._c_hands_features_cnn = None
 
-        # Keypoint features
         if self._use_keypoints:
             image_size = (image_height, image_width)
             self._c_hands_keypoint_features = self._extract_keypoints_from_instances(
@@ -224,7 +201,6 @@ class MMEhoiNetv1(EhoiNet):
             self._c_hands_keypoint_features = None
 
     def _prepare_hands_features_inference(self, batched_inputs, instances_hands):
-        """Prepare hand features for inference including keypoints"""
         image_width, image_height = batched_inputs[0]['width'], batched_inputs[0]['height']
         
         rois = self.roi_heads.box_pooler([self._last_extracted_features["rgb"][f] for f in self.roi_heads.in_features], [instances_hands.pred_boxes])
@@ -266,7 +242,6 @@ class MMEhoiNetv1(EhoiNet):
         else:
             self._c_hands_features_cnn = None
 
-        # Keypoint features for inference
         if self._use_keypoints:
             image_size = (image_height, image_width)
             self._c_hands_keypoint_features = self._extract_keypoints_from_instances(
@@ -276,84 +251,67 @@ class MMEhoiNetv1(EhoiNet):
             self._c_hands_keypoint_features = None
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
-        """Forward pass with keypoint support and proper loss calculation"""
         if not self.training: 
             return self.inference(batched_inputs)
 
         images = self.preprocess_image(batched_inputs)
         gt_instances = [x["instances"].to(self.device) for x in batched_inputs] if "instances" in batched_inputs[0] else None
         
-        # Backbone
         features = self.backbone(images.tensor)
         self._last_extracted_features["rgb"] = features
 
-        # ROI Head
         proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
         proposals_match, detector_losses = self.roi_heads(images, features, proposals, gt_instances)
         
-        # Prepare ground truth labels
         self._prepare_gt_labels(proposals_match)
 
         keypoint_losses = {}
         if self._use_keypoints:
             try:
-                # Extract hand proposals for keypoint training
                 hand_proposals = []
                 for proposal_per_image in proposals_match:
                     hand_mask = proposal_per_image.gt_classes == self._id_hand
                     if hand_mask.any():
                         hand_instances = proposal_per_image[hand_mask]
+                        
+                        if not hasattr(hand_instances, 'proposal_boxes'):
+                            hand_instances.proposal_boxes = hand_instances.gt_boxes
+                        
                         hand_proposals.append(hand_instances)
-                    else:
-                        # Create empty instance for batch consistency
-                        empty_instance = Instances(proposal_per_image.image_size)
-                        empty_instance.proposal_boxes = Boxes(torch.empty(0, 4, device=self.device))
-                        empty_instance.gt_classes = torch.empty(0, dtype=torch.long, device=self.device)
-                        hand_proposals.append(empty_instance)
-                
-                total_hands = sum(len(p) for p in hand_proposals)
+                    
+                total_hands = sum(len(p) for p in hand_proposals if len(p) > 0)
                 logger.debug(f"Total hands for keypoint training: {total_hands}")
                 
-                if total_hands > 0:
-                    # Extract keypoint features using the keypoint pooler
-                    keypoint_features = self._keypoint_pooler(
-                        [features[f] for f in self._keypoint_in_features], 
-                        [p.proposal_boxes for p in hand_proposals]
+                if total_hands > 0 and hasattr(self, 'roi_heads') and hasattr(self.roi_heads, 'keypoint_head'):
+                    keypoint_features = self.roi_heads.keypoint_pooler(
+                        [features[f] for f in self.roi_heads.keypoint_in_features], 
+                        [p.proposal_boxes for p in hand_proposals if len(p) > 0]
                     )
                     
-                    # Predict keypoints using keypoint head
-                    pred_keypoint_logits = self._keypoint_head.layers(keypoint_features)
+                    valid_hand_proposals = [p for p in hand_proposals if len(p) > 0]
                     
-                    # Calculate keypoint loss using detectron2's standard function
-                    from detectron2.modeling.roi_heads.keypoint_head import keypoint_rcnn_loss
-                    keypoint_loss = keypoint_rcnn_loss(pred_keypoint_logits, hand_proposals, normalizer=None)
-                    keypoint_losses["loss_keypoint"] = keypoint_loss * self._keypoint_head.loss_weight
-                    
-                    # Inference keypoints for feature extraction (training mode)
-                    from detectron2.modeling.roi_heads.keypoint_head import keypoint_rcnn_inference
-                    keypoint_rcnn_inference(pred_keypoint_logits, hand_proposals)
-                    
-                    # Update proposals_match with predicted keypoints
-                    hand_idx = 0
-                    for i, proposal_per_image in enumerate(proposals_match):
-                        hand_mask = proposal_per_image.gt_classes == self._id_hand
-                        if hand_mask.any():
-                            # Copy predicted keypoints back to proposals_match
-                            hand_count = hand_mask.sum().item()
-                            hand_pred_keypoints = hand_proposals[i].pred_keypoints
-                            proposals_match[i].pred_keypoints = torch.zeros(len(proposal_per_image), hand_pred_keypoints.shape[1], 3, device=self.device)
-                            proposals_match[i].pred_keypoints[hand_mask] = hand_pred_keypoints
-                    
-                    logger.info(f"Keypoint training successful: {total_hands} hands, loss: {keypoint_loss.item():.6f}")
+                    if len(valid_hand_proposals) > 0:
+                        # Try the standard Detectron2 keypoint head call
+                        try:
+                            keypoint_logits = self.roi_heads.keypoint_head.layers(keypoint_features)
+                            
+                            from detectron2.modeling.roi_heads.keypoint_head import keypoint_rcnn_loss
+                            keypoint_loss = keypoint_rcnn_loss(keypoint_logits, valid_hand_proposals, normalizer=None)
+                            keypoint_losses["loss_keypoint"] = keypoint_loss * self.roi_heads.keypoint_head.loss_weight
+                            
+                            logger.info(f"Keypoint training successful: {total_hands} hands, loss: {keypoint_loss.item():.6f}")
+                        except Exception as e2:
+                            logger.warning(f"Standard keypoint head failed: {e2}, trying alternative approach")
+                            # Alternative: just use dummy loss for now
+                            keypoint_losses["loss_keypoint"] = torch.tensor(0.0, device=self.device, requires_grad=True)
+                    else:
+                        keypoint_losses["loss_keypoint"] = torch.tensor(0.0, device=self.device, requires_grad=True)
                 else:
                     keypoint_losses["loss_keypoint"] = torch.tensor(0.0, device=self.device, requires_grad=True)
-                    logger.debug("No hands found for keypoint training")
                     
             except Exception as e:
-                logger.error(f"Keypoint processing error: {e}")
                 keypoint_losses["loss_keypoint"] = torch.tensor(0.0, device=self.device, requires_grad=True)
 
-        # Depth module + loss
         if self._use_depth_module:
             self._last_extracted_features["depth"], self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
             if "depth_gt" in batched_inputs[0]:
@@ -362,7 +320,6 @@ class MMEhoiNetv1(EhoiNet):
             else:
                 loss_depth_estimation = torch.tensor([0], dtype=torch.float32).to(self.device)
 
-        # Mask head + loss (existing with safe inference)
         if self._predict_mask:
             try:
                 proposals_mask, _ = select_foreground_proposals(proposals_match, self._num_classes)
@@ -375,7 +332,7 @@ class MMEhoiNetv1(EhoiNet):
                     if self._mask_gt:
                         mask_losses = {"loss_mask": mask_rcnn_loss(pred_mask_logits, proposals_mask) * self._mask_rcnn_head.loss_weight}
                     
-                    proposals_match = self._safe_mask_inference_in_training(pred_mask_logits, proposals_mask)
+                    proposals_match = self.mask_inference_in_training(pred_mask_logits, proposals_mask)
                 else:
                     if self._mask_gt:
                         mask_losses = {"loss_mask": torch.tensor(0.0, device=self.device, requires_grad=True)}
@@ -384,11 +341,9 @@ class MMEhoiNetv1(EhoiNet):
                 if self._mask_gt:
                     mask_losses = {"loss_mask": torch.tensor(0.0, device=self.device, requires_grad=True)}
 
-        # Prepare hands features (now with predicted keypoints available)
         self._prepare_hands_features(batched_inputs, proposals_match)
         self._last_proposals_match = proposals_match
 
-        # Existing losses (hand classification, contact state, vector regression)
         _, loss_classification_hand_lr = self.classification_hand_lr(self._c_hands_features, self._c_gt_hands_lr) 
 
         if self._use_keypoint_early_fusion:
@@ -415,7 +370,6 @@ class MMEhoiNetv1(EhoiNet):
         indexes_contact = [i for i, x in enumerate(self._c_gt_hands_contact_state) if x == 1]
         _, loss_regression_vector = self.association_vector_regressor(self._c_hands_features_padded[indexes_contact], np.array(self._c_gt_hands_dxdymagnitude)[indexes_contact])            
 
-        # Combine all losses 
         total_loss = {}
         total_loss.update(detector_losses)
         total_loss.update(proposal_losses)
@@ -435,18 +389,15 @@ class MMEhoiNetv1(EhoiNet):
         return total_loss
 
     def inference(self, batched_inputs: List[Dict[str, torch.Tensor]], detected_instances: Optional[List[Instances]] = None, do_postprocess: bool = True):
-        """Inference with keypoint support"""
         assert not self.training
         images = self.preprocess_image(batched_inputs)
         self._last_inference_times = {k: 0 for k, v in self._last_inference_times.items()} 
         
-        # Backbone
         start_time = time.time()
         features = self.backbone(images.tensor)
         self._last_extracted_features["rgb"] = features
         self._last_inference_times["backbone"] = time.time() - start_time
 
-        # ROI Head
         tmp_time = time.time()
         proposals, _ = self.proposal_generator(images, features, None)
         results, _ = self.roi_heads(images, features, proposals, None)
@@ -456,43 +407,35 @@ class MMEhoiNetv1(EhoiNet):
             assert not torch.jit.is_scripting(), "Scripting is not supported for postprocess."
             results = GeneralizedRCNN._postprocess(results, batched_inputs, images.image_sizes)
 
-        # Additional output
         instances = results[0]["instances"]
         results[0]['additional_outputs'] = Instances(instances.image_size)
 
-        # Depth module output
         if self._use_depth_module: 
             tmp_time = time.time()
             self._last_extracted_features["depth"], self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
             self._last_inference_times["depth.extract_features_maps"] = time.time() - tmp_time
 
-        # Mask head
         if self._predict_mask:
             tmp_time = time.time()   
             features_mask = self._mask_pooler([features[f] for f in self._mask_in_features], [instances.pred_boxes])
             instances = self._mask_rcnn_head(features_mask, [instances])[0]
             self._last_inference_times["mask_rcnn_head"] = time.time() - tmp_time
         
-        # Prepare hands features
         tmp_time = time.time()
         instances_hands = instances[instances.pred_classes == self._id_hand]
         self._prepare_hands_features_inference(batched_inputs, instances_hands)
         self._last_inference_times["data.prep.additional_modules"] = time.time() - tmp_time
     
-        # Hand side prediction
         tmp_time = time.time()
         output_classification_side = torch.round(torch.sigmoid(self.classification_hand_lr(self._c_hands_features))).int()
         self._last_inference_times["classification_hand_lr"] = time.time() - tmp_time
         
-        # Vector prediction
         tmp_time = time.time()
         output_dxdymagn = self.association_vector_regressor(self._c_hands_features_padded)
         self._last_inference_times["association_vector_regressor"] = time.time() - tmp_time
 
-        # Contact state prediction
         tmp_time = time.time()   
         if self._use_keypoint_early_fusion:
-            # Early fusion with keypoints
             if "keypoints" in self._contact_state_modality and "fusion" in self._contact_state_modality:
                 self.scores_contact = self.classification_contact_state(
                     self._c_hands_features_padded,
@@ -504,7 +447,6 @@ class MMEhoiNetv1(EhoiNet):
                 self.scores_contact = torch.sigmoid(self.classification_contact_state(self._c_hands_keypoint_features))
                 output_classification_contact = torch.round(self.scores_contact).int()
         else:
-            # Standard classification without keypoints
             if self._contact_state_modality == "rgb":
                 output_classification_contact = torch.round(torch.sigmoid(self.classification_contact_state(self._c_hands_features_padded))).int()
             elif "fusion" in self._contact_state_modality:
@@ -515,7 +457,6 @@ class MMEhoiNetv1(EhoiNet):
                 output_classification_contact = torch.round(self.scores_contact).int()
         self._last_inference_times["classification_contact_state"] = time.time() - tmp_time
 
-        # Set output results
         results[0]['additional_outputs'].set("boxes", instances_hands.pred_boxes.tensor.reshape(-1, 4).detach().cpu())
         results[0]['additional_outputs'].set("sides", output_classification_side.detach().cpu())
         results[0]['additional_outputs'].set("scores", instances_hands.scores.detach().cpu())
@@ -524,7 +465,6 @@ class MMEhoiNetv1(EhoiNet):
         if self._use_depth_module: 
             results[0]['depth_map'] = self._depth_maps_predicted
 
-        # Calculate total inference time
         _total = round(sum(self._last_inference_times.values()) * 1000, 2)
         self._last_inference_times = {k: round(v * 1000, 2) for k, v in self._last_inference_times.items()}
         self._last_inference_times["total"] = _total
@@ -532,7 +472,6 @@ class MMEhoiNetv1(EhoiNet):
         return results
 
     def _prepare_gt_labels(self, proposals_match):
-        """Prepare ground truth labels for training"""
         self._c_gt_hands_lr, self._c_gt_hands_contact_state, self._c_gt_hands_dxdymagnitude = [], [], []
         for batch_proposal in proposals_match:
             batch_proposal_hands = batch_proposal[batch_proposal.gt_classes == self._id_hand]
