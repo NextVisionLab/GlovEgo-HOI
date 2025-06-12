@@ -25,7 +25,7 @@ from detectron2.utils.events import EventStorage
 import detectron2.utils.comm as comm
 from detectron2.config import get_cfg, CfgNode as CN
 
-parser = argparse.ArgumentParser(description='Train script')
+parser = argparse.ArgumentParser(description='EHOI Training Script')
 parser.add_argument('--train_json', dest='train_json', help='train json path', type=str, required = True)
 parser.add_argument('--weights_path', dest='weights', help='weights path', type=str, default="detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl")
 parser.add_argument('--seed', type=int, default=0, metavar='S', help='random seed (default: 0)')
@@ -189,8 +189,8 @@ def load_cfg(args, num_classes):
 
     return cfg
 
-def log_epoch_summary(losses_accumulated, iteration, logger):
-    """Log epoch summary with all losses"""
+def log_epoch_summary(losses_accumulated, iteration, max_iter, optimizer, logger):
+    """Log epoch summary with all losses in Detectron2 format"""
     if not losses_accumulated:
         return
     
@@ -200,27 +200,64 @@ def log_epoch_summary(losses_accumulated, iteration, logger):
         if loss_values:
             avg_losses[loss_name] = sum(loss_values) / len(loss_values)
     
-    # Log summary
-    logger.info("=" * 80)
-    logger.info(f"EPOCH SUMMARY - Iteration {iteration}")
-    logger.info("=" * 80)
+    # Calculate ETA
+    eta_seconds = 0  # Would need actual timing for real ETA
+    eta_str = f"{eta_seconds//3600}:{(eta_seconds%3600)//60:02d}:{eta_seconds%60:02d}"
     
-    # Main losses
-    main_losses = ["total_loss", "loss_cls", "loss_box_reg", "loss_rpn_cls", "loss_rpn_loc"]
-    logger.info("Main Detection Losses:")
-    for loss_name in main_losses:
+    # Get current learning rate
+    current_lr = optimizer.param_groups[0]["lr"]
+    
+    # Get max memory
+    if torch.cuda.is_available():
+        max_mem = torch.cuda.max_memory_allocated() // (1024**2)  # Convert to MB
+    else:
+        max_mem = 0
+    
+    # Format losses with proper precision
+    loss_items = []
+    
+    # Required losses in specific order
+    loss_order = [
+        "total_loss", "loss_cls", "loss_box_reg", "loss_rpn_cls", "loss_rpn_loc",
+        "loss_classification_contact_state", "loss_classification_hand_lr", 
+        "loss_regression_dxdymagn", "loss_depth", "loss_mask", "loss_keypoint"
+    ]
+    
+    for loss_name in loss_order:
         if loss_name in avg_losses:
-            logger.info(f"  {loss_name:<25}: {avg_losses[loss_name]:.6f}")
+            value = avg_losses[loss_name]
+            if loss_name == "total_loss":
+                loss_items.append(f"{loss_name}: {value:.1f}")
+            elif value >= 0.001:
+                loss_items.append(f"{loss_name}: {value:.5f}")
+            else:
+                loss_items.append(f"{loss_name}: {value:.3e}")
     
-    # Task-specific losses
-    task_losses = ["loss_classification_contact_state", "loss_classification_hand_lr", 
-                   "loss_regression_dxdymagn", "loss_depth", "loss_mask", "loss_keypoint"]
-    logger.info("Task-Specific Losses:")
-    for loss_name in task_losses:
-        if loss_name in avg_losses:
-            logger.info(f"  {loss_name:<25}: {avg_losses[loss_name]:.6f}")
+    # Build the log message
+    log_message = f"eta: {eta_str}  iter: {iteration}  " + "  ".join(loss_items)
+    log_message += f"  lr: {current_lr:.0e}  max_mem: {max_mem}M"
     
-    logger.info("=" * 80)
+    logger.info(log_message)
+
+def do_test(cfg, model, converter, mapper, data):
+    """Run evaluation on test dataset"""
+    logger = logging.getLogger("detectron2")
+    
+    results = {}
+    for dataset_name in cfg.DATASETS.TEST:
+        data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
+        evaluator = EHOIEvaluator(cfg, dataset_name, converter)
+        results_i = inference_on_dataset(model, data_loader, evaluator)
+        results[dataset_name] = results_i
+        
+        if comm.is_main_process():
+            logger.info(f"Evaluation results for {dataset_name}:")
+            for task, metrics in results_i.items():
+                logger.info(f"  {task}:")
+                for metric_name, value in metrics.items():
+                    logger.info(f"    {metric_name}: {value}")
+    
+    return results
 
 if __name__ == "__main__":
     args = parse_args()
@@ -347,7 +384,7 @@ if __name__ == "__main__":
             
             # Evaluation
             if len(args.test_json) and cfg.TEST.EVAL_PERIOD > 0 and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0:
-                log_epoch_summary(losses_accumulated, iteration, logger)
+                log_epoch_summary(losses_accumulated, iteration, max_iter, optimizer, logger)
                 losses_accumulated = {}  # Reset for next epoch
                 
                 logger.info("Starting evaluation...")
@@ -361,5 +398,5 @@ if __name__ == "__main__":
             periodic_checkpointer.step(iteration)
     
     # Final epoch summary
-    log_epoch_summary(losses_accumulated, max_iter, logger)
+    log_epoch_summary(losses_accumulated, max_iter, max_iter, optimizer, logger)
     logger.info("Training completed successfully!")

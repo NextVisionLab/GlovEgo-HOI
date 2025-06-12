@@ -39,7 +39,6 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
             elif "segmentation" in tmp_ann.keys(): 
                 tmp_ann.pop("segmentation")
 
-            # 🔧 FIXED KEYPOINT PROCESSING
             if self._keypoints_gt:
                 if len(tmp_ann["keypoints"]) != 0:
                     # Converti keypoints esistenti in formato corretto
@@ -103,22 +102,9 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
             instances.set("gt_contact_states", torch.tensor(contact_states))
             instances.set("gt_sides", torch.tensor(sides))
             instances.set("gt_dxdymagn_hands", torch.tensor(dxdymagn_hands))
-            
-            # 🔍 DEBUG: Verifica che gt_keypoints sia stato creato
-            print(f"🔍 Instances fields: {list(instances.get_fields().keys())}")
-            if hasattr(instances, 'gt_keypoints'):
-                print(f"✅ gt_keypoints shape: {instances.gt_keypoints.shape}")
-                # Conta mani con keypoints validi
-                hand_mask = instances.gt_classes == 19  # Assuming 19 is hand category
-                if hand_mask.any():
-                    hand_instances = instances[hand_mask]
-                    non_zero_kpts = (hand_instances.gt_keypoints.tensor.sum(dim=2) > 0).any(dim=1).sum()
-                    print(f"✅ Hands with non-zero keypoints: {non_zero_kpts}/{len(hand_instances)}")
-            else:
-                print("❌ gt_keypoints field missing!")
                 
         except Exception as e: 
-            print(f"❌ Error in mapper: {e}, file: {dataset_dict['file_name']}")
+            print(f"Error in mapper: {e}, file: {dataset_dict['file_name']}")
             import traceback
             traceback.print_exc()
 
