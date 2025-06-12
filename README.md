@@ -81,7 +81,12 @@ python train.py --train_json ./data/egoism-hoi-dataset/annotations/train_coco.js
 ```
 
 ```bash
-python train.py --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json --test_dataset_names val --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth --mask_gt --use_keypoints --contact_state_modality "mask+rgb+depth+keypoints+fusion" --keypoint_loss_weight 1.0
+python train.py \
+    --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
+    --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json \
+    --test_dataset_names val \
+    --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
+    --mask_gt
 ````
 
 Check more about argparse parameters in `train.py`.
