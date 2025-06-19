@@ -85,7 +85,7 @@ python train.py \
  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
  --mask_gt \
  --wandb_project "ehoi-exp-$(date +%s)" \
- --wandb_run_name "ehoi_net"
+ --wandb_run_name "ehoi_net" 
 ````
 
 ```bash
@@ -96,6 +96,12 @@ python train.py \
  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
  --mask_gt \
  --no_wandb
+```
+
+## Post Training 
+```bash
+wandb sync wandb/
+wandb dashboard
 ```
 
 Check more about argparse parameters in `train.py`.
