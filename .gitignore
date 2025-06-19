@@ -43,11 +43,8 @@ _darcs
 /detectron2/model_zoo/configs
 /datasets/*
 /models
+/wandb/*
 /snippet
-<<<<<<< HEAD
-=======
-/data/egoism-hoi-dataset/*
->>>>>>> 50dc4213b6cbff3c6c117bc27e72732e44c03528
 
 ###img and video
 *.jpg
@@ -55,8 +52,4 @@ _darcs
 *.png
 *.jpeg
 *.png
-<<<<<<< HEAD
 *.diffdata/egoism-hoi-dataset/annotations/*.json
-=======
-*.diff
->>>>>>> 50dc4213b6cbff3c6c117bc27e72732e44c03528
