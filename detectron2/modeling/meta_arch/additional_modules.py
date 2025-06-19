@@ -330,28 +330,40 @@ class ContactStateFusionClassificationModule(nn.Module):
         # Calculate individual branch losses for monitoring
         loss_dict = {}
         
-        if rgb_features is not None and cnn_features is not None:
-            # Multi-branch loss for better training
-            rgb_only_out = self.rgb_branch(rgb_features)
-            rgb_only_pred = torch.sigmoid(nn.Linear(256, 1).to(self.device)(rgb_only_out))
-            
-            cnn_only_out = self.cnn_branch(cnn_features)
-            cnn_only_pred = torch.sigmoid(cnn_only_out)
-            
-            loss_rgb = nn.functional.binary_cross_entropy(rgb_only_pred, gt_tensor)
-            loss_cnn = nn.functional.binary_cross_entropy(cnn_only_pred, gt_tensor)
-            
-            loss_dict["loss_cs_rgb"] = loss_rgb if not torch.isnan(loss_rgb) else torch.tensor([0], dtype=torch.float32).to(self.device)
-            loss_dict["loss_cs_cnn"] = loss_cnn if not torch.isnan(loss_cnn) else torch.tensor([0], dtype=torch.float32).to(self.device)
-        
         # Main fusion loss
         loss_fusion = nn.functional.binary_cross_entropy_with_logits(output, gt_tensor)
         loss_fusion = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss_fusion) else loss_fusion
         
+        # Individual branch losses if multiple modalities are present
+        if len(features_list) > 1:
+            if rgb_features is not None and len(rgb_features) > 0:
+                rgb_classifier = nn.Linear(256, 1).to(self.device)
+                rgb_pred = rgb_classifier(features_list[0][:min_batch_size])
+                loss_rgb = nn.functional.binary_cross_entropy_with_logits(rgb_pred, gt_tensor[:min_batch_size])
+                loss_dict["loss_cs_rgb"] = loss_rgb if not torch.isnan(loss_rgb) else torch.tensor([0], dtype=torch.float32).to(self.device)
+            
+            if cnn_features is not None and len(cnn_features) > 0 and len(features_list) > 1:
+                cnn_idx = 1 if rgb_features is not None else 0
+                cnn_classifier = nn.Linear(256, 1).to(self.device)
+                cnn_pred = cnn_classifier(features_list[cnn_idx][:min_batch_size])
+                loss_cnn = nn.functional.binary_cross_entropy_with_logits(cnn_pred, gt_tensor[:min_batch_size])
+                loss_dict["loss_cs_cnn"] = loss_cnn if not torch.isnan(loss_cnn) else torch.tensor([0], dtype=torch.float32).to(self.device)
+            
+            if keypoint_features is not None and len(keypoint_features) > 0:
+                kpt_idx = len(features_list) - 1
+                kpt_classifier = nn.Linear(256, 1).to(self.device)
+                kpt_pred = kpt_classifier(features_list[kpt_idx][:min_batch_size])
+                loss_kpt = nn.functional.binary_cross_entropy_with_logits(kpt_pred, gt_tensor[:min_batch_size])
+                loss_dict["loss_cs_keypoint"] = loss_kpt if not torch.isnan(loss_kpt) else torch.tensor([0], dtype=torch.float32).to(self.device)
+        
         loss_dict["loss_cs_fusion"] = loss_fusion
         
-        # Total loss is average of all components
-        total_loss = sum(loss_dict.values()) / len(loss_dict)
+        # Total loss is average of all components if multiple, otherwise just fusion loss
+        if len(loss_dict) > 1:
+            total_loss = sum(loss_dict.values()) / len(loss_dict)
+        else:
+            total_loss = loss_fusion
+            
         loss_dict["loss_cs_total"] = total_loss
 
         return output, loss_dict
