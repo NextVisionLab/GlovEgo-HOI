@@ -97,10 +97,6 @@ To test the models run the command below:
 python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/r_test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/383__33_lf/model_final.pth 
 ```
 
-```bash
-python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/r_test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/with_keypoints/model_final.pth --use_keypoints --contact_state_modality "mask+rgb+depth+keypoints+fusion"
-```
-
 Check more about argparse parameters in `test.py`.
 
 ### Inference

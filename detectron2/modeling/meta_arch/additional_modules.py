@@ -28,93 +28,6 @@ class SideLRClassificationModule(nn.Module):
     @property
     def device(self):
         return next(self.parameters()).device
-    
-class ContactStateRGBClassificationModule(nn.Module):
-    def __init__(self, cfg):
-        super(ContactStateRGBClassificationModule, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(1024, 256),
-            nn.ReLU(),
-            nn.Dropout(p = cfg.ADDITIONAL_MODULES.CONTACT_STATE_CLASSIFICATION_MODULE_DROPOUT),
-            nn.Linear(256, 1))
-    def forward(self, x, gt = None):
-        output = self.layers(x)
-        if gt is None: return output
-        if len(gt) == 0: return None, torch.tensor([0], dtype=torch.float32).to(self.device)
-        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
-        loss = nn.functional.binary_cross_entropy_with_logits(output, gt_tensor)
-        loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
-        return output, loss
-    @property
-    def device(self):
-        return next(self.parameters()).device
-
-class ContactStateCNNClassificationModule(nn.Module):
-    def __init__(self, cfg, n_channels = 5, use_pretrain_first_layer = True):
-        super(ContactStateCNNClassificationModule, self).__init__()
-        self.layers_1 = torchvision.models.efficientnet_v2_s(weights = torchvision.models.EfficientNet_V2_S_Weights.DEFAULT)   
-        weight = self.layers_1.features[0][0].weight.clone()
-        self.layers_1.features[0][0] = nn.Conv2d(n_channels, 24, kernel_size=3, stride=2, padding=1, bias=False)
-        if use_pretrain_first_layer:
-            with torch.no_grad():
-                self.layers_1.features[0][0].weight[:,:3,:,:].data[...] = weight
-        self.layers_1.classifier.add_module("3", nn.Linear(1000, 1))
-
-    def forward(self, x1, gt = None):
-        output_1 = self.layers_1(x1)
-
-        if gt is None: return output_1
-        if len(gt) == 0: return None, torch.tensor([0], dtype=torch.float32).to(self.device)
-        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
-
-        loss_1 = nn.functional.binary_cross_entropy_with_logits(output_1, gt_tensor)
-        loss_1 = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss_1) else loss_1
-
-        loss_dict = {"loss_cs_multi": loss_1}
-        return output_1, loss_dict
-
-    @property
-    def device(self):
-        return next(self.parameters()).device
-
-class ContactStateFusionClassificationModule(nn.Module):
-    def __init__(self, cfg, n_channels = 5, use_pretrain_first_layer = True):
-        super(ContactStateFusionClassificationModule, self).__init__()
-        self.layers_1 = torchvision.models.efficientnet_v2_s(weights = torchvision.models.EfficientNet_V2_S_Weights.DEFAULT)   
-        weight = self.layers_1.features[0][0].weight.clone()
-        self.layers_1.features[0][0] = nn.Conv2d(n_channels, 24, kernel_size=3, stride=2, padding=1, bias=False)
-        if use_pretrain_first_layer:
-            with torch.no_grad():
-                self.layers_1.features[0][0].weight[:,:3,:,:].data[...] = weight
-        self.layers_1.classifier.add_module("3", nn.Linear(1000, 1))
-
-        self.layers_2 = nn.Sequential(
-            nn.Linear(1024, 256),
-            nn.ReLU(),
-            nn.Dropout(p = cfg.ADDITIONAL_MODULES.CONTACT_STATE_CLASSIFICATION_MODULE_DROPOUT),
-            nn.Linear(256, 1))
-
-    def forward(self, x1, x2, gt = None):
-        output_1 = self.layers_1(x1)
-        output_2 = self.layers_2(x2)
-        output = torch.mean(torch.stack( (torch.sigmoid(output_1), torch.sigmoid(output_2.reshape(-1, 1))) ), dim = 0)
-        if gt is None: return output
-        if len(gt) == 0: return None, torch.tensor([0], dtype=torch.float32).to(self.device)
-        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
-
-        loss_1 = nn.functional.binary_cross_entropy_with_logits(output_1, gt_tensor)
-        loss_1 = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss_1) else loss_1
-
-        loss_2 = nn.functional.binary_cross_entropy_with_logits(output_2, gt_tensor)
-        loss_2 = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss_2) else loss_2
-
-        loss_dict = {"loss_cs_multi": (loss_1 + loss_2) / 2, "loss_cs_eff": loss_1, "loss_cs_res": loss_2}
-        return output, loss_dict
-
-    @property
-    def device(self):
-        return next(self.parameters()).device
-
 
 class AssociationVectorRegressor(nn.Module):
     def __init__(self, cfg):
@@ -150,9 +63,7 @@ class DepthModule(MidasNet):
         super().__init__(self.path_weights, self.features, self.non_negative, use_pretrained = self.pretrained)
 
     def preprocess_batch(self, x):
-        """
-        Preprocesses the batch of images for the depth module.
-        """
+        """Preprocesses the batch of images for the depth module"""
         batch_images = []
         
         for batch_input in x:
@@ -161,7 +72,7 @@ class DepthModule(MidasNet):
                 
                 if isinstance(image_data, np.ndarray):
                     if image_data.shape[0] == 3:
-                        image_hwc = image_data.transpose(1, 2, 0)  # (H, W, C)
+                        image_hwc = image_data.transpose(1, 2, 0)
                     else:
                         image_hwc = image_data
                     
@@ -226,25 +137,17 @@ class DepthModule(MidasNet):
                 image = cv2.imread(full_path)
                 if image is not None:
                     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                    
                     image_resized = cv2.resize(image_rgb, (384, 384))
-                    
                     image_normalized = image_resized.astype(np.float32) / 255.0
-                    
                     image_tensor = torch.from_numpy(image_normalized.transpose(2, 0, 1))
-                    
                     batch_images.append(image_tensor)
-                    
                     batch_input["image_for_depth_module"] = image_tensor.numpy()
-                    
                 else:
                     batch_images.append(torch.zeros(3, 384, 384))
-                    
             else:
                 batch_images.append(torch.zeros(3, 384, 384))
         
         result_tensor = torch.stack(batch_images).to(self.device)
-        
         return result_tensor
 
     def forward(self, x):
@@ -282,17 +185,20 @@ class DepthModule(MidasNet):
     @property
     def device(self):
         return next(self.parameters()).device
-    
 
 class KeypointFeatureExtractor(nn.Module):
-    """Extractor di features dai keypoints per il modulo Contact State"""
+    """
+    Extract semantic features from hand keypoints.
+    
+    Architecture: Raw coordinates (21x3) -> Semantic features (128D)
+    """
     def __init__(self, cfg):
         super(KeypointFeatureExtractor, self).__init__()
-        self.num_keypoints = cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS if hasattr(cfg.MODEL, 'ROI_KEYPOINT_HEAD') else 21
+        self.num_keypoints = 21
         self.keypoint_dim = 3  # x, y, visibility
-        self.normalize_coords = cfg.ADDITIONAL_MODULES.NORMALIZE_KEYPOINT_COORDS if hasattr(cfg.ADDITIONAL_MODULES, 'NORMALIZE_KEYPOINT_COORDS') else True
+        self.normalize_coords = cfg.ADDITIONAL_MODULES.get('NORMALIZE_KEYPOINT_COORDS', True)
         
-        # Feature extractor per keypoints
+        # Transform raw coordinates to semantic features
         self.keypoint_encoder = nn.Sequential(
             nn.Linear(self.num_keypoints * self.keypoint_dim, 512),
             nn.ReLU(),
@@ -306,16 +212,15 @@ class KeypointFeatureExtractor(nn.Module):
     def forward(self, keypoints, image_size=None):
         """
         Args:
-            keypoints: Tensor [N, num_keypoints, 3] or [N, num_keypoints*3]
-            image_size: Tuple (height, width) 
+            keypoints: Tensor [N, 21, 3] or [N, 63] with (x,y,score) per keypoint
+            image_size: Tuple (height, width) for coordinate normalization
         Returns:
-            features: Tensor [N, 128]
+            features: Tensor [N, 128] semantic features
         """
         if len(keypoints) == 0:
             return torch.empty(0, 128).to(self.device)
             
         if len(keypoints.shape) == 3:
-            # Flatten keypoints [N, num_keypoints, 3] to [N, num_keypoints*3]
             keypoints = keypoints.view(keypoints.size(0), -1)
         
         if self.normalize_coords and image_size is not None:
@@ -330,210 +235,127 @@ class KeypointFeatureExtractor(nn.Module):
     def device(self):
         return next(self.parameters()).device
 
-class ContactStateKeypointFusionClassificationModule(nn.Module):
-    """Early Fusion Module per Contact State con Keypoints, RGB e CNN"""
-    def __init__(self, cfg):
-        super(ContactStateKeypointFusionClassificationModule, self).__init__()
+class ContactStateFusionClassificationModule(nn.Module):
+    """
+    Early fusion module for contact state classification.
+    
+    Architecture: RGB + CNN + Keypoint features -> Contact classification
+    """
+    def __init__(self, cfg, n_channels=5, use_pretrain_first_layer=True):
+        super(ContactStateFusionClassificationModule, self).__init__()
         
-        self.rgb_dim = 1024  # from ROI Head
-        self.cnn_dim = 1000  # from CNN (depth/mask)
-        self.keypoint_dim = 128  # from Keypoint Feature Extractor
-        
-        self.use_rgb = "rgb" in cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY
-        self.use_cnn = any(x in cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY for x in ["depth", "mask", "cnn"])
-        self.use_keypoints = "keypoints" in cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY
-        
-        total_dim = 0
-        if self.use_rgb:
-            total_dim += self.rgb_dim
-        if self.use_cnn:
-            total_dim += self.cnn_dim
-        if self.use_keypoints:
-            total_dim += self.keypoint_dim
-            
-        if total_dim == 0:
-            raise ValueError("Almeno una modalità deve essere attiva per la fusion")
-        
-        # Fusion Network
-        self.fusion_net = nn.Sequential(
-            nn.Linear(total_dim, 512),
+        # CNN branch for depth/mask features
+        self.cnn_branch = torchvision.models.efficientnet_v2_s(weights = torchvision.models.EfficientNet_V2_S_Weights.DEFAULT)   
+        weight = self.cnn_branch.features[0][0].weight.clone()
+        self.cnn_branch.features[0][0] = nn.Conv2d(n_channels, 24, kernel_size=3, stride=2, padding=1, bias=False)
+        if use_pretrain_first_layer:
+            with torch.no_grad():
+                self.cnn_branch.features[0][0].weight[:,:3,:,:].data[...] = weight
+        self.cnn_branch.classifier.add_module("3", nn.Linear(1000, 256))
+
+        # RGB branch
+        self.rgb_branch = nn.Sequential(
+            nn.Linear(1024, 256),
             nn.ReLU(),
-            nn.Dropout(cfg.ADDITIONAL_MODULES.CONTACT_STATE_CLASSIFICATION_MODULE_DROPOUT),
+            nn.Dropout(p=cfg.ADDITIONAL_MODULES.get('CONTACT_STATE_CLASSIFICATION_MODULE_DROPOUT', 0.1))
+        )
+        
+        # Keypoint branch
+        self.keypoint_branch = nn.Sequential(
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Dropout(0.1)
+        )
+
+        # Fusion network
+        self.fusion_net = nn.Sequential(
+            nn.Linear(768, 512),  # 256*3 modalities
+            nn.ReLU(),
+            nn.Dropout(0.2),
             nn.Linear(512, 256),
             nn.ReLU(),
             nn.Dropout(0.1),
             nn.Linear(256, 1)
         )
 
-    def forward(self, rgb_features=None, cnn_features=None, keypoint_features=None, gt=None):
-        import torch.nn as nn
-        import torch.nn.functional as F
+    def forward(self, rgb_features, cnn_features, keypoint_features, gt=None):
+        """
+        Early fusion of RGB, CNN and keypoint features for contact state classification.
         
-        reduced_features = []
-        target_dim = 256  # Reduce all features to this size
+        Args:
+            rgb_features: RGB features from ROI head [N, 1024]
+            cnn_features: CNN features from depth/mask [N, H, W, C]
+            keypoint_features: Keypoint features [N, 128]
+            gt: Ground truth labels for training
+        """
+        features_list = []
         
-        # Process each feature type
-        features = [
-            ("rgb", rgb_features),
-            ("cnn", cnn_features),
-            ("keypoint", keypoint_features)
-        ]
+        # Process RGB features
+        if rgb_features is not None and len(rgb_features) > 0:
+            rgb_out = self.rgb_branch(rgb_features)
+            features_list.append(rgb_out)
         
-        for name, feat in features:
-            if feat is not None:
-                # Check if this feature type should be used
-                if name == "rgb" and not self.use_rgb:
-                    continue
-                if name == "cnn" and not self.use_cnn:
-                    continue
-                if name == "keypoint" and not self.use_keypoints:
-                    continue
-                    
-                # Flatten if needed
-                if feat.dim() > 2:
-                    feat = torch.flatten(feat, start_dim=1)
-                elif feat.dim() == 1:
-                    feat = feat.unsqueeze(0)
-                
-                # Reduce dimension if too large
-                if feat.shape[1] > target_dim:
-                    # Create reducer if not exists
-                    reducer_attr = f'{name}_reducer'
-                    if not hasattr(self, reducer_attr):
-                        setattr(self, reducer_attr, 
-                            nn.Linear(feat.shape[1], target_dim).to(feat.device))
-                    feat = getattr(self, reducer_attr)(feat)
-                
-                reduced_features.append(feat)
+        # Process CNN features
+        if cnn_features is not None and len(cnn_features) > 0:
+            cnn_out = self.cnn_branch(cnn_features)
+            features_list.append(cnn_out)
         
-        # Concatenate
-        if reduced_features:
-            fused_features = torch.cat(reduced_features, dim=1)
+        # Process keypoint features
+        if keypoint_features is not None and len(keypoint_features) > 0:
+            kpt_out = self.keypoint_branch(keypoint_features)
+            features_list.append(kpt_out)
+        
+        # Early fusion: concatenate all features
+        if len(features_list) > 0:
+            # Ensure all features have same batch size
+            min_batch_size = min(f.shape[0] for f in features_list)
+            features_list = [f[:min_batch_size] for f in features_list]
+            fused_features = torch.cat(features_list, dim=1)
         else:
+            # Fallback: create zero features
             device = next(self.parameters()).device
-            fused_features = torch.zeros(1, target_dim, device=device)
-                
-        # Rebuild network if input size doesn't match
-        expected_input = fused_features.shape[1]
-        if self.fusion_net[0].in_features != expected_input:
-            self.fusion_net = nn.Sequential(
-                nn.Linear(expected_input, 512),
-                nn.ReLU(),
-                nn.Dropout(0.1),
-                nn.Linear(512, 256),
-                nn.ReLU(),
-                nn.Dropout(0.1),
-                nn.Linear(256, 1)
-            ).to(fused_features.device)
+            fused_features = torch.zeros(1, 768, device=device)
         
+        # Final classification
         output = self.fusion_net(fused_features)
         
         if gt is None: 
-            return output
+            return torch.sigmoid(output)
             
         if len(gt) == 0: 
             return None, torch.tensor([0], dtype=torch.float32).to(self.device)
             
         gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
-        loss = nn.functional.binary_cross_entropy_with_logits(output, gt_tensor)
-        loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
         
-        return output, loss        
+        # Calculate individual branch losses for monitoring
+        loss_dict = {}
+        
+        if rgb_features is not None and cnn_features is not None:
+            # Multi-branch loss for better training
+            rgb_only_out = self.rgb_branch(rgb_features)
+            rgb_only_pred = torch.sigmoid(nn.Linear(256, 1).to(self.device)(rgb_only_out))
+            
+            cnn_only_out = self.cnn_branch(cnn_features)
+            cnn_only_pred = torch.sigmoid(cnn_only_out)
+            
+            loss_rgb = nn.functional.binary_cross_entropy(rgb_only_pred, gt_tensor)
+            loss_cnn = nn.functional.binary_cross_entropy(cnn_only_pred, gt_tensor)
+            
+            loss_dict["loss_cs_rgb"] = loss_rgb if not torch.isnan(loss_rgb) else torch.tensor([0], dtype=torch.float32).to(self.device)
+            loss_dict["loss_cs_cnn"] = loss_cnn if not torch.isnan(loss_cnn) else torch.tensor([0], dtype=torch.float32).to(self.device)
+        
+        # Main fusion loss
+        loss_fusion = nn.functional.binary_cross_entropy_with_logits(output, gt_tensor)
+        loss_fusion = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss_fusion) else loss_fusion
+        
+        loss_dict["loss_cs_fusion"] = loss_fusion
+        
+        # Total loss is average of all components
+        total_loss = sum(loss_dict.values()) / len(loss_dict)
+        loss_dict["loss_cs_total"] = total_loss
+
+        return output, loss_dict
 
     @property
     def device(self):
         return next(self.parameters()).device
-
-class ContactStateKeypointOnlyClassificationModule(nn.Module):
-    """Classification Module per Contact State con solo Keypoints"""
-    def __init__(self, cfg):
-        super(ContactStateKeypointOnlyClassificationModule, self).__init__()
-        
-        self.layers = nn.Sequential(
-            nn.Linear(128, 256),  
-            nn.ReLU(),
-            nn.Dropout(cfg.ADDITIONAL_MODULES.CONTACT_STATE_CLASSIFICATION_MODULE_DROPOUT),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(128, 1)
-        )
-        
-    def forward(self, keypoint_features, gt=None):
-        """
-        Args:
-            keypoint_features: Features from keypoints [N, 128]
-            gt: Ground truth labels
-        """
-        output = self.layers(keypoint_features)
-        
-        if gt is None: 
-            return output
-            
-        if len(gt) == 0: 
-            return None, torch.tensor([0], dtype=torch.float32).to(self.device)
-            
-        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
-        loss = nn.functional.binary_cross_entropy_with_logits(output, gt_tensor)
-        loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
-        
-        return output, loss
-    
-    @property
-    def device(self):
-        return next(self.parameters()).device
-
-def build_contact_state_module(cfg):
-    """Factory function per creare il modulo contact state appropriato"""
-    modality = cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY
-    
-    if "keypoints" in modality and "fusion" in modality:
-        # Early Fusion with keypoints
-        return ContactStateKeypointFusionClassificationModule(cfg)
-    elif modality == "keypoints":
-        # Solo keypoints
-        return ContactStateKeypointOnlyClassificationModule(cfg)
-    elif modality == "rgb":
-        # Solo RGB 
-        return ContactStateRGBClassificationModule(cfg)
-    elif "fusion" in modality:
-        # Fusion senza keypoints 
-        return ContactStateFusionClassificationModule(cfg)
-    else:
-        # CNN only 
-        return ContactStateCNNClassificationModule(cfg)
-
-def extract_keypoints_from_annotation(annotation, image_size=None):
-    """
-    Extract keypoints from COCO-style annotation
-    Args:
-        annotation: Dict with 'keypoints' field
-        image_size: Tuple (height, width) for normalization
-    """
-    if 'keypoints' not in annotation or len(annotation['keypoints']) == 0:
-        return torch.zeros(21, 3)
-    
-    kpts = np.array(annotation['keypoints']).reshape(-1, 3)
-    kpts_tensor = torch.tensor(kpts, dtype=torch.float32)
-    
-    if image_size is not None:
-        kpts_tensor[:, 0] /= image_size[1]  # x
-        kpts_tensor[:, 1] /= image_size[0]  # y
-    
-    return kpts_tensor
-
-def validate_keypoints(keypoints, threshold=0.3):
-    """
-    Validate keypoints based on visibility threshold
-    Args:
-        keypoints: Tensor of shape [N, num_keypoints, 3] or [N, num_keypoints*3]
-        threshold: Visibility threshold for keypoints
-    """
-    if len(keypoints) == 0:
-        return torch.tensor([], dtype=torch.bool)
-    
-    visible_count = (keypoints[:, :, 2] > threshold).sum(dim=1)
-    
-    valid_mask = visible_count >= 10
-    
-    return valid_mask

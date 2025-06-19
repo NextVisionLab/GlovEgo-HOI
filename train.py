@@ -37,12 +37,10 @@ parser.add_argument('--no_predict_mask', dest='predict_mask', action='store_fals
 parser.add_argument('--mask_gt', action='store_true', default=False)
 parser.add_argument('--no_depth_module', dest='depth_module', action='store_false', default=True)
 
-parser.add_argument('--contact_state_modality', default="mask+rgb+depth+keypoints+fusion", help="contact state modality", type=str, 
-                    choices=[
-                        "rgb", "cnn_rgb", "depth", "mask", "rgb+depth", "mask+rgb", "mask+depth", 
-                        "mask+rgb+depth", "mask+rgb+depth+fusion", "mask+rgb+fusion", "rgb+depth+fusion", 
-                        "rgb+fusion", "keypoints", "keypoints+fusion", "mask+rgb+depth+keypoints+fusion"
-                    ])
+parser.add_argument('--contact_state_modality', default="mask+rgb+depth+fusion", help="contact state modality", type=str, 
+                    choices=["rgb", "cnn_rgb", "depth", "mask", "rgb+depth", "mask+rgb", "mask+depth", 
+                            "mask+rgb+depth", "mask+rgb+depth+fusion", "mask+rgb+fusion", "rgb+depth+fusion", "rgb+fusion"])
+
 parser.add_argument('--contact_state_cnn_input_size', default="128", help="input size for the CNN contact state classification module", type=int)
 
 parser.add_argument('--cuda_device', default=0, help='CUDA device id', type=int)
@@ -67,19 +65,10 @@ def parse_args():
     if len(args.test_json) != len(args.test_dataset_names): 
         raise ValueError("test_json and test_dataset_names must have the same length")
     
-    # Set keypoint parameters
-    args.use_keypoints = "keypoints" in args.contact_state_modality
-    args.keypoint_early_fusion = "keypoints" in args.contact_state_modality and "fusion" in args.contact_state_modality
-    args.num_keypoints = 21
-    args.keypoint_loss_weight = 1.0
-    
     return args
 
-def setup_keypoint_metadata(dataset_name, use_keypoints=True):
-    """Configure keypoint metadata for dataset"""
-    if not use_keypoints:
-        return
-        
+def setup_keypoint_metadata(dataset_name):
+    """Configure keypoint metadata for dataset with 21 hand keypoints"""
     keypoint_names = [
         "wrist",
         "thumb_mcp", "thumb_pip", "thumb_dip", "thumb_tip",
@@ -119,17 +108,13 @@ def setup_keypoint_metadata(dataset_name, use_keypoints=True):
     )
 
 def get_evaluators(cfg, dataset_name, output_folder, converter):
-    """Get both COCO and EHOI evaluators - simple approach"""
-    # COCO Evaluator for bbox only (simple and stable)
+    """Get both COCO and EHOI evaluators"""
     coco_evaluator = COCOEvaluator(dataset_name, output_dir=output_folder, tasks=("bbox",))
-    
-    # EHOI Evaluator for everything else (keypoints, segmentation, custom metrics)
     ehoi_evaluator = EHOIEvaluator(cfg, dataset_name, converter)
-    
     return [coco_evaluator, ehoi_evaluator]
 
 def do_test(cfg, model, *, converter, mapper, data):
-    """Run evaluation - keep it simple like the original"""
+    """Run evaluation"""
     results = OrderedDict()
     for dataset_name in cfg.DATASETS.TEST:
         data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper(cfg, data, is_train=False))
@@ -159,30 +144,27 @@ def load_cfg(args, num_classes):
     cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE = True if "depth" in args.contact_state_modality else args.depth_module
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY = args.contact_state_modality
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_CNN_INPUT_SIZE = args.contact_state_cnn_input_size
-    
-    # Keypoint configuration - NEW
-    cfg.ADDITIONAL_MODULES.USE_KEYPOINTS = args.use_keypoints
-    cfg.ADDITIONAL_MODULES.USE_KEYPOINT_EARLY_FUSION = args.keypoint_early_fusion
     cfg.ADDITIONAL_MODULES.NORMALIZE_KEYPOINT_COORDS = True
-    cfg.MODEL.KEYPOINT_ON = args.use_keypoints
     
-    # ROI Keypoint Head configuration - NEW
-    if cfg.ADDITIONAL_MODULES.USE_KEYPOINTS:
-        cfg.MODEL.ROI_KEYPOINT_HEAD = CN()
-        cfg.MODEL.ROI_KEYPOINT_HEAD.NAME = "KRCNNConvDeconvUpsampleHead"
-        cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS = args.num_keypoints
-        cfg.MODEL.ROI_KEYPOINT_HEAD.LOSS_WEIGHT = args.keypoint_loss_weight
-        cfg.MODEL.ROI_KEYPOINT_HEAD.CONV_DIMS = (512, 512, 512, 512)
-        cfg.MODEL.ROI_KEYPOINT_HEAD.NORMALIZE_LOSS_BY_VISIBLE_KEYPOINTS = True
-        cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION = 14
-        cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_SAMPLING_RATIO = 0
-        cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE = "ROIAlignV2"
-        cfg.MODEL.ROI_KEYPOINT_HEAD.MIN_KEYPOINTS_PER_IMAGE = 0
-        cfg.MODEL.ROI_KEYPOINT_HEAD.POSITIVE_FRACTION = 0.25
-        cfg.MODEL.ROI_KEYPOINT_HEAD.BATCH_SIZE_PER_IMAGE = 64
-        
-        cfg.MODEL.ROI_HEADS.NAME = "StandardROIHeads"
-        cfg.MODEL.ROI_HEADS.IN_FEATURES = ["p2", "p3", "p4", "p5"]
+    # Always enable keypoints
+    cfg.MODEL.KEYPOINT_ON = True
+    
+    # ROI Keypoint Head configuration
+    cfg.MODEL.ROI_KEYPOINT_HEAD = CN()
+    cfg.MODEL.ROI_KEYPOINT_HEAD.NAME = "KRCNNConvDeconvUpsampleHead"
+    cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS = 21
+    cfg.MODEL.ROI_KEYPOINT_HEAD.LOSS_WEIGHT = 1.0
+    cfg.MODEL.ROI_KEYPOINT_HEAD.CONV_DIMS = (512, 512, 512, 512)
+    cfg.MODEL.ROI_KEYPOINT_HEAD.NORMALIZE_LOSS_BY_VISIBLE_KEYPOINTS = True
+    cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION = 14
+    cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_SAMPLING_RATIO = 0
+    cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE = "ROIAlignV2"
+    cfg.MODEL.ROI_KEYPOINT_HEAD.MIN_KEYPOINTS_PER_IMAGE = 0
+    cfg.MODEL.ROI_KEYPOINT_HEAD.POSITIVE_FRACTION = 0.25
+    cfg.MODEL.ROI_KEYPOINT_HEAD.BATCH_SIZE_PER_IMAGE = 64
+    
+    cfg.MODEL.ROI_HEADS.NAME = "StandardROIHeads"
+    cfg.MODEL.ROI_HEADS.IN_FEATURES = ["p2", "p3", "p4", "p5"]
     
     # Solver configuration
     cfg.SOLVER.BASE_LR = args.base_lr
@@ -211,12 +193,8 @@ def load_cfg(args, num_classes):
 if __name__ == "__main__":
     args = parse_args()
     print("=" * 50)
-    print("EHOI TRAINING WITH KEYPOINTS")
+    print("EHOI TRAINING")
     print("=" * 50)
-    print(f"Keypoints: {'ENABLED' if args.use_keypoints else 'DISABLED'}")
-    if args.use_keypoints:
-        print(f"Keypoint count: {args.num_keypoints}")
-        print(f"Early fusion: {'ENABLED' if args.keypoint_early_fusion else 'DISABLED'}")
     print(args)
 
     if args.debug:
@@ -232,7 +210,7 @@ if __name__ == "__main__":
     # Train register
     train_images_path = os.path.join(args.train_json[:[x for x, v in enumerate(args.train_json) if v == '/'][-2]], "images/")
     register_coco_instances("dataset_train", {}, args.train_json, train_images_path)
-    setup_keypoint_metadata("dataset_train", args.use_keypoints)  # NEW
+    setup_keypoint_metadata("dataset_train")
     
     dataset_train_metadata = MetadataCatalog.get("dataset_train")
     dataset_dict_train = DatasetCatalog.get("dataset_train")
@@ -245,7 +223,6 @@ if __name__ == "__main__":
     if 'categories' in data_anns_train_sup:
         num_classes = len(data_anns_train_sup['categories'])
     else:
-        # Fallback: count unique category IDs
         category_ids = set()
         for ann in data_anns_train_sup.get('annotations', []):
             category_ids.add(ann['category_id'])
@@ -258,7 +235,7 @@ if __name__ == "__main__":
         images_path = os.path.join(json_[:[x for x, v in enumerate(json_) if v == '/'][-2]], "images/")
         print(json_, name_, images_path)
         register_coco_instances(name_, {}, json_, images_path)
-        setup_keypoint_metadata(name_, args.use_keypoints)  # NEW
+        setup_keypoint_metadata(name_)
         dataset_test_dicts = DatasetCatalog.get(name_)
         test_metadata = MetadataCatalog.get(name_)
         test_metadata.set(coco_gt_hands=test_metadata.json_file.replace(".json", "_hands.json"))
@@ -284,8 +261,6 @@ if __name__ == "__main__":
     
     logger = logging.getLogger("detectron2")
     logger.info(f"Model loaded on device: {device}")
-    if cfg.ADDITIONAL_MODULES.USE_KEYPOINTS:
-        logger.info("Keypoint support enabled")
 
     # Optimizer and scheduler init
     base_parameters = [param for name, param in model.named_parameters() if 'depth_module' not in name]
