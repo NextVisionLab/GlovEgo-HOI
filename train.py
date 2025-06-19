@@ -8,6 +8,7 @@ import torch
 from collections import OrderedDict
 import logging
 import debugpy
+import wandb
 
 # import some common detectron2 utilities
 from detectron2.config import get_cfg, CfgNode as CN
@@ -25,7 +26,7 @@ from detectron2.utils.events import EventStorage
 import detectron2.utils.comm as comm
 
 ##### ArgumentParser
-parser = argparse.ArgumentParser(description='EHOI Training Script')
+parser = argparse.ArgumentParser(description='EHOI Training Script with Wandb')
 parser.add_argument('--train_json', dest='train_json', help='train json path', type=str, required=True)
 parser.add_argument('--weights_path', dest='weights', help='weights path', type=str, default="detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl")
 parser.add_argument('--seed', type=int, default=0, metavar='S', help='random seed (default: 0)')
@@ -52,6 +53,11 @@ parser.add_argument('--checkpoint_period', default=5000, help='checkpoint_period
 parser.add_argument('--eval_period', default=5000, help='eval_period', type=int)
 parser.add_argument('--warmup_iters', default=1000, help='warmup_iters', type=int)
 parser.add_argument('--debug', action='store_true', default=False)
+
+# Wandb arguments
+parser.add_argument('--wandb_project', default="ehoi-hand-object-interaction", help='Wandb project name', type=str)
+parser.add_argument('--wandb_run_name', default=None, help='Wandb run name', type=str)
+parser.add_argument('--no_wandb', action='store_true', default=False, help='Disable wandb logging')
 
 def parse_args():
     """Parse command line arguments and set derived parameters"""
@@ -190,10 +196,87 @@ def load_cfg(args, num_classes):
 
     return cfg
 
+def setup_wandb(args, cfg, num_classes):
+    """Initialize Wandb tracking with robust error handling"""
+    if args.no_wandb:
+        return None
+    
+    try:
+        # Try to initialize with simple configuration
+        import os
+        
+        # Set offline mode if there are permission issues
+        if 'WANDB_MODE' not in os.environ:
+            os.environ['WANDB_MODE'] = 'offline'
+        
+        print("Initializing Wandb in offline mode...")
+        
+        run = wandb.init(
+            project="ehoi-training",  # Simple project name
+            name=args.wandb_run_name or "ehoi_run",
+            config={
+                "learning_rate": args.base_lr,
+                "batch_size": args.ims_per_batch,
+                "max_iterations": args.max_iter,
+                "contact_state_modality": args.contact_state_modality,
+                "num_classes": num_classes,
+            },
+            tags=["detectron2", "keypoints"],
+            mode="offline"  # Force offline mode
+        )
+        
+        print("✅ Wandb initialized successfully in offline mode")
+        print("Run 'wandb sync wandb/latest-run' after training to upload logs")
+        return run
+        
+    except Exception as e:
+        print(f"❌ Wandb initialization failed: {e}")
+        print("Continuing training without Wandb...")
+        return None
+def log_losses_to_wandb(loss_dict_reduced, iteration, lr):
+    """Log losses and metrics to wandb"""
+    if wandb.run is None:
+        return
+    
+    # Prepare logging dictionary
+    log_dict = {"iteration": iteration, "learning_rate": lr}
+    
+    # Add all losses
+    for loss_name, loss_value in loss_dict_reduced.items():
+        log_dict[f"losses/{loss_name}"] = loss_value
+    
+    # Calculate total loss
+    total_loss = sum(loss for loss in loss_dict_reduced.values())
+    log_dict["losses/total_loss"] = total_loss
+    
+    # Log to wandb
+    wandb.log(log_dict, step=iteration)
+
+def log_evaluation_to_wandb(results, iteration):
+    """Log evaluation results to wandb"""
+    if wandb.run is None or not results:
+        return
+    
+    log_dict = {"iteration": iteration}
+    
+    # Process evaluation results
+    for dataset_name, dataset_results in results.items():
+        if isinstance(dataset_results, dict):
+            for metric_category, metrics in dataset_results.items():
+                if isinstance(metrics, dict):
+                    for metric_name, metric_value in metrics.items():
+                        if isinstance(metric_value, (int, float)):
+                            log_dict[f"eval/{dataset_name}/{metric_category}/{metric_name}"] = metric_value
+                elif isinstance(metrics, (int, float)):
+                    log_dict[f"eval/{dataset_name}/{metric_category}"] = metrics
+    
+    # Log to wandb
+    wandb.log(log_dict, step=iteration)
+
 if __name__ == "__main__":
     args = parse_args()
     print("=" * 50)
-    print("EHOI TRAINING")
+    print("EHOI TRAINING WITH WANDB")
     print("=" * 50)
     print(args)
 
@@ -242,6 +325,9 @@ if __name__ == "__main__":
 
     # Load config
     cfg = load_cfg(args, num_classes=num_classes)
+    
+    # Setup Wandb
+    wandb_run = setup_wandb(args, cfg, num_classes)
 
     # Init model
     mapper = EhoiDatasetMapperDepthv1(cfg, data_anns_sup=data_anns_train_sup)
@@ -249,6 +335,10 @@ if __name__ == "__main__":
     if len(args.test_json):
         converter = MMEhoiNetConverterv1(cfg, test_metadata)
     model = MMEhoiNetv1(cfg, dataset_train_metadata)
+
+    # Watch model with wandb
+    if wandb_run is not None:
+        wandb.watch(model, log="all", log_freq=1000)
 
     # Load weights
     checkpointer = DetectionCheckpointer(model, cfg.OUTPUT_DIR)
@@ -298,12 +388,23 @@ if __name__ == "__main__":
             losses.backward()
             optimizer.step()
             scheduler.step()
-            storage.put_scalar("lr", optimizer.param_groups[0]["lr"], smoothing_hint=False)
+            
+            current_lr = optimizer.param_groups[0]["lr"]
+            storage.put_scalar("lr", current_lr, smoothing_hint=False)
+            
+            # Log to Wandb
+            if comm.is_main_process():
+                log_losses_to_wandb(loss_dict_reduced, iteration, current_lr)
             
             # Evaluation
             if len(args.test_json) and cfg.TEST.EVAL_PERIOD > 0 and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0:
                 logger.info("Starting evaluation...")
                 results_val = do_test(cfg, model, converter=converter, mapper=mapper_test, data=data_anns_train_sup)
+                
+                # Log evaluation to Wandb
+                if comm.is_main_process():
+                    log_evaluation_to_wandb(results_val, iteration)
+                
                 logger.info("Evaluation completed")
 
             # Write and checkpoint
@@ -313,3 +414,7 @@ if __name__ == "__main__":
             periodic_checkpointer.step(iteration)
     
     logger.info("Training completed successfully!")
+    
+    # Finish wandb run
+    if wandb_run is not None:
+        wandb.finish()
