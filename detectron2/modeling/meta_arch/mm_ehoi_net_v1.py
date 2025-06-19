@@ -180,14 +180,31 @@ class MMEhoiNetv1(EhoiNet):
         self._c_hands_keypoint_features = self._extract_keypoints_from_instances(proposals_match, image_size)
 
     def _prepare_hands_features_inference(self, batched_inputs, instances_hands):
-        """Extract hand features during inference"""
+        """Extract hand features during inference - handles empty hands case"""
+        if len(instances_hands) == 0:
+            # No hands detected - set empty features
+            self._c_hands_features = torch.empty(0, 1024).to(self.device)
+            self._c_hands_features_padded = torch.empty(0, 1024).to(self.device)
+            self._c_hands_features_cnn = torch.empty(0, 128, 128, 5).to(self.device) if self._contact_state_modality != "rgb" else None
+            self._c_hands_keypoint_features = torch.empty(0, 128).to(self.device)
+            return
+            
         image_width, image_height = batched_inputs[0]['width'], batched_inputs[0]['height']
         
         rois = self.roi_heads.box_pooler([self._last_extracted_features["rgb"][f] for f in self.roi_heads.in_features], [instances_hands.pred_boxes])
         self._c_hands_features = torch.squeeze(self.roi_heads.box_head(rois))
+        
+        # Handle single hand case - ensure 2D
+        if self._c_hands_features.dim() == 1:
+            self._c_hands_features = self._c_hands_features.unsqueeze(0)
+            
         boxes_padded = Boxes(expand_box(instances_hands.pred_boxes.tensor.detach().clone(), image_width, image_height, ratio = self._expand_hand_box_ratio))
         rois_padded = self.roi_heads.box_pooler([self._last_extracted_features["rgb"][f] for f in self.roi_heads.in_features], [boxes_padded])
         self._c_hands_features_padded = torch.squeeze(self.roi_heads.box_head(rois_padded))
+        
+        # Handle single hand case - ensure 2D
+        if self._c_hands_features_padded.dim() == 1:
+            self._c_hands_features_padded = self._c_hands_features_padded.unsqueeze(0)
 
         if self._contact_state_modality != "rgb":
             boxes_padded_rescaled = Boxes(boxes_padded.tensor.detach().clone())
@@ -379,6 +396,27 @@ class MMEhoiNetv1(EhoiNet):
         
         tmp_time = time.time()
         instances_hands = instances[instances.pred_classes == self._id_hand]
+        
+        # Handle case when no hands are detected
+        if len(instances_hands) == 0:
+            # Create empty outputs for consistency
+            results[0]['additional_outputs'].set("boxes", torch.empty(0, 4))
+            results[0]['additional_outputs'].set("sides", torch.empty(0, dtype=torch.int))
+            results[0]['additional_outputs'].set("scores", torch.empty(0))
+            results[0]['additional_outputs'].set("contact_states", torch.empty(0, dtype=torch.int))
+            results[0]['additional_outputs'].set("dxdymagn_hand", torch.empty(0, 3))
+            
+            self._last_inference_times["data.prep.additional_modules"] = time.time() - tmp_time
+            self._last_inference_times["classification_hand_lr"] = 0
+            self._last_inference_times["association_vector_regressor"] = 0
+            self._last_inference_times["classification_contact_state"] = 0
+            
+            _total = round(sum(self._last_inference_times.values()) * 1000, 2)
+            self._last_inference_times = {k: round(v * 1000, 2) for k, v in self._last_inference_times.items()}
+            self._last_inference_times["total"] = _total
+            self._last_instances_hands = instances_hands
+            return results
+        
         self._prepare_hands_features_inference(batched_inputs, instances_hands)
         self._last_inference_times["data.prep.additional_modules"] = time.time() - tmp_time
     

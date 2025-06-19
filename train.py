@@ -200,19 +200,23 @@ def setup_wandb(args, cfg, num_classes):
     """Initialize Wandb tracking with robust error handling"""
     if args.no_wandb:
         return None
-    
+
+    import os
+    import wandb
+
     try:
-        # Try to initialize with simple configuration
-        import os
-        
-        # Set offline mode if there are permission issues
+        netrc_path = os.path.expanduser("~/.netrc")
+        if not os.path.exists(netrc_path):
+            print("No .netrc file found: skipping Wandb logging.")
+            return None
+
         if 'WANDB_MODE' not in os.environ:
             os.environ['WANDB_MODE'] = 'offline'
-        
+
         print("Initializing Wandb in offline mode...")
-        
+
         run = wandb.init(
-            project="ehoi-training",  # Simple project name
+            project="ehoi-training",
             name=args.wandb_run_name or "ehoi_run",
             config={
                 "learning_rate": args.base_lr,
@@ -222,17 +226,18 @@ def setup_wandb(args, cfg, num_classes):
                 "num_classes": num_classes,
             },
             tags=["detectron2", "keypoints"],
-            mode="offline"  # Force offline mode
+            mode="offline"
         )
-        
-        print("✅ Wandb initialized successfully in offline mode")
+
+        print("Wandb initialized successfully in offline mode")
         print("Run 'wandb sync wandb/latest-run' after training to upload logs")
         return run
-        
+
     except Exception as e:
-        print(f"❌ Wandb initialization failed: {e}")
+        print(f"Wandb initialization failed: {e}")
         print("Continuing training without Wandb...")
         return None
+    
 def log_losses_to_wandb(loss_dict_reduced, iteration, lr):
     """Log losses and metrics to wandb"""
     if wandb.run is None:

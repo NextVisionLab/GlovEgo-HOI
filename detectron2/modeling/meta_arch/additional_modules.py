@@ -292,16 +292,33 @@ class ContactStateFusionClassificationModule(nn.Module):
         
         # Process RGB features
         if rgb_features is not None and len(rgb_features) > 0:
+            # Ensure RGB features are 2D
+            if rgb_features.dim() == 1:
+                rgb_features = rgb_features.unsqueeze(0)
             rgb_out = self.rgb_branch(rgb_features)
             features_list.append(rgb_out)
         
         # Process CNN features
         if cnn_features is not None and len(cnn_features) > 0:
-            cnn_out = self.cnn_branch(cnn_features)
-            features_list.append(cnn_out)
+            # Ensure CNN features are 4D for CNN processing
+            if cnn_features.dim() == 3:
+                cnn_features = cnn_features.unsqueeze(0)
+            elif cnn_features.dim() == 1:
+                # Skip CNN features if they're malformed
+                cnn_features = None
+            
+            if cnn_features is not None:
+                cnn_out = self.cnn_branch(cnn_features)
+                # Ensure CNN output is 2D
+                if cnn_out.dim() == 1:
+                    cnn_out = cnn_out.unsqueeze(0)
+                features_list.append(cnn_out)
         
         # Process keypoint features
         if keypoint_features is not None and len(keypoint_features) > 0:
+            # Ensure keypoint features are 2D
+            if keypoint_features.dim() == 1:
+                keypoint_features = keypoint_features.unsqueeze(0)
             kpt_out = self.keypoint_branch(keypoint_features)
             features_list.append(kpt_out)
         
@@ -310,7 +327,17 @@ class ContactStateFusionClassificationModule(nn.Module):
             # Ensure all features have same batch size
             min_batch_size = min(f.shape[0] for f in features_list)
             features_list = [f[:min_batch_size] for f in features_list]
-            fused_features = torch.cat(features_list, dim=1)
+            
+            # Ensure all features are 2D before concatenation
+            processed_features = []
+            for i, feat in enumerate(features_list):
+                if feat.dim() == 1:
+                    feat = feat.unsqueeze(0)
+                elif feat.dim() > 2:
+                    feat = feat.view(feat.shape[0], -1)
+                processed_features.append(feat)
+            
+            fused_features = torch.cat(processed_features, dim=1)
         else:
             # Fallback: create zero features
             device = next(self.parameters()).device
@@ -335,26 +362,33 @@ class ContactStateFusionClassificationModule(nn.Module):
         loss_fusion = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss_fusion) else loss_fusion
         
         # Individual branch losses if multiple modalities are present
-        if len(features_list) > 1:
-            if rgb_features is not None and len(rgb_features) > 0:
-                rgb_classifier = nn.Linear(256, 1).to(self.device)
-                rgb_pred = rgb_classifier(features_list[0][:min_batch_size])
-                loss_rgb = nn.functional.binary_cross_entropy_with_logits(rgb_pred, gt_tensor[:min_batch_size])
-                loss_dict["loss_cs_rgb"] = loss_rgb if not torch.isnan(loss_rgb) else torch.tensor([0], dtype=torch.float32).to(self.device)
-            
-            if cnn_features is not None and len(cnn_features) > 0 and len(features_list) > 1:
-                cnn_idx = 1 if rgb_features is not None else 0
-                cnn_classifier = nn.Linear(256, 1).to(self.device)
-                cnn_pred = cnn_classifier(features_list[cnn_idx][:min_batch_size])
-                loss_cnn = nn.functional.binary_cross_entropy_with_logits(cnn_pred, gt_tensor[:min_batch_size])
-                loss_dict["loss_cs_cnn"] = loss_cnn if not torch.isnan(loss_cnn) else torch.tensor([0], dtype=torch.float32).to(self.device)
-            
-            if keypoint_features is not None and len(keypoint_features) > 0:
-                kpt_idx = len(features_list) - 1
-                kpt_classifier = nn.Linear(256, 1).to(self.device)
-                kpt_pred = kpt_classifier(features_list[kpt_idx][:min_batch_size])
-                loss_kpt = nn.functional.binary_cross_entropy_with_logits(kpt_pred, gt_tensor[:min_batch_size])
-                loss_dict["loss_cs_keypoint"] = loss_kpt if not torch.isnan(loss_kpt) else torch.tensor([0], dtype=torch.float32).to(self.device)
+        if len(processed_features) > 1:
+            try:
+                if rgb_features is not None and len(rgb_features) > 0:
+                    rgb_classifier = nn.Linear(processed_features[0].shape[1], 1).to(self.device)
+                    rgb_pred = rgb_classifier(processed_features[0][:min_batch_size])
+                    loss_rgb = nn.functional.binary_cross_entropy_with_logits(rgb_pred, gt_tensor[:min_batch_size])
+                    loss_dict["loss_cs_rgb"] = loss_rgb if not torch.isnan(loss_rgb) else torch.tensor([0], dtype=torch.float32).to(self.device)
+                
+                if len(processed_features) > 1:
+                    # Find CNN features (usually second in list if RGB is first)
+                    cnn_idx = 1 if rgb_features is not None else 0
+                    if cnn_idx < len(processed_features):
+                        cnn_classifier = nn.Linear(processed_features[cnn_idx].shape[1], 1).to(self.device)
+                        cnn_pred = cnn_classifier(processed_features[cnn_idx][:min_batch_size])
+                        loss_cnn = nn.functional.binary_cross_entropy_with_logits(cnn_pred, gt_tensor[:min_batch_size])
+                        loss_dict["loss_cs_cnn"] = loss_cnn if not torch.isnan(loss_cnn) else torch.tensor([0], dtype=torch.float32).to(self.device)
+                
+                if keypoint_features is not None and len(keypoint_features) > 0:
+                    kpt_idx = len(processed_features) - 1
+                    kpt_classifier = nn.Linear(processed_features[kpt_idx].shape[1], 1).to(self.device)
+                    kpt_pred = kpt_classifier(processed_features[kpt_idx][:min_batch_size])
+                    loss_kpt = nn.functional.binary_cross_entropy_with_logits(kpt_pred, gt_tensor[:min_batch_size])
+                    loss_dict["loss_cs_keypoint"] = loss_kpt if not torch.isnan(loss_kpt) else torch.tensor([0], dtype=torch.float32).to(self.device)
+            except Exception as e:
+                # If individual losses fail, just use fusion loss
+                print(f"Warning: Individual loss calculation failed: {e}")
+                pass
         
         loss_dict["loss_cs_fusion"] = loss_fusion
         
