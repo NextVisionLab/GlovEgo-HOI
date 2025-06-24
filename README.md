@@ -120,6 +120,12 @@ python inference.py --weights_path <weights_path> --images_path <images_path>
 python inference.py --weights_path ./weights/full_model/model_final.pth --images_path ./data/test_images/ --use_keypoints --contact_state_modality "mask+rgb+depth+keypoints+fusion" --save_features --output_dir ./output_detection_keypoints/
 ```
 
+### Visualization
+
+```bash
+python visualization.py  --weights ./output_dir/last_training/model_final.pth  --val_json ./data/egoism-hoi-dataset/annotations/val_coco.json  --output_dir ./visualizations  --num_samples 10  --start_idx 0
+```
+
 Check more about argparse parameters in `inference.py`.
 
 ## Ackowledgements

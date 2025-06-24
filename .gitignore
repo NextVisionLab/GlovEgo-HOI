@@ -46,6 +46,7 @@ _darcs
 /wandb/*
 /data/egoism-hoi-dataset/*
 /snippet
+/visualizations
 
 ###img and video
 *.jpg
