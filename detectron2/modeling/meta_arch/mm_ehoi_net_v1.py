@@ -194,9 +194,6 @@ class MMEhoiNetv1(EhoiNet):
         
         proposals_match, detector_losses = self.roi_heads(images, features, proposals, gt_instances)
 
-        # --- EXPLICIT MASK GENERATION FOR TRAINING ---
-        # This is the key fix: we explicitly generate masks for the matched proposals
-        # so they can be used by downstream modules.
         if self.roi_heads.mask_on:
             proposals_for_mask = [p for p in proposals_match if len(p) > 0]
             if len(proposals_for_mask) > 0:
@@ -205,7 +202,6 @@ class MMEhoiNetv1(EhoiNet):
                     [p.proposal_boxes for p in proposals_for_mask]
                 )
                 mask_logits = self.roi_heads.mask_head(mask_features)
-                # Attach the predicted masks to the proposals object
                 proposals_match = mask_rcnn_inference_in_training(mask_logits, proposals_for_mask)
 
         self._prepare_gt_labels(proposals_match)
@@ -223,7 +219,6 @@ class MMEhoiNetv1(EhoiNet):
         
         self._prepare_hands_features(batched_inputs, proposals_match)
         
-        # Guard against batches with no hand proposals
         if len(self._c_gt_hands_lr) > 0:
             _, loss_hand_lr = self.classification_hand_lr(self._c_hands_features, self._c_gt_hands_lr)
             losses['loss_classification_hand_lr'] = loss_hand_lr
@@ -239,7 +234,6 @@ class MMEhoiNetv1(EhoiNet):
             contact_indices = [i for i, x in enumerate(self._c_gt_hands_contact_state) if x == 1]
             if contact_indices:
                 gt_vectors = np.array(self._c_gt_hands_dxdymagnitude)[contact_indices]
-                # Ensure there are features to regress on
                 if self._c_hands_features_padded[contact_indices].numel() > 0:
                     _, loss_vector_reg = self.association_vector_regressor(self._c_hands_features_padded[contact_indices], gt_vectors)
                     losses['loss_regression_dxdymagn'] = loss_vector_reg
@@ -248,7 +242,6 @@ class MMEhoiNetv1(EhoiNet):
             else:
                 losses['loss_regression_dxdymagn'] = torch.tensor(0.0, device=self.device)
         else:
-            # Add dummy losses for DDP compatibility if no hands are found.
             losses['loss_classification_hand_lr'] = torch.tensor(0.0, device=self.device)
             if 'loss_cs_fusion' not in losses: losses['loss_cs_fusion'] = sum(p.sum() for p in self.classification_contact_state.parameters()) * 0.0
             losses['loss_regression_dxdymagn'] = torch.tensor(0.0, device=self.device)
@@ -274,7 +267,6 @@ class MMEhoiNetv1(EhoiNet):
             self._last_extracted_features["depth"], self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
             results[0]['depth_map'] = self._depth_maps_predicted
         
-        # In inference, `results` already contain `pred_masks` and `pred_keypoints` if heads are active.
         self._prepare_hands_features(batched_inputs, [instances])
         
         instances_hands = instances[instances.pred_classes == self._id_hand]
