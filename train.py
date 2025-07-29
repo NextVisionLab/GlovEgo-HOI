@@ -28,7 +28,7 @@ import detectron2.utils.comm as comm
 ##### ArgumentParser
 parser = argparse.ArgumentParser(description='EHOI Training Script with Wandb')
 parser.add_argument('--train_json', dest='train_json', help='train json path', type=str, required=True)
-parser.add_argument('--weights_path', dest='weights', help='weights path', type=str, default="detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl")
+parser.add_argument('--weights', dest='weights', help='weights path', type=str, default="detectron2://COCO-Detection/faster_rcnn_R_101_FPN_3x/137851257/model_final_f6e8b1.pkl")
 parser.add_argument('--seed', type=int, default=0, metavar='S', help='random seed (default: 0)')
 
 parser.add_argument('--test_json', dest='test_json', nargs='*', help='test json paths', type=str)

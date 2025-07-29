@@ -1,0 +1,16 @@
+{"time":"2025-06-19T14:34:47.00944581+02:00","level":"INFO","msg":"stream: starting","core version":"0.20.1","symlink path":"/home/aspoto/Desktop/HOIE-algorithm/wandb/offline-run-20250619_143446-fpkr4dih/logs/debug-core.log"}
+{"time":"2025-06-19T14:34:47.125013715+02:00","level":"WARN","msg":"GraphQL client is nil, skipping feature loading"}
+{"time":"2025-06-19T14:34:47.125232351+02:00","level":"INFO","msg":"stream: created new stream","id":"fpkr4dih"}
+{"time":"2025-06-19T14:34:47.125283215+02:00","level":"INFO","msg":"stream: started","id":"fpkr4dih"}
+{"time":"2025-06-19T14:34:47.12538076+02:00","level":"INFO","msg":"writer: Do: started","stream_id":"fpkr4dih"}
+{"time":"2025-06-19T14:34:47.125444562+02:00","level":"INFO","msg":"handler: started","stream_id":"fpkr4dih"}
+{"time":"2025-06-19T14:34:47.12559582+02:00","level":"INFO","msg":"sender: started","stream_id":"fpkr4dih"}
+{"time":"2025-06-19T14:34:47.133322328+02:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-06-20T14:45:03.478399714+02:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-06-20T14:45:03.478608446+02:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-06-20T14:45:03.577624277+02:00","level":"INFO","msg":"handler: operation stats","stats":{}}
+{"time":"2025-06-20T14:45:03.726596501+02:00","level":"INFO","msg":"stream: closing","id":"fpkr4dih"}
+{"time":"2025-06-20T14:45:03.726645159+02:00","level":"INFO","msg":"handler: closed","stream_id":"fpkr4dih"}
+{"time":"2025-06-20T14:45:03.726661892+02:00","level":"INFO","msg":"writer: Close: closed","stream_id":"fpkr4dih"}
+{"time":"2025-06-20T14:45:03.726669853+02:00","level":"INFO","msg":"sender: closed","stream_id":"fpkr4dih"}
+{"time":"2025-06-20T14:45:03.726839781+02:00","level":"INFO","msg":"stream: closed","id":"fpkr4dih"}

@@ -187,52 +187,76 @@ class DepthModule(MidasNet):
         return next(self.parameters()).device
 
 class KeypointFeatureExtractor(nn.Module):
-    """
-    Extract semantic features from hand keypoints.
-    
-    Architecture: Raw coordinates (21x3) -> Semantic features (128D)
-    """
+
     def __init__(self, cfg):
         super(KeypointFeatureExtractor, self).__init__()
         self.num_keypoints = 21
-        self.keypoint_dim = 3  # x, y, visibility
-        self.normalize_coords = cfg.ADDITIONAL_MODULES.get('NORMALIZE_KEYPOINT_COORDS', True)
-        
-        # Transform raw coordinates to semantic features
+        self.keypoint_dim = 3  # (x, y, score/visibility)
+
+        # Confidence threshold to filter out unreliable keypoint predictions.
+        self.confidence_threshold = cfg.ADDITIONAL_MODULES.get('KEYPOINT_CONFIDENCE_THRESHOLD', 0.1)
+
+        # A Multi-Layer Perceptron (MLP) to encode the normalized and masked
+        # keypoints into a high-level feature vector.
         self.keypoint_encoder = nn.Sequential(
             nn.Linear(self.num_keypoints * self.keypoint_dim, 512),
             nn.ReLU(),
-            nn.Dropout(0.2),
+            nn.Dropout(p=0.2),
             nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Dropout(0.1),
+            nn.Dropout(p=0.1),
             nn.Linear(256, 128)
         )
-        
-    def forward(self, keypoints, image_size=None):
+
+    def forward(self, keypoints: torch.Tensor, hand_boxes: torch.Tensor) -> torch.Tensor:
         """
-        Args:
-            keypoints: Tensor [N, 21, 3] or [N, 63] with (x,y,score) per keypoint
-            image_size: Tuple (height, width) for coordinate normalization
-        Returns:
-            features: Tensor [N, 128] semantic features
+        Processes a batch of hand keypoints to extract semantic features.
         """
         if len(keypoints) == 0:
-            return torch.empty(0, 128).to(self.device)
-            
-        if len(keypoints.shape) == 3:
-            keypoints = keypoints.view(keypoints.size(0), -1)
-        
-        if self.normalize_coords and image_size is not None:
-            kpts_reshaped = keypoints.view(-1, self.num_keypoints, 3)
-            kpts_reshaped[:, :, 0] /= image_size[1]  # normalize x
-            kpts_reshaped[:, :, 1] /= image_size[0]  # normalize y
-            keypoints = kpts_reshaped.view(keypoints.size(0), -1)
-        
-        return self.keypoint_encoder(keypoints)
-    
+            return torch.empty(0, 128, device=self.device)
+
+        if keypoints.dim() != 3:
+            raise ValueError(f"Expected keypoints to be 3D [N, 21, 3], but got {keypoints.dim()}D")
+        if keypoints.shape[0] != hand_boxes.shape[0]:
+            raise ValueError("Batch size mismatch between keypoints and hand_boxes.")
+
+        # --- Step 1: Masking based on confidence score ---
+        # Extract the confidence scores (third element of each keypoint tuple).
+        scores = keypoints[:, :, 2]
+        # Create a binary mask where 1 indicates a confident keypoint.
+        confidence_mask = (scores > self.confidence_threshold).float().unsqueeze(-1)
+        # Apply the mask to zero out all data (x, y, score) for non-confident keypoints.
+        masked_keypoints = keypoints * confidence_mask
+
+        # --- Step 2: Normalization relative to the bounding box ---
+        # Extract the top-left corner (x0, y0) and dimensions (w, h) of each box.
+        x0 = hand_boxes[:, 0].unsqueeze(1)
+        y0 = hand_boxes[:, 1].unsqueeze(1)
+        box_w = (hand_boxes[:, 2] - hand_boxes[:, 0]).unsqueeze(1)
+        box_h = (hand_boxes[:, 3] - hand_boxes[:, 1]).unsqueeze(1)
+
+        # Prevent division by zero for boxes with zero width or height.
+        box_w = torch.clamp(box_w, min=1e-6)
+        box_h = torch.clamp(box_h, min=1e-6)
+
+        # Create a new tensor to store normalized keypoints.
+        normalized_keypoints = masked_keypoints.clone()
+
+        # Perform normalization: (coord - origin) / dimension.
+        # This transforms keypoint coordinates into a [0, 1] range relative to the box.
+        normalized_keypoints[:, :, 0] = (masked_keypoints[:, :, 0] - x0) / box_w
+        normalized_keypoints[:, :, 1] = (masked_keypoints[:, :, 1] - y0) / box_h
+
+        # --- Step 3: Feature Extraction ---
+        # Flatten the processed keypoints tensor from [N, 21, 3] to [N, 63]
+        # to serve as input for the MLP encoder.
+        flattened_keypoints = normalized_keypoints.view(keypoints.size(0), -1)
+
+        return self.keypoint_encoder(flattened_keypoints)
+
     @property
-    def device(self):
+    def device(self) -> torch.device:
+        """Returns the device on which the module's parameters are located."""
         return next(self.parameters()).device
 
 class ContactStateFusionClassificationModule(nn.Module):
