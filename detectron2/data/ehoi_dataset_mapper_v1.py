@@ -111,6 +111,7 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
         dataset_dict["instances"] = utils.filter_empty_instances(instances)    
         return dataset_dict
 
+
 class EhoiDatasetMapperDepthv1(EhoiDatasetMapperv1):
     def __init__(self, cfg, data_anns_sup=None, is_train=True, _gt=True, **kwargs):
         super().__init__(cfg, data_anns_sup, is_train, **kwargs)

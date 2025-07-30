@@ -278,7 +278,7 @@ def log_evaluation_to_wandb(results, iteration):
     # Log to wandb
     wandb.log(log_dict, step=iteration)
 
-if __name__ == "__main__":
+def main():
     args = parse_args()
     print("=" * 50)
     print("EHOI TRAINING WITH WANDB")
@@ -423,3 +423,6 @@ if __name__ == "__main__":
     # Finish wandb run
     if wandb_run is not None:
         wandb.finish()
+
+if __name__ == "__main__":
+    main()

@@ -4,7 +4,7 @@ import torch
 from torch import nn
 import numpy as np
 import torchvision
-
+import torch.nn.functional as F
 from .MiDaS.midas.midas_net import MidasNet
 
 class SideLRClassificationModule(nn.Module):
@@ -259,6 +259,53 @@ class KeypointFeatureExtractor(nn.Module):
         """Returns the device on which the module's parameters are located."""
         return next(self.parameters()).device
 
+class GlovesClassificationModule(nn.Module):
+    def __init__(self, cfg):
+        super(GlovesClassificationModule, self).__init__()
+        input_dim = 1024 
+        hidden_dim = 256
+        self.layer_1 = nn.Linear(input_dim, hidden_dim)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(p=0.5) 
+        self.layer_2 = nn.Linear(hidden_dim, 1) 
+
+    def forward(self, x, gt_gloves=None):
+        if x.numel() == 0: 
+            if self.training:
+                return torch.empty(0, 1, device=self.device), torch.tensor(0.0, device=self.device)
+            else:
+                return torch.empty(0, 1, device=self.device)
+
+        x = self.layer_1(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        logits = self.layer_2(x)
+
+        if not self.training:
+            return logits
+
+        if gt_gloves is None or len(gt_gloves) == 0:
+            return logits, torch.tensor(0.0, device=self.device)
+
+        num_preds = logits.shape[0]
+        num_gts = len(gt_gloves)
+        if num_preds != num_gts:
+            min_size = min(num_preds, num_gts)
+            logits = logits[:min_size]
+            gt_gloves = gt_gloves[:min_size]
+            if not gt_gloves:
+                 return logits, torch.tensor(0.0, device=self.device)
+        
+        gt_tensor = torch.tensor(gt_gloves, dtype=torch.float32, device=self.device).unsqueeze(1)
+        
+        loss = F.binary_cross_entropy_with_logits(logits, gt_tensor)
+        
+        return logits, loss
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
 class ContactStateFusionClassificationModule(nn.Module):
     """
     Early fusion module for contact state classification.
@@ -316,7 +363,6 @@ class ContactStateFusionClassificationModule(nn.Module):
         
         # Process RGB features
         if rgb_features is not None and len(rgb_features) > 0:
-            # Ensure RGB features are 2D
             if rgb_features.dim() == 1:
                 rgb_features = rgb_features.unsqueeze(0)
             rgb_out = self.rgb_branch(rgb_features)
@@ -324,16 +370,13 @@ class ContactStateFusionClassificationModule(nn.Module):
         
         # Process CNN features
         if cnn_features is not None and len(cnn_features) > 0:
-            # Ensure CNN features are 4D for CNN processing
             if cnn_features.dim() == 3:
                 cnn_features = cnn_features.unsqueeze(0)
             elif cnn_features.dim() == 1:
-                # Skip CNN features if they're malformed
                 cnn_features = None
             
             if cnn_features is not None:
                 cnn_out = self.cnn_branch(cnn_features)
-                # Ensure CNN output is 2D
                 if cnn_out.dim() == 1:
                     cnn_out = cnn_out.unsqueeze(0)
                 features_list.append(cnn_out)
