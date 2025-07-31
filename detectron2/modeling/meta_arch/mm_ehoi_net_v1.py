@@ -4,15 +4,21 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torchvision
-from detectron2.modeling.roi_heads.mask_head import mask_rcnn_inference_in_training
 from detectron2.structures import Instances
 from detectron2.structures.boxes import Boxes
-from detectron2.utils.custom_utils import expand_box, extract_masks_and_resize
+from detectron2.utils.custom_utils import expand_box
 
-from .additional_modules import *
+from .additional_modules import (
+    AssociationVectorRegressor,
+    ContactStateFusionClassificationModule,
+    GlovesClassificationModule,
+    KeypointRenderer,
+)
 from .build import META_ARCH_REGISTRY
 from .ehoi_net import EhoiNet
 from .rcnn import GeneralizedRCNN
+from detectron2.modeling.roi_heads.keypoint_head import keypoint_rcnn_loss, keypoint_rcnn_inference
+from detectron2.modeling.roi_heads.mask_head import mask_rcnn_inference_in_training, mask_rcnn_loss
 
 __all__ = ["MMEhoiNetv1"]
 logger = logging.getLogger(__name__)
@@ -21,287 +27,294 @@ logger = logging.getLogger(__name__)
 @META_ARCH_REGISTRY.register()
 class MMEhoiNetv1(EhoiNet):
     """
-    Multi-Modal Egocentric Human-Object Interaction Network (MMEhoiNetv1).
-
-    This model extends a standard Faster R-CNN with additional heads to predict
-    various attributes of detected hands, such as side (left/right), contact state,
-    glove presence, and an association vector for interacting objects. It supports
-    multi-modal inputs (RGB, Depth, Masks, Keypoints) for enhanced prediction accuracy.
+    Multi-Modal EHOI Network using a fused input for contact state prediction.
+    - Side, Glove, Offset Vector heads use a standard RoI-pooled RGB feature vector (HFV).
+    - Contact State head uses a dedicated CNN on a fused tensor from:
+      [RGB (3), Depth (1), Mask (1), Keypoint Heatmap (1)].
     """
 
     def __init__(self, cfg, metadata):
         super().__init__(cfg, metadata)
 
-        # --- Initialize Custom Prediction Heads ---
+        # --- Parameters ---
         self._expand_hand_box_ratio = cfg.ADDITIONAL_MODULES.EXPAND_HAND_BOX_RATIO
         self.association_vector_regressor = AssociationVectorRegressor(cfg)
-        self.keypoint_feature_extractor = KeypointFeatureExtractor(cfg)
-        self.classification_contact_state = ContactStateFusionClassificationModule(cfg)
-        self.gloves_classifier = GlovesClassificationModule(cfg)
 
-        # --- Initialize RoIAligner for the Multi-Modal CNN Branch ---
-        input_size_cnn_contact_state = cfg.ADDITIONAL_MODULES.get('CONTACT_STATE_CNN_INPUT_SIZE', 128)
+        # --- RoIAligner for Cropping Patches ---
+        input_size_cnn_contact_state = cfg.ADDITIONAL_MODULES.CONTACT_STATE_CNN_INPUT_SIZE
         self._roi_align_cnn_contact_state = torchvision.ops.RoIAlign(
-            (input_size_cnn_contact_state, input_size_cnn_contact_state),
-            spatial_scale=1.0,
-            sampling_ratio=-1
+            (input_size_cnn_contact_state, input_size_cnn_contact_state), 
+            spatial_scale=1.0, 
+            sampling_ratio=-1, 
+            aligned=True
         )
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
-        """
-        Defines the computation performed at every training step.
-
-        Args:
-            batched_inputs (list[dict]): A list of dicts, each dict corresponds to one image.
-
-        Returns:
-            dict[str: Tensor]: A dictionary of loss components.
-        """
         if not self.training:
             return self.inference(batched_inputs)
 
         images = self.preprocess_image(batched_inputs)
         gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
-
-        # 1. Standard R-CNN Forward Pass
+        
         features = self.backbone(images.tensor)
         self._last_extracted_features["rgb"] = features
-        proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
-        proposals_match, detector_losses = self.roi_heads(images, features, proposals, gt_instances)
 
-        # (Optional) Perform mask inference during training to get mask predictions for custom modules
-        if self.roi_heads.mask_on:
-            proposals_for_mask = [p for p in proposals_match if len(p) > 0]
-            if len(proposals_for_mask) > 0:
-                proposals_match = self.roi_heads.forward_with_given_boxes(features, proposals_for_mask)
-
-        # 2. Compute Optional Auxiliary Losses (e.g., Depth Estimation)
-        losses = {}
-        losses.update(detector_losses)
-        losses.update(proposal_losses)
-
+        # --- Depth Loss ---
+        loss_depth = torch.tensor(0.0, device=self.device)
         if self._use_depth_module:
             _, self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
+            
             if "depth_gt" in batched_inputs[0]:
-                gt_depth_maps = torch.stack([torch.from_numpy(e["depth_gt"]) for e in batched_inputs]).to(self.device)
-                losses['loss_depth'] = self._loss_depth_f(self._depth_maps_predicted, gt_depth_maps)
+                gt_depth_maps = torch.as_tensor(np.array([e["depth_gt"] for e in batched_inputs])).to(self.device)
+                
+                # <<< INIZIO BLOCCO MODIFICATO >>>
+                ### MODIFICA: Assicuriamo che la predizione abbia 4 dimensioni ###
+                # The depth module might return a tensor of shape [N, H, W].
+                # F.interpolate requires a 4D input of shape [N, C, H, W].
+                predicted_depth_4d = self._depth_maps_predicted.unsqueeze(1) # Adds the channel dimension
+                
+                # Resize the prediction to match the ground truth size
+                predicted_depth_resized = F.interpolate(
+                    predicted_depth_4d, 
+                    size=gt_depth_maps.shape[1:], # Target size is [H_gt, W_gt]
+                    mode='bilinear', 
+                    align_corners=False
+                )
+                
+                # The loss function expects [N, H, W], so we remove the channel dimension
+                loss_depth = self.depth_loss_fn(predicted_depth_resized.squeeze(1), gt_depth_maps)
+                # <<< FINE BLOCCO MODIFICATO >>>
 
-        # 3. Centralized Feature Preparation for all Custom Heads
-        self._prepare_hands_features(batched_inputs, proposals_match, images)
+        proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
+        proposals_match, detector_losses = self.roi_heads(images, features, proposals, gt_instances)
+        
+        self._prepare_hands_features(batched_inputs, proposals_match)
+        
+        if not self._c_gt_hands_lr:
+            losses = {**detector_losses, **proposal_losses}
+            if self._use_depth_module:
+                losses['loss_depth'] = loss_depth
+            return losses
 
-        # 4. Compute and Collect Losses from all Custom Heads
-        if len(self._c_gt_hands_lr) > 0:
-            losses['loss_classification_hand_lr'] = self.classification_hand_lr(self._c_hands_features, self._c_gt_hands_lr)[1]
-            losses['loss_gloves'] = self.gloves_classifier(self._c_hands_features, self._c_gt_hands_gloves)[1]
-
-            _, loss_contact_state_dict = self.classification_contact_state(
-                self._c_hands_features_padded, self._c_hands_features_cnn,
-                self._c_hands_keypoint_features, self._c_gt_hands_contact_state
-            )
-            losses.update(loss_contact_state_dict)
-
-            # Association vector loss is computed only for hands in a "contact" state
-            contact_indices = [i for i, x in enumerate(self._c_gt_hands_contact_state) if x == 1]
-            if contact_indices and self._c_hands_features_padded.numel() > 0:
-                gt_vectors = np.array(self._c_gt_hands_dxdymagnitude)[contact_indices]
-                if self._c_hands_features_padded[contact_indices].numel() > 0:
-                    losses['loss_regression_dxdymagn'] = self.association_vector_regressor(self._c_hands_features_padded[contact_indices], gt_vectors)[1]
-            if 'loss_regression_dxdymagn' not in losses:
-                losses['loss_regression_dxdymagn'] = torch.tensor(0.0, device=self.device)
+        # --- Calculate Custom Losses ---
+        _, loss_lr = self.classification_hand_lr(self._c_hands_features, self._c_gt_hands_lr)
+        _, loss_glove = self.classification_glove(self._c_hands_features, self._c_gt_hands_glove)
+        
+        if self._contact_state_modality == "rgb":
+            _, loss_contact = self.classification_contact_state(self._c_hands_features_padded, self._c_gt_hands_contact_state)
         else:
-            # 5. Handle Edge Case: No hands in batch (important for DDP stability)
-            losses['loss_classification_hand_lr'] = torch.tensor(0.0, device=self.device)
-            losses['loss_gloves'] = torch.tensor(0.0, device=self.device)
-            losses['loss_cs_total'] = sum(p.sum() for p in self.classification_contact_state.parameters()) * 0.0
-            losses['loss_regression_dxdymagn'] = torch.tensor(0.0, device=self.device)
+            _, loss_contact = self.classification_contact_state(self._c_hands_features_cnn, self._c_gt_hands_contact_state)
+        
+        contact_indices = [i for i, x in enumerate(self._c_gt_hands_contact_state) if x == 1]
+        loss_regression_vector = torch.tensor(0.0, device=self.device)
+        if contact_indices:
+            contact_features = self._c_hands_features_padded[contact_indices]
+            gt_vectors = np.array(self._c_gt_hands_dxdymagnitude)[contact_indices]
+            if contact_features.numel() > 0:
+                _, loss_regression_vector = self.association_vector_regressor(contact_features, gt_vectors)
+        
+        # --- Aggregate All Losses ---
+        total_loss = {}
+        total_loss.update(detector_losses)
+        total_loss.update(proposal_losses)
+        total_loss['loss_hand_lr'] = loss_lr
+        total_loss['loss_glove'] = loss_glove
+        total_loss['loss_dxdymagn'] = loss_regression_vector
+        if self._use_depth_module: 
+            total_loss['loss_depth'] = loss_depth
+        if isinstance(loss_contact, dict):
+            total_loss.update(loss_contact)
+        else:
+            total_loss['loss_contact_state'] = loss_contact
 
-        return losses
-
-    def inference(self, batched_inputs: List[Dict[str, torch.Tensor]], do_postprocess: bool = True):
-        """
-        Run inference on a single batch of images.
-        """
+        return total_loss
+    
+    def inference(self, batched_inputs: List[Dict[str, torch.Tensor]], detected_instances: Optional[List[Instances]] = None, do_postprocess: bool = True):  
         assert not self.training
         
-        # 1. Standard R-CNN Inference
         images = self.preprocess_image(batched_inputs)
         features = self.backbone(images.tensor)
         self._last_extracted_features["rgb"] = features
+        
         proposals, _ = self.proposal_generator(images, features, None)
         results, _ = self.roi_heads(images, features, proposals, None)
 
         if do_postprocess:
             results = GeneralizedRCNN._postprocess(results, batched_inputs, images.image_sizes)
 
-        result = results[0]
-        instances = result["instances"]
+        final_result = results[0]
+        all_instances = final_result["instances"]
         
-        # 2. Optional Auxiliary Predictions (e.g., Depth Map)
         if self._use_depth_module: 
             _, self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
-            result['depth_map'] = self._depth_maps_predicted
+            final_result['depth_map'] = self._depth_maps_predicted
         
-        # 3. Centralized Feature Preparation for Custom Heads
-        self._prepare_hands_features(batched_inputs, [instances], images)
-        
-        # 4. Run Custom Heads to get Predictions
-        instances_hands = instances[instances.pred_classes == self._id_hand]
-        result['additional_outputs'] = Instances(instances.image_size)
-
-        if len(instances_hands) > 0:
-            # Get raw predictions from all heads in parallel
+        hand_instances = all_instances[all_instances.pred_classes == self._id_hand]
+        if len(hand_instances) > 0:
+            # Run all auxiliary heads on the prepared features
+            self._prepare_hands_features(batched_inputs, [hand_instances])
             side_logits = self.classification_hand_lr(self._c_hands_features)
-            contact_scores = self.classification_contact_state(
-                self._c_hands_features_padded, self._c_hands_features_cnn, self._c_hands_keypoint_features
-            )
-            dxdymagn_vectors = self.association_vector_regressor(self._c_hands_features_padded)
-            gloves_logits = self.gloves_classifier(self._c_hands_features)
+            glove_logits = self.classification_glove(self._c_hands_features)
+            offset_vectors = self.association_vector_regressor(self._c_hands_features_padded)
             
-            # 5. Post-process Predictions and Package into `additional_outputs`
-            pred_sides = torch.round(torch.sigmoid(side_logits)).int()
-            pred_contact_states = torch.round(contact_scores).int()
-            pred_gloves = torch.round(torch.sigmoid(gloves_logits)).int()
-
-            result['additional_outputs'].set("boxes", instances_hands.pred_boxes.tensor.detach().cpu())
-            result['additional_outputs'].set("sides", pred_sides.detach().cpu())
-            result['additional_outputs'].set("scores", instances_hands.scores.detach().cpu())
-            result['additional_outputs'].set("contact_states", pred_contact_states.detach().cpu())
-            result['additional_outputs'].set("dxdymagn_hand", dxdymagn_vectors.detach().cpu())
-            result['additional_outputs'].set("gloves", pred_gloves.detach().cpu())
-        
-        return [result]
-
-    def _prepare_hands_features(self, batched_inputs: List[Dict], proposals_or_results: List[Instances], images):
-        """
-        Extracts features and ground truth labels for all hand-specific heads.
-        This is the central feature preparation hub before the final prediction heads.
-        """
-        # --- Initialize lists for batch-wide GT labels and features ---
-        self._c_gt_hands_lr, self._c_gt_hands_contact_state, self._c_gt_hands_dxdymagnitude = [], [], []
-        self._c_gt_hands_gloves = []
-        all_hand_instances_flat = []
-        per_image_hand_boxes_tensors = [[] for _ in range(len(proposals_or_results))]
-        per_image_hand_boxes_padded_tensors = [[] for _ in range(len(proposals_or_results))]
-        
-        # --- Step 1: Collect GT Labels and Hand Boxes per Image ---
-        for i, instances in enumerate(proposals_or_results):
-            image_height, image_width = images.image_sizes[i] 
-            is_hand_mask = instances.gt_classes == self._id_hand if self.training else instances.pred_classes == self._id_hand
-            hand_instances = instances[is_hand_mask]
-            
-            if len(hand_instances) == 0:
-                continue
-            all_hand_instances_flat.append(hand_instances)
-
-            for j in range(len(hand_instances)):
-                hand_inst = hand_instances[j]
-                if self.training:
-                    self._c_gt_hands_lr.append(hand_inst.gt_sides.item() if hand_inst.has("gt_sides") else 0)
-                    self._c_gt_hands_contact_state.append(hand_inst.gt_contact_states.item() if hand_inst.has("gt_contact_states") else 0)
-                    dxdymagn_gt = hand_inst.gt_dxdymagn_hands.cpu().numpy()[0] if hand_inst.has("gt_dxdymagn_hands") else [0.0, 0.0, 0.0]
-                    self._c_gt_hands_dxdymagnitude.append(dxdymagn_gt)
-                    self._c_gt_hands_gloves.append(hand_inst.gt_gloves.item() if hand_inst.has("gt_gloves") else 0)
-
-                current_boxes = hand_inst.proposal_boxes if self.training and hand_inst.has("proposal_boxes") else hand_inst.gt_boxes if self.training else hand_inst.pred_boxes
-                per_image_hand_boxes_tensors[i].append(current_boxes.tensor)
-                padded_tensor = expand_box(current_boxes.tensor.clone(), image_width, image_height, ratio=self._expand_hand_box_ratio)
-                per_image_hand_boxes_padded_tensors[i].append(padded_tensor)
-
-        pooled_boxes_tensors = [torch.cat(boxes) if len(boxes) > 0 else torch.empty(0, 4, device=self.device) for boxes in per_image_hand_boxes_tensors]
-        pooled_boxes_padded_tensors = [torch.cat(boxes) if len(boxes) > 0 else torch.empty(0, 4, device=self.device) for boxes in per_image_hand_boxes_padded_tensors]
-        num_hands = sum(len(b) for b in pooled_boxes_tensors)
-        
-        # --- Step 2: RGB Feature Extraction (Hand Feature Vector) ---
-        if num_hands > 0:
-            hand_boxes_for_pooler = [Boxes(t) for t in pooled_boxes_tensors]
-            hand_boxes_padded_for_pooler = [Boxes(t) for t in pooled_boxes_padded_tensors]
-            
-            rois_rgb = self.roi_heads.box_pooler([self._last_extracted_features["rgb"][f] for f in self.roi_heads.in_features], hand_boxes_for_pooler)
-            self._c_hands_features = self.roi_heads.box_head(rois_rgb)
-            
-            rois_rgb_padded = self.roi_heads.box_pooler([self._last_extracted_features["rgb"][f] for f in self.roi_heads.in_features], hand_boxes_padded_for_pooler)
-            self._c_hands_features_padded = self.roi_heads.box_head(rois_rgb_padded)
-        else:
-            output_channels = self.roi_heads.box_head.output_shape.channels
-            self._c_hands_features = self._c_hands_features_padded = torch.empty(0, output_channels, device=self.device)
-
-        # --- Step 3: Multimodal CNN Feature Extraction (for Depth/Masks) ---
-        if num_hands > 0 and self._contact_state_modality != "rgb":
-            image_hand_counts = [len(boxes) for boxes in pooled_boxes_padded_tensors]
-            flat_padded_boxes = torch.cat(pooled_boxes_padded_tensors)
-            
-            rgb_images_for_cnn = torch.stack([torch.from_numpy(b["image_for_depth_module"]) for b in batched_inputs]).to(self.device)
-            if not rgb_images_for_cnn.is_floating_point(): 
-                rgb_images_for_cnn = rgb_images_for_cnn.float() / 255.0
-
-            modalities_to_cat = [rgb_images_for_cnn]
-            if "depth" in self._contact_state_modality and hasattr(self, '_depth_maps_predicted'):
-                depths = F.interpolate(self._depth_maps_predicted.detach().unsqueeze(1), size=rgb_images_for_cnn.shape[2:], mode='bilinear', align_corners=False)
-                modalities_to_cat.append(depths / 255.0)
-            cnn_input = torch.cat(modalities_to_cat, dim=1)
-            
-            batch_indices = torch.cat([torch.full((count,), i, device=self.device, dtype=torch.float) for i, count in enumerate(image_hand_counts) if count > 0])
-            scaled_padded_boxes = flat_padded_boxes.clone()
-            for i, (h, w) in enumerate(images.image_sizes):
-                img_idx_mask = (batch_indices == i)
-                if img_idx_mask.any():
-                    cnn_h, cnn_w = rgb_images_for_cnn.shape[2:]
-                    Boxes(scaled_padded_boxes[img_idx_mask]).scale(scale_x=(cnn_w / w), scale_y=(cnn_h / h))
-            
-            boxes_with_indices = torch.cat([batch_indices.unsqueeze(1), scaled_padded_boxes], dim=1)
-            c_roi = self._roi_align_cnn_contact_state(cnn_input, boxes_with_indices)
-            
-            if "mask" in self._contact_state_modality:
-                flat_instances = Instances.cat(all_hand_instances_flat)
-                masks = extract_masks_and_resize([flat_instances], cnn_input.shape[2:], self._id_hand)
-                if masks and any(len(m) > 0 for m in masks):
-                    mask_tensor = torch.cat(masks).unsqueeze(1).float()
-                    cropped_masks = self._roi_align_cnn_contact_state(mask_tensor, boxes_with_indices)
-                    c_roi = torch.cat((c_roi, cropped_masks), dim=1)
-                else:
-                    c_roi = torch.cat((c_roi, torch.zeros_like(c_roi[:, :1, :, :])), dim=1)
-            self._c_hands_features_cnn = c_roi
-        else:
-            self._c_hands_features_cnn = None
-
-        # --- Step 4: Keypoint Feature Extraction ---
-        if num_hands > 0:
-            flat_hand_boxes_for_kpt = torch.cat(pooled_boxes_tensors)
-            self._c_hands_keypoint_features = self._extract_and_process_keypoints(all_hand_instances_flat, flat_hand_boxes_for_kpt)
-        else:
-            self._c_hands_keypoint_features = torch.empty(0, 128, device=self.device)
-
-    def _extract_and_process_keypoints(self, instances_list: List[Instances], hand_boxes_tensor: torch.Tensor) -> torch.Tensor:
-        """
-        Encodes raw keypoints into a fixed-size feature vector.
-        Handles missing keypoints and varying tensor shapes gracefully.
-        """
-        all_keypoints = []
-        if not instances_list:
-            return torch.empty(0, 128, device=self.device)
-        flat_instances = Instances.cat(instances_list)
-        
-        if len(flat_instances) == 0 or len(hand_boxes_tensor) == 0:
-            return torch.empty(0, 128, device=self.device)
-        assert len(flat_instances) == len(hand_boxes_tensor), \
-            f"Mismatch between number of instances ({len(flat_instances)}) and boxes ({len(hand_boxes_tensor)})"
-
-        for i in range(len(flat_instances)):
-            instance = flat_instances[i]
-            if self.training and instance.has("gt_keypoints"):
-                kpts = instance.gt_keypoints.tensor
-            elif not self.training and instance.has("pred_keypoints"):
-                kpts = instance.pred_keypoints
+            if self._contact_state_modality == "rgb":
+                contact_logits = self.classification_contact_state(self._c_hands_features_padded)
             else:
-                kpts = torch.zeros(self.keypoint_feature_extractor.num_keypoints, self.keypoint_feature_extractor.keypoint_dim, device=self.device)
+                contact_logits = self.classification_contact_state(self._c_hands_features_cnn)
+
+            # Attach predictions to a new Instances object
+            additional_outputs = Instances(all_instances.image_size)
+            additional_outputs.pred_boxes = hand_instances.pred_boxes
+            additional_outputs.scores = hand_instances.scores
+            additional_outputs.pred_classes = hand_instances.pred_classes
+            additional_outputs.pred_sides = torch.round(torch.sigmoid(side_logits))
+            additional_outputs.pred_gloves = torch.round(torch.sigmoid(glove_logits))
+            additional_outputs.pred_contact_states = torch.round(torch.sigmoid(contact_logits))
+            additional_outputs.pred_dxdymagn = offset_vectors
             
-            if kpts.dim() > 2: kpts = kpts.squeeze(0)
-            if kpts.dim() != 2 or kpts.shape[0] != self.keypoint_feature_extractor.num_keypoints:
-                kpts = torch.zeros(self.keypoint_feature_extractor.num_keypoints, self.keypoint_feature_extractor.keypoint_dim, device=self.device)
-            all_keypoints.append(kpts)
+            if hand_instances.has("pred_keypoints"):
+                additional_outputs.pred_keypoints = hand_instances.pred_keypoints
+        else:
+            additional_outputs = Instances(all_instances.image_size)
+
+        final_result['additional_outputs'] = additional_outputs
+        return [final_result] 
+
+    def _prepare_hands_features(self, batched_inputs: List[Dict], instances_per_image: List[Instances]):
+        """
+        Filters hand instances, extracts GT labels (during training), and prepares
+        all required feature tensors for both training and inference.
+        """
+        # --- 1. Filter Hand Instances and Group by Image ---
+        hand_instances_by_image = [[] for _ in range(len(instances_per_image))]
+        if self.training:
+            self._c_gt_hands_lr, self._c_gt_hands_contact_state, self._c_gt_hands_dxdymagnitude, self._c_gt_hands_glove = [], [], [], []
+
+        for i, instances in enumerate(instances_per_image):
+            id_field = "gt_classes" if self.training and instances.has("gt_classes") else "pred_classes"
+            if not instances.has(id_field): continue
+
+            keep_mask = getattr(instances, id_field) == self._id_hand
+            hands_in_image = instances[keep_mask]
+            
+            for j in range(len(hands_in_image)):
+                hand_inst = hands_in_image[j]
+                hand_instances_by_image[i].append(hand_inst)
+                if self.training:
+                    self._c_gt_hands_lr.append(hand_inst.gt_sides.item())
+                    self._c_gt_hands_contact_state.append(hand_inst.gt_contact_states.item())
+                    self._c_gt_hands_dxdymagnitude.append(hand_inst.gt_dxdymagn_hands.cpu().numpy()[0])
+                    self._c_gt_hands_glove.append(hand_inst.gt_gloves.item())
+
+        # Flatten the list for GTs and individual processing later
+        hand_instances_flat = [inst for sublist in hand_instances_by_image for inst in sublist]
+        if not hand_instances_flat:
+            self._c_hands_features = self._c_hands_features_padded = self._c_hands_features_cnn = torch.empty(0, device=self.device)
+            return
+
+        # --- 2. Prepare Standard Feature Vectors (HFV) ---
+        box_field = "proposal_boxes" if self.training else "pred_boxes"
         
-        if not all_keypoints:
-            return torch.empty(0, 128, device=self.device)
+        hand_boxes_per_image = [
+            Boxes.cat([inst.get(box_field) for inst in hand_list])
+            if hand_list else Boxes(torch.empty(0, 4, device=self.device))
+            for hand_list in hand_instances_by_image
+        ]
+
+        rois = self.roi_heads.box_pooler([self._last_extracted_features["rgb"][f] for f in self.roi_heads.box_in_features], hand_boxes_per_image)
+        self._c_hands_features = self.roi_heads.box_head(rois)
         
-        keypoints_batch = torch.stack(all_keypoints)
-        return self.keypoint_feature_extractor(keypoints_batch, hand_boxes_tensor)
+        image_height, image_width = self.preprocess_image(batched_inputs).image_sizes[0]
+        
+        hand_boxes_padded_per_image = [
+            Boxes.cat([Boxes(expand_box(inst.get(box_field).tensor, image_height, image_width, ratio=self._expand_hand_box_ratio)) for inst in hand_list])
+            if hand_list else Boxes(torch.empty(0, 4, device=self.device))
+            for hand_list in hand_instances_by_image
+        ]
+        rois_padded = self.roi_heads.box_pooler([self._last_extracted_features["rgb"][f] for f in self.roi_heads.box_in_features], hand_boxes_padded_per_image)
+        self._c_hands_features_padded = self.roi_heads.box_head(rois_padded)
+
+
+        # --- 3. Prepare Fused Multimodal Patches (if needed) ---
+        if self._contact_state_modality != "rgb":
+            flat_padded_boxes_list = []
+            batch_indices = []
+            for i, hand_list in enumerate(hand_instances_by_image):
+                if not hand_list: continue
+                
+                padded_boxes_tensor = hand_boxes_padded_per_image[i].tensor
+                flat_padded_boxes_list.append(padded_boxes_tensor)
+                batch_indices.extend([i] * len(padded_boxes_tensor))
+            
+            if not flat_padded_boxes_list:
+                self._c_hands_features_cnn = torch.empty(0, device=self.device)
+            else:
+                flat_padded_boxes_tensor = torch.cat(flat_padded_boxes_list)
+                boxes_with_indices = torch.cat([
+                    torch.tensor(batch_indices, device=self.device, dtype=torch.float).view(-1, 1),
+                    flat_padded_boxes_tensor
+                ], dim=1)
+
+                modalities_to_fuse = []
+                
+                # <<< INIZIO BLOCCO MODIFICATO >>>
+                # --- MODIFICA: Aggiungiamo fallback con tensori di zeri ---
+            
+                # Otteniamo la forma di riferimento dalle impostazioni della RoIAlign
+                num_hands = len(flat_padded_boxes_tensor)
+                h, w = self._roi_align_cnn_contact_state.output_size
+                device = self.device
+                
+                # RGB Patches
+                if 'rgb' in self._contact_state_modality:
+                    # Assumiamo che le immagini del batch abbiano la stessa dimensione dopo il pre-processing
+                    rgb_images_batch = torch.stack([x["image"].to(self.device).float() / 255.0 for x in batched_inputs])
+                    rgb_patches = self._roi_align_cnn_contact_state(rgb_images_batch, boxes_with_indices)
+                    modalities_to_fuse.append(rgb_patches)
+
+                # Depth Patches
+                if 'depth' in self._contact_state_modality:
+                    if hasattr(self, '_depth_maps_predicted') and self._depth_maps_predicted is not None:
+                        depth_maps_batch = self._depth_maps_predicted.detach().unsqueeze(1)
+                        # Assicuriamoci che 'rgb_images_batch' esista se necessario per il resize
+                        if 'rgb_images_batch' not in locals():
+                            rgb_images_batch = torch.stack([x["image"].to(self.device) for x in batched_inputs])
+                        resized_depths = F.interpolate(depth_maps_batch, size=rgb_images_batch.shape[2:], mode='bilinear', align_corners=False)
+                        modalities_to_fuse.append(self._roi_align_cnn_contact_state(resized_depths / 255.0, boxes_with_indices))
+                    else:
+                        logger.warning("Depth modality requested but '_depth_maps_predicted' not found. Fusing zeros.")
+                        modalities_to_fuse.append(torch.zeros(num_hands, 1, h, w, device=device))
+
+                # Mask Patches
+                if 'mask' in self._contact_state_modality:
+                    mask_field = "pred_masks"
+                    if all(inst.has(mask_field) for inst in hand_instances_flat):
+                        # Nota: si presume che le pred_masks siano a grandezza di immagine
+                        masks = torch.stack([inst.get(mask_field) for inst in hand_instances_flat]).unsqueeze(1).float()
+                        # Si esegue RoIAlign sulle maschere per coerenza dimensionale
+                        modalities_to_fuse.append(self._roi_align_cnn_contact_state(masks, boxes_with_indices))
+                    else:
+                        logger.warning(f"Mask modality requested but '{mask_field}' not found for all hands. Fusing zeros.")
+                        modalities_to_fuse.append(torch.zeros(num_hands, 1, h, w, device=device))
+                
+                # Keypoint Heatmap Patches
+                if 'keypoints' in self._contact_state_modality:
+                    keypoint_field = "pred_keypoints" if not self.training else "gt_keypoints"
+                    if all(inst.has(keypoint_field) for inst in hand_instances_flat):
+                        kpt_tensor_source = [
+                            inst.get(keypoint_field).tensor if self.training and inst.get(keypoint_field) is not None else inst.get(keypoint_field)
+                            for inst in hand_instances_flat
+                        ]
+                        raw_keypoints = torch.cat(kpt_tensor_source)
+                        keypoint_heatmaps = self.keypoint_renderer(raw_keypoints, flat_padded_boxes_tensor)
+                        modalities_to_fuse.append(keypoint_heatmaps)
+                    else:
+                        logger.warning(f"Keypoint modality requested but '{keypoint_field}' not found for all hands. Fusing zeros.")
+                        # Assumendo che il keypoint renderer produca 1 canale
+                        modalities_to_fuse.append(torch.zeros(num_hands, 1, h, w, device=device))
+                
+                if modalities_to_fuse:
+                    self._c_hands_features_cnn = torch.cat(modalities_to_fuse, dim=1)
+                else:
+                    self._c_hands_features_cnn = torch.empty(0, device=self.device)
+                # <<< FINE BLOCCO MODIFICATO >>>

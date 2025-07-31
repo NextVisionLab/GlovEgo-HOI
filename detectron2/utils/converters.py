@@ -94,71 +94,77 @@ class MMEhoiNetConverterv1(Converter):
         return dist_min
 
     def generate_predictions(self, image_id, confident_instances, instances_hand):
-            results = []
-            results_target = []
-            objs = self.convert_instances_to_coco(confident_instances[confident_instances.pred_classes != self._id_hand], image_id)
-            
-            num_hands = len(instances_hand.scores) if instances_hand.has("scores") else 0
+        results = []
+        results_target = []
+        objs = self.convert_instances_to_coco(confident_instances[confident_instances.pred_classes != self._id_hand], image_id)
+        
+        num_hands = len(instances_hand.scores) if instances_hand.has("scores") else 0
 
-            if num_hands > 0:
-                for idx_hand in range(num_hands):
-                    instance_hand = instances_hand[idx_hand]
+        if num_hands > 0:
+            for idx_hand in range(num_hands):
+                instance_hand = instances_hand[idx_hand]
+                
+                bbox_hand_np = instance_hand.boxes.tensor.cpu().numpy()
+                
+                if bbox_hand_np.shape[0] > 0:
+                    bbox_hand = bbox_hand_np[0]
+                else:
+                    continue 
+
+                x0_hand, y0_hand, x1_hand, y1_hand = bbox_hand
+                width_hand, heigth_hand = x1_hand - x0_hand, y1_hand - y0_hand
+                
+                dxdymagn_v_np = instance_hand.dxdymagn_hand.cpu().numpy()
+                
+                if dxdymagn_v_np.shape[0] > 0:
+                    dxdymag_v = dxdymagn_v_np[0]
+                else:
+                    dxdymag_v = np.array([0., 0., 0.])
+
+                contact_state = instance_hand.contact_states.cpu().item()
+                score = instance_hand.scores.cpu().item()
+                side = instance_hand.sides.cpu().item()
+
+                element = {
+                    "image_id": image_id, 
+                    "category_id": 0, 
+                    "bbox": [x0_hand, y0_hand, width_hand, heigth_hand], 
+                    "score": score, 
+                    "hand_side": side, 
+                    "contact_state": contact_state, 
+                    "bbox_obj": [], 
+                    "category_id_obj": -1, 
+                    "dx": dxdymag_v[0],
+                    "dy": dxdymag_v[1],
+                    "magnitude": dxdymag_v[2] / self._scale_factor * self._diag if self._scale_factor != 0 else 0.0
+                }
+                
+                objs_iou, bbox_objs = [], []
+                for obj in objs:
+                    bbox_xywh_np = np.array(obj["bbox"])
+                    bbox_xywh_np_batch = bbox_xywh_np.reshape(1, 4)
+                    obj_bbox_xyxy_batch = BoxMode.convert(bbox_xywh_np_batch, BoxMode.XYWH_ABS, BoxMode.XYXY_ABS)
+                    obj_bbox_xyxy = obj_bbox_xyxy_batch[0]
                     
-                    bbox_hand_np = instance_hand.boxes.numpy()
-                    if bbox_hand_np.shape[0] > 0:
-                        bbox_hand = bbox_hand_np[0]
-                    else:
-                        continue 
+                    if get_iou(obj_bbox_xyxy, bbox_hand) > 0:
+                        objs_iou.append(obj)
+                        bbox_objs.append(obj_bbox_xyxy)
+                
+                if contact_state and len(bbox_objs): 
+                    idx_closest_obj = self.match_object(bbox_objs, bbox_hand, dxdymag_v)
+                    matched_obj = objs_iou[idx_closest_obj]
+                    element["bbox_obj"] = matched_obj["bbox"]
+                    element["category_id_obj"] = int(matched_obj["category_id"])
+                    element["score_obj"] = matched_obj["score"]
+                    results_target.append({
+                        "image_id": image_id,
+                        "category_id": element["category_id_obj"],
+                        "bbox": element["bbox_obj"],
+                        "score": element["score_obj"]
+                    })
+                results.append(element)
 
-                    x0_hand, y0_hand, x1_hand, y1_hand = bbox_hand
-                    width_hand, heigth_hand = x1_hand - x0_hand, y1_hand - y0_hand
-                    
-                    dxdymagn_v_np = instance_hand.dxdymagn_hand.numpy()
-                    if dxdymagn_v_np.shape[0] > 0:
-                        dxdymag_v = dxdymagn_v_np[0]
-                    else:
-                        dxdymag_v = np.array([0., 0., 0.])
-
-                    contact_state = instance_hand.contact_states.item()
-                    score = instance_hand.scores.item()
-                    side = instance_hand.sides.item()
-
-                    element = {
-                        "image_id": image_id, 
-                        "category_id": 0, 
-                        "bbox": [x0_hand, y0_hand, width_hand, heigth_hand], 
-                        "score": score, 
-                        "hand_side": side, 
-                        "contact_state": contact_state, 
-                        "bbox_obj": [], 
-                        "category_id_obj": -1, 
-                        "dx":dxdymag_v[0],
-                        "dy": dxdymag_v[1],
-                        "magnitude": dxdymag_v[2] / self._scale_factor * self._diag
-                    }
-                    
-                    objs_iou, bbox_objs = [], []
-                    for obj in objs:
-                        obj_bbox_xyxy = BoxMode.convert(np.array(obj["bbox"]), BoxMode.XYWH_ABS, BoxMode.XYXY_ABS)
-                        if get_iou(obj_bbox_xyxy, bbox_hand) > 0:
-                            objs_iou.append(obj)
-                            bbox_objs.append(obj_bbox_xyxy)
-                    
-                    if contact_state and len(bbox_objs): 
-                        idx_closest_obj = self.match_object(bbox_objs, bbox_hand, dxdymag_v)
-                        matched_obj = objs_iou[idx_closest_obj]
-                        element["bbox_obj"] = matched_obj["bbox"]
-                        element["category_id_obj"] = int(matched_obj["category_id"])
-                        element["score_obj"] = matched_obj["score"]
-                        results_target.append({
-                            "image_id": image_id,
-                            "category_id": element["category_id_obj"],
-                            "bbox": element["bbox_obj"],
-                            "score": element["score_obj"]
-                        })
-                    results.append(element)
-
-            return results, results_target
+        return results, results_target
 
 class MMEhoiNetConverterv2(Converter):
     def __init__(self, cfg, metadata) -> None:

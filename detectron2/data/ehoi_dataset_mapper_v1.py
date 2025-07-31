@@ -10,7 +10,7 @@ from . import transforms as T
 from . import BaseEhoiDatasetMapper
 
 from torchvision.transforms import Compose
-from detectron2.modeling.meta_arch.MiDaS.midas.transforms import Resize, NormalizeImage, PrepareForNet
+from detectron2.modeling.meta_arch.MiDaS.midas.transforms import Resize, PrepareForNet
 from detectron2.modeling.meta_arch.MiDaS import utils as midas_utils
 
 class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
@@ -18,99 +18,92 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
         super().__init__(cfg, data_anns_sup, is_train, **kwargs)
 
     def __call__(self, dataset_dict):
-        if not self.is_train:  
+        if not self.is_train:
             return self.inference(dataset_dict)
 
         dataset_dict = copy.deepcopy(dataset_dict)
-        base_path = "./data/egoism-hoi-dataset/images"
-        image_name = os.path.basename(dataset_dict["file_name"])
-        image = cv2.imread(os.path.join(base_path, image_name))
         
-        new_anns = []
-        annotations_sup = [x for x in self._data_anns_sup['annotations'] if x['image_id'] == dataset_dict['image_id']]
-        diag = math.sqrt((math.pow(image.shape[0], 2) + math.pow(image.shape[1], 2)))
+        # 1. Load Image
+        image = cv2.imread(dataset_dict["file_name"])
+        if image is None:
+            print(f"ERROR: Could not read image: {dataset_dict['file_name']}. Skipping sample.")
+            return None
         
-        for ann in dataset_dict["annotations"]:
-            tmp_ann = ann.copy()
+        image_shape = image.shape[:2]  # (H, W)
+        diag = math.sqrt(image_shape[0]**2 + image_shape[1]**2)
 
-            if self._masks_gt:
-                if not "segmentation" in ann.keys() or len(ann["segmentation"])==0: 
-                    continue
-            elif "segmentation" in tmp_ann.keys(): 
-                tmp_ann.pop("segmentation")
+        # 2. Process Annotations
+        annotations_sup = {ann["id"]: ann for ann in self._data_anns_sup['annotations'] if ann['image_id'] == dataset_dict['image_id']}
+        
+        processed_annotations = []
+        for ann in dataset_dict["annotations"]:
+            sup_ann = annotations_sup.get(ann["id"])
+            if not sup_ann:
+                continue
+
+            if self._masks_gt and (not ann.get("segmentation") or len(ann["segmentation"]) == 0):
+                continue
+            
+            tmp_ann = ann.copy()
+            if not self._masks_gt:
+                tmp_ann.pop("segmentation", None)
 
             if self._keypoints_gt:
-                if len(tmp_ann["keypoints"]) != 0:
-                    # Converti keypoints esistenti in formato corretto
-                    keypoints = np.array(tmp_ann["keypoints"])
-                    if keypoints.ndim == 2:
-                        # Se è 2D [[x,y,v], [x,y,v], ...] -> 1D [x,y,v,x,y,v,...]
-                        keypoints = keypoints.flatten()
-                    tmp_ann["keypoints"] = keypoints.tolist()
+                keypoints = tmp_ann.get("keypoints", [])
+                if keypoints:
+                    keypoints_np = np.array(keypoints)
+                    if keypoints_np.ndim == 2:
+                        keypoints_np = keypoints_np.flatten()
+                    tmp_ann["keypoints"] = keypoints_np.tolist()
                 else:
-                    # Crea keypoints vuoti in formato 1D: [0,0,0,0,0,0,...]
                     tmp_ann["keypoints"] = [0.0] * (self._num_keypoints * 3)
                     tmp_ann["num_keypoints"] = 0
-            elif "keypoints" in tmp_ann.keys():
+            elif "keypoints" in tmp_ann:
                 tmp_ann.pop("keypoints")
 
-            # Trova l'annotazione di supervisione corrispondente
-            tmp_sup_ann_list = [_ann for _ann in annotations_sup if _ann["id"] == ann["id"]]
-            if tmp_sup_ann_list:
-                tmp_sup_ann = tmp_sup_ann_list[0]
-                tmp_ann["hand_side"] = tmp_sup_ann["hand_side"] if "hand_side" in tmp_sup_ann.keys() and tmp_sup_ann["hand_side"] in [0, 1] else 0
-                tmp_ann["contact_state"] = tmp_sup_ann["contact_state"] if "contact_state" in tmp_sup_ann.keys() and tmp_sup_ann["contact_state"] in [0, 1] else 0
-                tmp_ann["dx"] = float(tmp_sup_ann["dx"]) if "dx" in tmp_sup_ann.keys() and tmp_ann["contact_state"] else 0
-                tmp_ann["dy"] = float(tmp_sup_ann["dy"]) if "dy" in tmp_sup_ann.keys() and tmp_ann["contact_state"] else 0
-                tmp_ann["magnitude"] = (float(tmp_sup_ann["magnitude"]) / diag) * self._scale_factor if "magnitude" in tmp_sup_ann.keys() and tmp_ann["contact_state"] else 0
-            else:
-                # Valori di default se non trova l'annotazione di supervisione
-                tmp_ann["hand_side"] = 0
-                tmp_ann["contact_state"] = 0
-                tmp_ann["dx"] = 0
-                tmp_ann["dy"] = 0
-                tmp_ann["magnitude"] = 0
-                
-            new_anns.append(tmp_ann)
+            tmp_ann["hand_side"] = sup_ann.get("hand_side", 0)
+            tmp_ann["contact_state"] = sup_ann.get("contact_state", 0)
+            tmp_ann["gloves"] = sup_ann.get("gloves", 0) 
             
-        dataset_dict["annotations"] = new_anns
+            if tmp_ann["contact_state"] == 1:
+                tmp_ann["dx"] = float(sup_ann.get("dx", 0))
+                tmp_ann["dy"] = float(sup_ann.get("dy", 0))
+                tmp_ann["magnitude"] = (float(sup_ann.get("magnitude", 0)) / diag) * self._scale_factor
+            else:
+                tmp_ann["dx"], tmp_ann["dy"], tmp_ann["magnitude"] = 0.0, 0.0, 0.0
+                
+            processed_annotations.append(tmp_ann)
+                
+        dataset_dict["annotations"] = processed_annotations
         
-        ####DATA AUGMENTATION
+        # 3. Apply Data Augmentation
         transform_list = [
             T.RandomContrast(self._cfg.AUG.RANDOM_CONTRAST_MIN, self._cfg.AUG.RANDOM_CONTRAST_MAX), 
             T.RandomBrightness(self._cfg.AUG.RANDOM_BRIGHTNESS_MIN, self._cfg.AUG.RANDOM_BRIGHTNESS_MAX), 
             T.RandomLighting(scale=self._cfg.AUG.RANDOM_LIGHTING_SCALE),
         ]
-        
         image, transforms = T.apply_transform_gens(transform_list, image)
-        dataset_dict["height"] = image.shape[0]
-        dataset_dict["width"] = image.shape[1]    
-        image_t = torch.from_numpy(image.transpose(2, 0, 1).copy())
-        dataset_dict["image"] = image_t
-
-        for annotation in dataset_dict["annotations"]:
-            utils.transform_instance_annotations(annotation, transforms, image_t.shape[1:])    
         
-        try: 
-            instances = utils.annotations_to_instances(dataset_dict["annotations"], image_t.shape[1:])
-            ids = [x["id"] for x in dataset_dict["annotations"]]
-            contact_states = [x["contact_state"] for x in dataset_dict["annotations"]]
-            sides = [x["hand_side"] for x in dataset_dict["annotations"]]
-            dxdymagn_hands = [[x["dx"], x["dy"], x["magnitude"]] for x in dataset_dict["annotations"]]
-
-            instances.set("gt_id", torch.tensor(ids))
-            instances.set("gt_contact_states", torch.tensor(contact_states))
-            instances.set("gt_sides", torch.tensor(sides))
-            instances.set("gt_dxdymagn_hands", torch.tensor(dxdymagn_hands))
-                
-        except Exception as e: 
-            print(f"Error in mapper: {e}, file: {dataset_dict['file_name']}")
-            import traceback
-            traceback.print_exc()
-
-        dataset_dict["instances"] = utils.filter_empty_instances(instances)    
+        # 4. Prepare Final Tensors for the Model
+        dataset_dict["image"] = torch.as_tensor(np.ascontiguousarray(image.transpose(2, 0, 1)))
+        
+        # Apply transforms to annotations
+        annos = [
+            utils.transform_instance_annotations(obj, transforms, image.shape[:2])
+            for obj in dataset_dict.get("annotations", [])
+        ]
+        instances = utils.annotations_to_instances(annos, image.shape[:2])
+        
+        # Create GT tensors
+        if len(annos) > 0:
+            instances.gt_ids = torch.tensor([x["id"] for x in annos], dtype=torch.int64)
+            instances.gt_contact_states = torch.tensor([x["contact_state"] for x in annos], dtype=torch.int64)
+            instances.gt_sides = torch.tensor([x["hand_side"] for x in annos], dtype=torch.int64)
+            instances.gt_gloves = torch.tensor([x["gloves"] for x in annos], dtype=torch.int64)
+            instances.gt_dxdymagn_hands = torch.tensor([[x["dx"], x["dy"], x["magnitude"]] for x in annos], dtype=torch.float32)
+        
+        dataset_dict["instances"] = utils.filter_empty_instances(instances)
         return dataset_dict
-
 
 class EhoiDatasetMapperDepthv1(EhoiDatasetMapperv1):
     def __init__(self, cfg, data_anns_sup=None, is_train=True, _gt=True, **kwargs):
