@@ -83,15 +83,17 @@ def get_evaluators(cfg, dataset_name, output_folder, converter):
     cocoEvaluator = COCOEvaluator(dataset_name, output_dir=output_folder, tasks=("bbox",)) 
     return [cocoEvaluator, EHOIEvaluator(cfg, dataset_name, converter)]
 
-def do_test(cfg, model, *, converter, mapper, data):
+def do_test(cfg, model, *, converter, mapper):
     """Runs evaluation on all configured test datasets."""
     results = OrderedDict()
     for dataset_name in cfg.DATASETS.TEST:
-        data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper(cfg, data, is_train=False))
+        test_mapper = mapper(cfg, is_train=False) 
+        data_loader = build_detection_test_loader(cfg, dataset_name, mapper=test_mapper)
         evaluators = get_evaluators(cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name), converter)
         results_i = inference_on_dataset(model, data_loader, evaluators)
         results[dataset_name] = results_i
-    if len(results) == 1: results = list(results.values())[0]
+    if len(results) == 1:
+        results = list(results.values())[0]
     return results
 
 def load_cfg(args, num_classes):
@@ -229,6 +231,7 @@ if __name__ == "__main__":
             storage.iter = iteration
             
             loss_dict = model(data)
+
             losses = sum(loss_dict.values())
             assert torch.isfinite(losses).all(), loss_dict
 
@@ -256,17 +259,18 @@ if __name__ == "__main__":
                     }, step=iteration)
 
                 if (iteration + 1) % 20 == 0 or iteration == max_iter - 1:
+                    loss_str = "  ".join([f"{k}: {v:.4f}" for k, v in loss_dict_reduced.items()])
                     logger.info(
                         f"iter: {iteration+1:05d}  "
                         f"lr: {storage.latest()['lr'][0]:.6f}  "
-                        f"total_loss: {losses_reduced:.4f}  "
                         f"time: {storage.latest().get('time', [0])[0]:.4f}s  "
-                        f"data_time: {storage.latest().get('data_time', [0])[0]:.4f}s"
+                        f"data_time: {storage.latest().get('data_time', [0])[0]:.4f}s  "
+                        f"{loss_str}" 
                     )
 
             # --- Evaluation ---
             if len(args.test_json) and cfg.TEST.EVAL_PERIOD > 0 and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0:
-                results_val = do_test(cfg, model, converter=converter, mapper=mapper_test, data=data_anns_train_sup)
+                results_val = do_test(cfg, model, converter=converter, mapper=mapper_test)
                 if wandb_run and comm.is_main_process():
                     main_metric = results_val.get("bbox", {}).get("AP", 0)
                     wandb.log({"evaluation/AP50": main_metric}, step=iteration)

@@ -66,7 +66,8 @@ class EhoiNet(GeneralizedRCNN, ABC):
         
         # Input Modality-Specific Modules
         if self._use_mask:
-            self.mask_head, self.mask_pooler = self._build_mask_head(cfg)
+            self.mask_in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
+            self.mask_head, self.mask_pooler = self._build_mask_head(cfg, self.mask_in_features)
             logger.info("Mask head built.")
 
         if self._use_depth_module: 
@@ -75,13 +76,13 @@ class EhoiNet(GeneralizedRCNN, ABC):
             logger.info("Depth module built.")
 
         if self._use_keypoints:
-            self.keypoint_head, self.keypoint_pooler = self._build_keypoint_head(cfg)
+            self.keypoint_in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
+            self.keypoint_head, self.keypoint_pooler = self._build_keypoint_head(cfg, self.keypoint_in_features)
             self.keypoint_renderer = KeypointRenderer(cfg)
             logger.info("Keypoint head and renderer built.")
 
-    def _build_mask_head(self, cfg):
+    def _build_mask_head(self, cfg, in_features):
         """Builds the standard Detectron2 mask head and its pooler."""
-        in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
         input_shape = self.backbone.output_shape()
         pooler = ROIPooler(
             output_size=cfg.MODEL.ROI_MASK_HEAD.POOLER_RESOLUTION,
@@ -96,9 +97,8 @@ class EhoiNet(GeneralizedRCNN, ABC):
         )
         return build_mask_head(cfg, shape), pooler
         
-    def _build_keypoint_head(self, cfg):
+    def _build_keypoint_head(self, cfg, in_features):
         """Builds the standard Detectron2 keypoint head and its pooler."""
-        in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
         input_shape = self.backbone.output_shape()
         pooler = ROIPooler(
             output_size=cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION,

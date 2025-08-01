@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import math
 import cv2
+import logging 
 
 from . import detection_utils as utils
 from . import transforms as T
@@ -12,6 +13,8 @@ from . import BaseEhoiDatasetMapper
 from torchvision.transforms import Compose
 from detectron2.modeling.meta_arch.MiDaS.midas.transforms import Resize, PrepareForNet
 from detectron2.modeling.meta_arch.MiDaS import utils as midas_utils
+
+logger = logging.getLogger(__name__)
 
 class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
     def __init__(self, cfg, data_anns_sup=None, is_train=True, **kwargs):
@@ -24,9 +27,9 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
         dataset_dict = copy.deepcopy(dataset_dict)
         
         # 1. Load Image
-        image = cv2.imread(dataset_dict["file_name"])
+        image = utils.read_image(dataset_dict["file_name"], format="BGR")
         if image is None:
-            print(f"ERROR: Could not read image: {dataset_dict['file_name']}. Skipping sample.")
+            logger.warning(f"Impossibile leggere l'immagine {dataset_dict['file_name']}, la salto.")
             return None
         
         image_shape = image.shape[:2]  # (H, W)
@@ -172,10 +175,46 @@ class EhoiDatasetMapperDepthv1(EhoiDatasetMapperv1):
                         depth_final = depth_resized.astype(np.float32)
                         element["depth_gt"] = np.subtract(255, depth_final)
         return element
-
+    
     def inference(self, dataset_dict):
-        element = super().inference(dataset_dict)
-        img = midas_utils.read_image(dataset_dict["file_name"])
-        img_input = self.transform({"image": img})["image"]
-        element["image_for_depth_module"] = img_input
-        return element
+        dataset_dict = copy.deepcopy(dataset_dict)
+        
+        # 1. Carica l'immagine e gestisci l'errore
+        image = utils.read_image(dataset_dict["file_name"], format="BGR")
+        
+        # Se l'immagine non può essere letta, il data loader crasha.
+        # È meglio gestire questo con un try-except nel training loop se diventa un problema,
+        # ma per ora assumiamo che il dataset di validazione sia pulito.
+        if image is None:
+            raise FileNotFoundError(f"[Inference] Impossibile leggere l'immagine: {dataset_dict['file_name']}")
+
+        # 2. Applica le trasformazioni per l'inferenza (tipicamente solo Resize)
+        # --- FIX: Usa le trasformazioni corrette per l'inferenza ---
+        # Questo è il modo standard di Detectron2 per preparare le immagini per il test.
+        # Si assicura che l'immagine sia ridimensionata correttamente.
+        transform_list = [
+            T.ResizeShortestEdge(
+                [self._cfg.INPUT.MIN_SIZE_TEST, self._cfg.INPUT.MIN_SIZE_TEST], 
+                self._cfg.INPUT.MAX_SIZE_TEST
+            )
+        ]
+        image, transforms = T.apply_transform_gens(transform_list, image)
+        
+        # 3. Prepara l'input per il modello
+        dataset_dict["image"] = torch.as_tensor(np.ascontiguousarray(image.transpose(2, 0, 1)))
+        
+        # Aggiungi i campi che il post-processing del modello si aspetta
+        dataset_dict["height"] = image.shape[0]
+        dataset_dict["width"] = image.shape[1]
+
+        # 4. Prepara l'input per il modulo di profondità
+        # Usiamo l'immagine originale (prima del resize) per MiDaS per la massima qualità
+        img_for_depth = utils.read_image(dataset_dict["file_name"], format="RGB") # MiDaS vuole RGB
+        if img_for_depth is not None:
+             dataset_dict["image_for_depth_module"] = self.transform({"image": img_for_depth})["image"]
+        else:
+             # Se fallisce, crea un placeholder
+             placeholder = torch.zeros((3, self.net_h, self.net_w))
+             dataset_dict["image_for_depth_module"] = placeholder
+
+        return dataset_dict

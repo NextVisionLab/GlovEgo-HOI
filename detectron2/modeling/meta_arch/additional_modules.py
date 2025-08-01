@@ -1,5 +1,3 @@
-import os
-import cv2
 import torch
 from torch import nn
 import numpy as np
@@ -63,7 +61,7 @@ class GlovesClassificationModule(nn.Module):
         self.layers = nn.Sequential(
             nn.Linear(1024, 256),
             nn.ReLU(),
-            nn.Dropout(p=0.5),
+            nn.Dropout(p = cfg.ADDITIONAL_MODULES.GLOVES_CLASSIFICATION_MODULE_DROPOUT),
             nn.Linear(256, 1)
         )
 
