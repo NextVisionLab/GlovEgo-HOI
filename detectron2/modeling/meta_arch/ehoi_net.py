@@ -1,5 +1,3 @@
-# detectron2/modeling/meta_arch/ehoi_net.py
-
 import logging
 from abc import ABC, abstractmethod
 from typing import List
