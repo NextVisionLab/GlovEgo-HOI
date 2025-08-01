@@ -146,25 +146,28 @@ class DepthModule(MidasNet):
 
 class KeypointRenderer(nn.Module):
     """
-    Renders hand keypoints into a 2D heatmap.
-    This module takes absolute keypoint coordinates and their bounding box,
-    normalizes them, and generates a Gaussian heatmap for each visible keypoint.
+    Renders hand keypoints into a 2D heatmap representation suitable for a CNN input.
+
+    This module takes absolute keypoint coordinates, normalizes them relative to their
+    bounding box, and generates a Gaussian heatmap for each visible keypoint. This
+    representation is object-centric and scale-invariant.
     """
     def __init__(self, cfg):
         super().__init__()
-        # Load params from config for easier hyperparameter tuning.
         self.image_size = cfg.MODEL.ROI_KEYPOINT_HEAD.HEATMAP_SIZE
         self.sigma = cfg.MODEL.ROI_KEYPOINT_HEAD.SIGMA
 
     def forward(self, keypoints: torch.Tensor, hand_boxes: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            keypoints (torch.Tensor): Tensor of shape [N, K, 3] with (x, y, visibility) for N hands.
+            keypoints (torch.Tensor): Tensor of shape [N, K, 3] with (x, y, visibility)
+                                      for N hands and K keypoints.
             hand_boxes (torch.Tensor): Tensor of shape [N, 4] with (x1, y1, x2, y2) boxes.
+        
         Returns:
             torch.Tensor: A batch of heatmaps of shape [N, 1, H, W].
         """
-        if len(keypoints) == 0:
+        if keypoints.numel() == 0:
             return torch.empty(0, 1, *self.image_size, device=keypoints.device)
 
         batch_heatmaps = []
@@ -173,10 +176,10 @@ class KeypointRenderer(nn.Module):
             box_single_hand = hand_boxes[i]
             
             x0, y0, x1, y1 = box_single_hand
-            box_w, box_h = x1 - x0, y1 - y0
+            # Add a small epsilon to avoid division by zero for zero-sized boxes.
+            box_w, box_h = (x1 - x0).clamp(min=1e-6), (y1 - y0).clamp(min=1e-6)
             
             # Normalize keypoints to be relative to the bounding box [0, 1].
-            # This makes the representation object-centric and scale-invariant.
             kpts_normalized = kpts_single_hand.clone()
             kpts_normalized[:, 0] = (kpts_single_hand[:, 0] - x0) / box_w
             kpts_normalized[:, 1] = (kpts_single_hand[:, 1] - y0) / box_h
@@ -193,44 +196,42 @@ class KeypointRenderer(nn.Module):
 
     def _generate_heatmap(self, keypoints_scaled: torch.Tensor) -> torch.Tensor:
         H, W = self.image_size
-        heatmap = torch.zeros((H, W), device=keypoints_scaled.device)
+        device = keypoints_scaled.device
         
-        for x, y, visibility_score in keypoints_scaled:
-            # Only render visible keypoints.
-            if visibility_score > 0.1:
-                # This block robustly handles keypoints near the image border,
-                # where the Gaussian kernel might extend outside the heatmap.
-                # It calculates the valid intersection between the heatmap and the
-                # Gaussian patch to prevent out-of-bounds errors.
-                
-                # Define the bounds of the Gaussian kernel.
-                ul = [int(x - 3 * self.sigma), int(y - 3 * self.sigma)]
-                br = [int(x + 3 * self.sigma + 1), int(y + 3 * self.sigma + 1)]
-                
-                # Calculate the intersection area on the heatmap.
-                h_start, h_end = max(0, ul[1]), min(H, br[1])
-                w_start, w_end = max(0, ul[0]), min(W, br[0])
+        # Create a grid of coordinates for the heatmap.
+        # Shape: [H, W, 2]
+        y_coords, x_coords = torch.meshgrid(
+            torch.arange(H, device=device), 
+            torch.arange(W, device=device),
+            indexing='ij' # Explicitly use 'ij' indexing for consistency
+        )
+        coords_grid = torch.stack([x_coords, y_coords], dim=-1).float()
 
-                if h_start >= h_end or w_start >= w_end:
-                    continue
+        # Initialize an empty heatmap for this instance.
+        heatmap = torch.zeros((H, W), device=device)
+        
+        # Filter for visible keypoints
+        visible_keypoints = keypoints_scaled[keypoints_scaled[:, 2] > 0.1]
+        if visible_keypoints.numel() == 0:
+            return heatmap
 
-                # Create the full Gaussian kernel.
-                size = 6 * self.sigma + 1
-                xx = torch.arange(0, size, 1, dtype=torch.float32, device=heatmap.device)
-                yy = xx[:, None]
-                x_mu = y_mu = size // 2
-                g = torch.exp(-((xx - x_mu) ** 2 + (yy - y_mu) ** 2) / (2 * self.sigma ** 2))
-                
-                # Select the correct slice from the Gaussian kernel.
-                g_h_start, g_h_end = h_start - ul[1], h_end - ul[1]
-                g_w_start, g_w_end = w_start - ul[0], w_end - ul[0]
-                
-                # Place the Gaussian on the heatmap using torch.max to handle overlaps.
-                heatmap_slice = heatmap[h_start:h_end, w_start:w_end]
-                gaussian_slice = g[g_h_start:g_h_end, g_w_start:g_w_end]
-                
-                heatmap[h_start:h_end, w_start:w_end] = torch.max(heatmap_slice, gaussian_slice)
-                
+        # Extract centers and reshape for broadcasting.
+        # Shape: [num_visible_kpts, 1, 1, 2]
+        mu = visible_keypoints[:, :2].unsqueeze(1).unsqueeze(1)
+        
+        # Calculate squared distance from each pixel to each keypoint center.
+        # Broadcasting: [H, W, 2] - [k, 1, 1, 2] -> [k, H, W, 2]
+        squared_dist = torch.sum((coords_grid.unsqueeze(0) - mu) ** 2, dim=-1)
+        
+        # Calculate the Gaussian value for each keypoint at each pixel.
+        # Shape: [num_visible_kpts, H, W]
+        gaussian = torch.exp(-squared_dist / (2 * self.sigma ** 2))
+        
+        # Combine the heatmaps for all keypoints by taking the maximum value at each pixel.
+        # This handles overlaps correctly.
+        if gaussian.numel() > 0:
+            heatmap = torch.max(gaussian, dim=0).values
+            
         return heatmap
 
 # =================================================================================
@@ -287,28 +288,28 @@ class ContactStateCNNClassificationModule(nn.Module):
     
 class ContactStateFusionClassificationModule(nn.Module):
     """
-    Predicts hand contact state via early fusion of multiple modalities.
-    Architecture: [RGB (3) + Depth (1) + Mask (1) + Keypoints (1)] -> CNN -> Classification
-    This module is designed to be flexible and supports ablation studies by accepting
-    a dynamic number of input channels.
+    Predicts hand contact state by combining two distinct architectural branches
+    via Late Fusion, reflecting the reference architecture.
+
+    - Branch "eff" (EfficientNet): A CNN backbone operating on a multi-channel patch
+      composed of fused modalities (RGB, Depth, Mask, Keypoints) via Early Fusion.
+    - Branch "res" (Residual-like): An MLP operating on the 1024-dim RoI feature 
+      vector (HFV) extracted from the detector's backbone.
+
+    The final prediction is an average of the outputs from both branches.
     """
     def __init__(self, cfg, n_channels: int):
         super().__init__()
         
+        # --- Branch "eff": CNN for Early Fusion of Multimodal Patches ---
         self.cnn_branch = torchvision.models.efficientnet_v2_s(weights=torchvision.models.EfficientNet_V2_S_Weights.DEFAULT)
         
-        # --- Dynamic Input Layer ---
         original_first_layer = self.cnn_branch.features[0][0]
         self.cnn_branch.features[0][0] = nn.Conv2d(
-            n_channels, 
-            original_first_layer.out_channels, 
-            kernel_size=original_first_layer.kernel_size, 
-            stride=original_first_layer.stride, 
-            padding=original_first_layer.padding, 
-            bias=False
+            n_channels, original_first_layer.out_channels, 
+            kernel_size=original_first_layer.kernel_size, stride=original_first_layer.stride, 
+            padding=original_first_layer.padding, bias=False
         )
-
-        # --- Smart Weight Initialization (Transfer Learning) ---
         with torch.no_grad():
             if n_channels >= 3:
                 self.cnn_branch.features[0][0].weight[:, :3, :, :] = original_first_layer.weight.clone()
@@ -321,29 +322,61 @@ class ContactStateFusionClassificationModule(nn.Module):
             nn.Linear(classifier_input_features, 1)
         )
 
-    def forward(self, fused_multimodal_patch, gt=None):
+        # --- Branch "res": MLP for Hand Feature Vector (HFV) ---
+        self.vector_branch = nn.Sequential(
+            nn.Linear(1024, 256),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.ADDITIONAL_MODULES.CONTACT_STATE_CLASSIFICATION_MODULE_DROPOUT),
+            nn.Linear(256, 1)
+        )
+
+    def forward(self, fused_multimodal_patch, hand_feature_vector, gt=None):
         """
         Args:
-            fused_multimodal_patch (torch.Tensor): Tensor of shape [N, C, H, W],
-                                                   where C is the dynamic number of channels.
+            fused_multimodal_patch (torch.Tensor): Tensor of shape [N, C, H, W] for the CNN branch.
+            hand_feature_vector (torch.Tensor): Tensor of shape [N, 1024] for the MLP branch.
             gt (list or None): Ground truth labels for training.
         """
-        if fused_multimodal_patch is None or fused_multimodal_patch.numel() == 0:
-            if not self.training: return torch.empty(0, 1, device=self.device)
-            else: return torch.empty(0, 1, device=self.device), {"loss_cs_fusion": torch.tensor(0.0, device=self.device)}
-            
-        logits = self.cnn_branch(fused_multimodal_patch)
+        # --- Branch Predictions ---
+        logits_cnn = self.cnn_branch(fused_multimodal_patch)
+        logits_vector = self.vector_branch(hand_feature_vector)
         
+        # --- Late Fusion ---
+        # The final prediction is the average of the probabilities from each branch.
+        prob_cnn = torch.sigmoid(logits_cnn)
+        prob_vector = torch.sigmoid(logits_vector)
+        final_prob = (prob_cnn + prob_vector) / 2.0
+
         if not self.training:
-            return torch.sigmoid(logits)
-            
+            return final_prob
+
+        # --- Loss Calculation ---
         if gt is None or len(gt) == 0:
-            return torch.sigmoid(logits), {"loss_cs_fusion": torch.tensor(0.0, device=self.device)}
+            # Return zero loss if no ground truth is available.
+            loss_dict = {
+                "loss_cs_multi": torch.tensor(0.0, device=self.device),
+                "loss_cs_eff": torch.tensor(0.0, device=self.device),
+                "loss_cs_res": torch.tensor(0.0, device=self.device)
+            }
+            return final_prob, loss_dict
 
         gt_tensor = torch.tensor(gt, dtype=torch.float32, device=self.device).unsqueeze(1)
-        loss = F.binary_cross_entropy_with_logits(logits, gt_tensor)
         
-        return torch.sigmoid(logits), {"loss_cs_fusion": loss}
+        # Calculate loss for each branch to ensure both are trained effectively.
+        loss_cnn = F.binary_cross_entropy_with_logits(logits_cnn, gt_tensor, reduction="mean")
+        loss_vector = F.binary_cross_entropy_with_logits(logits_vector, gt_tensor, reduction="mean")
+        
+        # The main loss is the average of the two, encouraging joint optimization.
+        total_loss = (loss_cnn + loss_vector) / 2.0
+        
+        # --- FIX: Use consistent loss keys as requested ---
+        loss_dict = {
+            "loss_cs_multi": total_loss,
+            "loss_cs_eff": loss_cnn,        # Loss from the EfficientNet (Early Fusion) branch A
+            "loss_cs_res": loss_vector      # Loss from the ResNet-features (HFV) branch B
+        }
+        
+        return final_prob, loss_dict
 
     @property
     def device(self):
