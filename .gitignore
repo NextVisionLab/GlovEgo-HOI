@@ -51,3 +51,7 @@ _darcs
 *.jpeg
 *.png
 *.diff
+
+###data and logs
+data/egoism-hoi-dataset/
+wandb/
