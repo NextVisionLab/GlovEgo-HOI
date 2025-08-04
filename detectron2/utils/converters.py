@@ -12,6 +12,14 @@ from detectron2.structures.masks import ROIMasks
 from detectron2.utils.custom_utils import get_iou, calculate_center
 import cv2
 
+def get_hoi_categories(categories, is_object=False):
+    if not is_object: 
+        return categories
+    object_categories = [
+        cat for cat in categories if 'hand' not in cat['name'].lower() and 'mano' not in cat['name'].lower()
+    ]
+    return object_categories
+
 class Converter:
     def __init__(self, cfg, metadata) -> None:
         self._cfg = cfg
@@ -33,31 +41,30 @@ class Converter:
             results.append(result)
         return results
     
-    def convert_coco_to_coco_target_object(self, coco_hands, coco_all):
-        coco = COCO()
-        tmp_dateset = {"annotations": [], "images": copy.deepcopy(coco_all.dataset["images"]), "info": [], "licenses": []}
-        tmp_dateset["categories"] = copy.deepcopy(coco_all.dataset["categories"])
-        tmp_dateset["categories"].pop(self._id_hand)
-        annotations = []
-        for x in coco_hands.anns.values():
-            if x["contact_state"] == 1:
-                category_id = x.get("category_id_obj", x.get("id_obj", 0))
-                area = x.get("area_obj", x.get("area", 0))
-                
-                bbox_obj = x["bbox_obj"]
-                if bbox_obj != [-1, -1, -1, -1]:
-                    annotations.append({
-                        "id": x["id"], 
-                        "image_id": x["image_id"], 
-                        "category_id": category_id, 
-                        "area": area, 
-                        "bbox": bbox_obj, 
-                        "iscrowd": 0
-                    })
+    def convert_coco_to_coco_target_object(self, coco_hands, coco_gt_all):
+        tmp_dateset = {}
+        tmp_dateset["images"] = coco_hands.dataset["images"]
+        tmp_dateset["categories"] = get_hoi_categories(coco_hands.dataset["categories"], is_object=True)
+        tmp_dateset["annotations"] = []
 
-        tmp_dateset["annotations"] = annotations
-        coco.dataset = tmp_dateset
-        return coco
+        all_annotations_by_id = {ann['id']: ann for ann in coco_gt_all.dataset['annotations']}
+
+        for hand_ann in coco_hands.anns.values():
+            if hand_ann["contact_state"] == 1:
+                object_id = hand_ann.get("id_obj")
+                if object_id is not None and object_id in all_annotations_by_id:
+                    object_ann = all_annotations_by_id[object_id]
+                    new_target_ann = {
+                        "id": hand_ann["id"],  
+                        "image_id": hand_ann["image_id"],
+                        "category_id": object_ann["category_id"], 
+                        "area": object_ann["area"], 
+                        "bbox": hand_ann["bbox_obj"], 
+                        "iscrowd": 0
+                    }
+                    tmp_dateset["annotations"].append(new_target_ann)
+
+        return tmp_dateset
 
     @abstractmethod
     def generate_predictions(self):
@@ -97,72 +104,46 @@ class MMEhoiNetConverterv1(Converter):
         results = []
         results_target = []
         objs = self.convert_instances_to_coco(confident_instances[confident_instances.pred_classes != self._id_hand], image_id)
-        
-        num_hands = len(instances_hand.scores) if instances_hand.has("scores") else 0
+            
+        for idx_hand in range(len(instances_hand)):
+            instance_hand = instances_hand[idx_hand]
+            bbox_hand = instance_hand.boxes.numpy()[0]
+            x0_hand, y0_hand, x1_hand, y1_hand = bbox_hand
+            width_hand, heigth_hand = x1_hand - x0_hand, y1_hand - y0_hand
+            dxdymag_v = instance_hand.dxdymagn_hand.numpy()[0]
+            contact_state = instance_hand.contact_states.item()
+            score = instance_hand.scores.item()
+            side = instance_hand.sides.item()
 
-        if num_hands > 0:
-            for idx_hand in range(num_hands):
-                instance_hand = instances_hand[idx_hand]
-                
-                bbox_hand_np = instance_hand.boxes.tensor.cpu().numpy()
-                
-                if bbox_hand_np.shape[0] > 0:
-                    bbox_hand = bbox_hand_np[0]
-                else:
-                    continue 
-
-                x0_hand, y0_hand, x1_hand, y1_hand = bbox_hand
-                width_hand, heigth_hand = x1_hand - x0_hand, y1_hand - y0_hand
-                
-                dxdymagn_v_np = instance_hand.dxdymagn_hand.cpu().numpy()
-                
-                if dxdymagn_v_np.shape[0] > 0:
-                    dxdymag_v = dxdymagn_v_np[0]
-                else:
-                    dxdymag_v = np.array([0., 0., 0.])
-
-                contact_state = instance_hand.contact_states.cpu().item()
-                score = instance_hand.scores.cpu().item()
-                side = instance_hand.sides.cpu().item()
-
-                element = {
-                    "image_id": image_id, 
-                    "category_id": 0, 
-                    "bbox": [x0_hand, y0_hand, width_hand, heigth_hand], 
-                    "score": score, 
-                    "hand_side": side, 
-                    "contact_state": contact_state, 
-                    "bbox_obj": [], 
-                    "category_id_obj": -1, 
-                    "dx": dxdymag_v[0],
-                    "dy": dxdymag_v[1],
-                    "magnitude": dxdymag_v[2] / self._scale_factor * self._diag if self._scale_factor != 0 else 0.0
-                }
-                
-                objs_iou, bbox_objs = [], []
-                for obj in objs:
-                    bbox_xywh_np = np.array(obj["bbox"])
-                    bbox_xywh_np_batch = bbox_xywh_np.reshape(1, 4)
-                    obj_bbox_xyxy_batch = BoxMode.convert(bbox_xywh_np_batch, BoxMode.XYWH_ABS, BoxMode.XYXY_ABS)
-                    obj_bbox_xyxy = obj_bbox_xyxy_batch[0]
-                    
-                    if get_iou(obj_bbox_xyxy, bbox_hand) > 0:
-                        objs_iou.append(obj)
-                        bbox_objs.append(obj_bbox_xyxy)
-                
-                if contact_state and len(bbox_objs): 
-                    idx_closest_obj = self.match_object(bbox_objs, bbox_hand, dxdymag_v)
-                    matched_obj = objs_iou[idx_closest_obj]
-                    element["bbox_obj"] = matched_obj["bbox"]
-                    element["category_id_obj"] = int(matched_obj["category_id"])
-                    element["score_obj"] = matched_obj["score"]
-                    results_target.append({
-                        "image_id": image_id,
-                        "category_id": element["category_id_obj"],
-                        "bbox": element["bbox_obj"],
-                        "score": element["score_obj"]
-                    })
-                results.append(element)
+            element = {
+                "image_id": image_id, 
+                "category_id": 0, 
+                "bbox": [x0_hand, y0_hand, width_hand, heigth_hand], 
+                "score": score, 
+                "hand_side": side, 
+                "contact_state": contact_state, 
+                "bbox_obj": [], 
+                "category_id_obj": -1, 
+                "dx":dxdymag_v[0],
+                "dy": dxdymag_v[1],
+                "magnitude": dxdymag_v[2] / self._scale_factor * self._diag
+            }
+            
+            objs_iou, bbox_objs = [], []
+            for obj in objs:
+                if get_iou(obj["bbox"], bbox_hand) > 0:
+                    objs_iou.append(obj)
+                    bbox_objs.append(obj["bbox"])
+            
+            if contact_state and len(bbox_objs): 
+                idx_closest_obj = self.match_object(bbox_objs, bbox_hand, dxdymag_v)
+                x0, y0, x1, y1 = np.array(bbox_objs[idx_closest_obj]).astype(float)
+                width, heigth = x1 - x0, y1 - y0                
+                element["bbox_obj"] = [x0, y0, width, heigth]
+                element["category_id_obj"] = int(objs_iou[idx_closest_obj]["category_id"])
+                element["score_obj"] = objs_iou[idx_closest_obj]["score"]
+                results_target.append({"image_id": image_id, "category_id": element["category_id_obj"], "bbox": [x0, y0, width, heigth], "score": element["score_obj"]})
+            results.append(element)
 
         return results, results_target
 

@@ -23,21 +23,22 @@ class EHOIEvaluator(DatasetEvaluator):
     def __init__(self, cfg, dataset_name, converter):
         self._cfg = cfg
         self._output_dir = os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
-
+        
         self._metadata = MetadataCatalog.get(dataset_name)
         self._thing_classes = self._metadata.as_dict()["thing_classes"]
         self._id_hand = self._thing_classes.index("hand") if "hand" in self._thing_classes else self._thing_classes.index("mano")
         self._class_names_objs = copy.deepcopy(self._metadata.as_dict()["thing_classes"])
         self._class_names_objs.pop(self._id_hand)
 
-		###converter
         self._converter = converter 
-
         self._coco_gt = COCO(PathManager.get_local_path(self._metadata.coco_gt_hands))
         self._coco_gt_all = COCO(PathManager.get_local_path(self._metadata.json_file))
-        self._coco_gt_targets = self._converter.convert_coco_to_coco_target_object(self._coco_gt, self._coco_gt_all)
+    
+        coco_gt_targets_dict = self._converter.convert_coco_to_coco_target_object(self._coco_gt, self._coco_gt_all)
+        self._coco_gt_targets = COCO()
+        self._coco_gt_targets.dataset = coco_gt_targets_dict
         self._coco_gt_targets.createIndex()
-
+        
     def reset(self):
         self._predictions = []
         self._predictions_all = []
@@ -55,7 +56,7 @@ class EHOIEvaluator(DatasetEvaluator):
             self._predictions_all.extend(self._converter.convert_instances_to_coco(confident_instances_all, image_id, convert_boxes_xywh_abs = True))
 
     def evaluate(self):
-        cocoPreds = self._coco_gt_all.loadRes(self._predictions)
+        cocoPreds = self._coco_gt.loadRes(self._predictions)
         cocoPreds_all = self._coco_gt_all.loadRes(self._predictions_all)
         if(len(self._predictions_targets)):
             cocoPreds_target = self._coco_gt_targets.loadRes(self._predictions_targets)
@@ -129,7 +130,7 @@ class EHOIEvaluator(DatasetEvaluator):
             tmp_results = {}
 
             for idx_class, class_name in enumerate(self._class_names_objs):  
-                cocoGT_filtred.dataset["annotations"] = [ann for _, ann in enumerate(self._coco_gt.dataset["annotations"]) if ann.get("category_id_obj", ann.get("id_obj", 0)) == idx_class]                
+                cocoGT_filtred.dataset["annotations"] = [ann for ann in self._coco_gt_all.dataset["annotations"] if ann["category_id"] == idx_class]                
                 cocoGT_filtred.createIndex()
                 new_anns = []
                 for ann_gt in cocoGT_filtred.anns.values():
@@ -167,7 +168,7 @@ class EHOIEvaluator(DatasetEvaluator):
             ##### HAND + TARGET
             tmp_results = {}
             for idx_class, class_name in enumerate(self._class_names_objs):  
-                cocoGT_filtred.dataset["annotations"] = [ann for _, ann in enumerate(self._coco_gt.dataset["annotations"]) if ann.get("category_id_obj", ann.get("id_obj", 0)) == idx_class]                
+                cocoGT_filtred.dataset["annotations"] = [ann for ann in self._coco_gt_all.dataset["annotations"] if ann["category_id"] == idx_class]                
                 cocoGT_filtred.createIndex()
                 cocoPreds_filtred.dataset["annotations"] = [ann for _, ann in enumerate(cocoPreds.dataset["annotations"]) if ann["category_id_obj"] == idx_class]
                 cocoPreds_filtred.createIndex()
@@ -179,11 +180,11 @@ class EHOIEvaluator(DatasetEvaluator):
                 cocoEval.summarize()
                 tmp_results[class_name] = round(cocoEval.stats[0] * 100, 2) if round(cocoEval.stats[0] * 100, 2) > 0 else 0
                 if len(cocoGT_filtred.anns) == 0: tmp_results[class_name] = 1 if len(cocoPreds_filtred.anns) == 0 else 0
-                coco_results["mAP Hand + Target Objects"] = round(np.array([tmp_results.get(class_name, 0.0) for idx_class, class_name in enumerate(self._class_names_objs)]).mean(), 2)
-
+            coco_results["mAP Hand + Target Objects"] = round(np.array([tmp_results[class_name] for idx_class, class_name in enumerate(self._class_names_objs)]).mean(), 2)
+            
             ##### HAND + ALL
             for idx_class, class_name in enumerate(self._class_names_objs):  
-                cocoGT_filtred.dataset["annotations"] = [ann for _, ann in enumerate(self._coco_gt.dataset["annotations"]) if ann.get("category_id_obj", ann.get("id_obj", 0)) == idx_class]                
+                cocoGT_filtred.dataset["annotations"] = [ann for ann in self._coco_gt_all.dataset["annotations"] if ann["category_id"] == idx_class]                
                 cocoGT_filtred.createIndex()
                 cocoPreds_filtred.dataset["annotations"] = [ann for _, ann in enumerate(cocoPreds.dataset["annotations"]) if ann["category_id_obj"] == idx_class]
                 cocoPreds_filtred.createIndex()

@@ -1,0 +1,81 @@
+{
+  "os": "Linux-3.10.0-1160.119.1.el7.x86_64-x86_64-with-glibc2.17",
+  "python": "CPython 3.11.11",
+  "startedAt": "2025-08-04T17:59:35.313362Z",
+  "args": [
+    "--train_json",
+    "./data/egoism-hoi-dataset/annotations/train_coco.json",
+    "--test_json",
+    "./data/egoism-hoi-dataset/annotations/val_coco.json",
+    "--test_dataset_names",
+    "val",
+    "--weights_path",
+    "./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth",
+    "--mask_gt",
+    "--wandb_project",
+    "ehoi-exp-1754330370",
+    "--wandb_run_name",
+    "ehoi_net",
+    "--max_iter",
+    "40000"
+  ],
+  "program": "/home/aspoto/Desktop/HOIE-algorithm/train.py",
+  "codePath": "train.py",
+  "git": {
+    "remote": "https://github.com/NextVisionLab/HOIE-algorithm.git",
+    "commit": "3d2f1b509e6d19c21969e78beb10a301b954906f"
+  },
+  "email": "alfio.spoto@outlook.it",
+  "root": "/home/aspoto/Desktop/HOIE-algorithm",
+  "host": "jonas",
+  "executable": "/home/aspoto/miniconda3/envs/ego_hoi/bin/python",
+  "codePathLocal": "train.py",
+  "cpu_count": 20,
+  "cpu_count_logical": 40,
+  "gpu": "Tesla V100S-PCIE-32GB",
+  "gpu_count": 4,
+  "disk": {
+    "/": {
+      "total": "460457488384",
+      "used": "457540296704"
+    }
+  },
+  "memory": {
+    "total": "201394982912"
+  },
+  "cpu": {
+    "count": 20,
+    "countLogical": 40
+  },
+  "gpu_nvidia": [
+    {
+      "name": "Tesla V100S-PCIE-32GB",
+      "memoryTotal": "34359738368",
+      "cudaCores": 5120,
+      "architecture": "Volta",
+      "uuid": "GPU-81a3e14c-0a4b-567e-cc05-aebfd6ad9c49"
+    },
+    {
+      "name": "Tesla V100S-PCIE-32GB",
+      "memoryTotal": "34359738368",
+      "cudaCores": 5120,
+      "architecture": "Volta",
+      "uuid": "GPU-c9bc419b-27cd-923e-463c-ee9d4bc740f3"
+    },
+    {
+      "name": "Tesla V100-PCIE-16GB",
+      "memoryTotal": "17179869184",
+      "cudaCores": 5120,
+      "architecture": "Volta",
+      "uuid": "GPU-a10ff1a9-e8f2-98a6-a71e-22a1b892e274"
+    },
+    {
+      "name": "Tesla V100S-PCIE-32GB",
+      "memoryTotal": "34359738368",
+      "cudaCores": 5120,
+      "architecture": "Volta",
+      "uuid": "GPU-69433323-d46c-abae-967c-cf50d29426fb"
+    }
+  ],
+  "cudaVersion": "12.4"
+}

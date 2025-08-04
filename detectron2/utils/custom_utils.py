@@ -1,4 +1,3 @@
-import cv2
 import torch
 from torch import nn
 import copy
@@ -6,15 +5,8 @@ import kornia
 
 import detectron2
 from detectron2.structures import Boxes, BoxMode, pairwise_iou
-from detectron2.structures import PolygonMasks, BitMasks
 from detectron2.structures import ROIMasks, Instances
 from typing import Dict, List, Optional, Tuple
-from detectron2.layers.mask_ops import paste_masks_in_image
-import logging
-import numpy as np
-
-
-logger = logging.getLogger(__name__)
 
 def deep_merge(_dict1: dict, _dict2: dict) -> dict:
     dict1, dict2 = copy.deepcopy(_dict1), copy.deepcopy(_dict2)
@@ -82,66 +74,15 @@ def select_hands_proposals(proposals: List[Instances], hand_label: int) -> Tuple
     return hands_proposals
 
 #### INPUT ARRAY OF INSTANCES [B, I] OUTPUT TENSOR [B, N, OUTPUT_SIZE_H, OUTPUT_SIZE_W]
-def extract_masks_and_resize(instances_list, output_size, class_id):
+def extract_masks_and_resize(preds, output_size, class_id):
     output_masks = []
-    
-    is_training = len(instances_list) > 0 and instances_list[0].has("gt_classes")
-
-    for instances in instances_list:
-        if is_training:
-            hand_instances = instances[instances.gt_classes == class_id]
-            mask_field_name = "gt_masks"
-        else:
-            hand_instances = instances[instances.pred_classes == class_id]
-            mask_field_name = "pred_masks"
-
-        if len(hand_instances) == 0 or not hand_instances.has(mask_field_name):
-            continue
-
-        instance_masks = getattr(hand_instances, mask_field_name)
-
-        if isinstance(instance_masks, PolygonMasks):
-            image_h, image_w = instances.image_size
-            rasterized_masks = []
-            for polygons_per_instance in instance_masks.polygons:
-                mask = np.zeros((image_h, image_w), dtype=np.uint8)
-
-                valid_polygons = [p for p in polygons_per_instance if isinstance(p, np.ndarray) and p.ndim == 2 and p.shape[1] == 2]
-
-                if not valid_polygons:
-                    continue
-
-                polygons_for_cv2 = [p.reshape(-1, 1, 2).astype(np.int32) for p in valid_polygons]
-                
-                cv2.fillPoly(mask, polygons_for_cv2, 1)
-                rasterized_masks.append(torch.from_numpy(mask))
-            
-            if not rasterized_masks:
-                continue
-            
-            device = instances.gt_boxes.device if instances.has("gt_boxes") else instances.pred_boxes.device
-            masks_tensor = torch.stack(rasterized_masks).to(device)
-
-        elif isinstance(instance_masks, BitMasks):
-            masks_tensor = instance_masks.tensor
-        elif isinstance(instance_masks, torch.Tensor):
-            if instance_masks.dim() == 4 and instance_masks.shape[1] == 1:
-                masks_tensor = instance_masks.squeeze(1)
-            else:
-                masks_tensor = instance_masks
-        else:
-            logger.warning(f"Unknown mask type: {type(instance_masks)}")
-            continue
-
-        if masks_tensor.numel() == 0:
-            continue
-            
-        masks_tensor = masks_tensor.float()
-
-        if masks_tensor.dim() == 3:
-             masks_tensor = masks_tensor.unsqueeze(1)
-        
-        res_masks = kornia.geometry.transform.resize(masks_tensor, output_size, align_corners=False).squeeze(1)
+    for pred in preds:
+        pred = pred[pred.gt_classes == class_id] if "gt_classes" in pred._fields else pred[pred.pred_classes == class_id]
+        if len(pred) == 0: continue
+        original_size =  pred.image_size
+        roi_masks = ROIMasks(pred.pred_masks[:, 0, :, :])
+        masks = roi_masks.to_bitmasks(pred.proposal_boxes, original_size[0], original_size[1], 0.5).tensor if "proposal_boxes" in pred._fields else roi_masks.to_bitmasks(pred.pred_boxes, original_size[0], original_size[1], 0.5).tensor
+        masks = masks.float()
+        res_masks = kornia.geometry.transform.resize(masks, output_size, align_corners = True)
         output_masks.append(res_masks)
-
     return output_masks

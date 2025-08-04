@@ -78,7 +78,7 @@ To replicate the results of the paper, train your model using these pre-trained 
 To train the system enter the following command:
 
 ```bash
-python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json  --test_dataset_names val  --weights ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth  --mask_gt  --max_iter 20  --eval_period 20  --warmup_iters 10 --no_wandb
+python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json  --test_dataset_names val  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth  --mask_gt  --max_iter 20  --eval_period 20  --warmup_iters 10 --no_wandb
 ```
 
 ```bash
@@ -86,7 +86,7 @@ python train.py \
  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json \
  --test_dataset_names val \
- --weights ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
+ --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
  --mask_gt \
  --wandb_project "ehoi-exp-$(date +%s)" \
  --wandb_run_name "ehoi_net"
@@ -97,7 +97,7 @@ python train.py \
  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json \
  --test_dataset_names val \
- --weights ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
+ --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
  --mask_gt \
  --no_wandb
 ```
@@ -112,7 +112,7 @@ wandb sync wandb/latest-run/
 ### Test
 To test the models run the command below:
 ```
-python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/r_test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights ./weights/383__33_lf/model_final.pth 
+python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/r_test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/383__33_lf/model_final.pth 
 ```
 
 Check more about argparse parameters in `test.py`.
@@ -120,17 +120,17 @@ Check more about argparse parameters in `test.py`.
 ### Inference
 Run the command below for an example of inference. A new folder **output_detection** will be created with the visualization:
 ```
-python inference.py --weights <weights_path> --images_path <images_path>
+python inference.py --weights_path <weights_path> --images_path <images_path>
 ```
 
 ```bash
-python inference.py --weights ./weights/full_model/model_final.pth --images_path ./data/test_images/ --use_keypoints --contact_state_modality "mask+rgb+depth+keypoints+fusion" --save_features --output_dir ./output_detection_keypoints/
+python inference.py --weights_path ./weights/full_model/model_final.pth --images_path ./data/test_images/ --use_keypoints --contact_state_modality "mask+rgb+depth+keypoints+fusion" --save_features --output_dir ./output_detection_keypoints/
 ```
 
 ### Visualization
 
 ```bash
-python visualization.py  --weights ./output_dir/last_training/model_final.pth  --val_json ./data/egoism-hoi-dataset/annotations/val_coco.json  --output_dir ./visualizations  --num_samples 10  --start_idx 0
+python visualization.py  --weights_path ./output_dir/last_training/model_final.pth  --val_json ./data/egoism-hoi-dataset/annotations/val_coco.json  --output_dir ./visualizations  --num_samples 10  --start_idx 0
 ```
 
 Check more about argparse parameters in `inference.py`.

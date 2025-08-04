@@ -37,16 +37,12 @@ model_ts*.txt
 .idea
 .vscode
 _darcs
-.DS_Store
 
 # project dirs
 /detectron2/model_zoo/configs
 /datasets/*
 /models
-/wandb/*
-/data/egoism-hoi-dataset/*
 /snippet
-/visualizations
 
 ###img and video
 *.jpg
@@ -54,5 +50,4 @@ _darcs
 *.png
 *.jpeg
 *.png
-*.diffdata/egoism-hoi-dataset/annotations/*.json
 *.diff

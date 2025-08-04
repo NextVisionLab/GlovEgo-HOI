@@ -1,0 +1,15 @@
+{"time":"2025-08-04T19:59:35.319473028+02:00","level":"INFO","msg":"stream: starting","core version":"0.20.1","symlink path":"/home/aspoto/Desktop/HOIE-algorithm/wandb/run-20250804_195935-75s47wsg/logs/debug-core.log"}
+{"time":"2025-08-04T19:59:38.890407021+02:00","level":"INFO","msg":"stream: created new stream","id":"75s47wsg"}
+{"time":"2025-08-04T19:59:38.890494624+02:00","level":"INFO","msg":"stream: started","id":"75s47wsg"}
+{"time":"2025-08-04T19:59:38.890531374+02:00","level":"INFO","msg":"writer: Do: started","stream_id":"75s47wsg"}
+{"time":"2025-08-04T19:59:38.890565821+02:00","level":"INFO","msg":"sender: started","stream_id":"75s47wsg"}
+{"time":"2025-08-04T19:59:38.890635798+02:00","level":"INFO","msg":"handler: started","stream_id":"75s47wsg"}
+{"time":"2025-08-04T19:59:39.271491945+02:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2025-08-04T19:59:48.411149783+02:00","level":"INFO","msg":"stream: closing","id":"75s47wsg"}
+{"time":"2025-08-04T19:59:48.411218415+02:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2025-08-04T19:59:48.411303663+02:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2025-08-04T19:59:48.978085912+02:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-08-04T19:59:49.271581789+02:00","level":"INFO","msg":"handler: closed","stream_id":"75s47wsg"}
+{"time":"2025-08-04T19:59:49.271683977+02:00","level":"INFO","msg":"writer: Close: closed","stream_id":"75s47wsg"}
+{"time":"2025-08-04T19:59:49.271705713+02:00","level":"INFO","msg":"sender: closed","stream_id":"75s47wsg"}
+{"time":"2025-08-04T19:59:49.271798973+02:00","level":"INFO","msg":"stream: closed","id":"75s47wsg"}
