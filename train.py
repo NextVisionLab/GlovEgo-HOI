@@ -34,8 +34,20 @@ parser.add_argument('--test_dataset_names', dest='test_dataset_names', nargs='*'
 parser.add_argument('--no_predict_mask', dest='predict_mask', action='store_false', default=True)
 parser.add_argument('--mask_gt', action='store_true', default=False)
 parser.add_argument('--no_depth_module', dest='depth_module', action='store_false', default=True)
-parser.add_argument('--contact_state_modality', default="mask+rgb+depth+fusion", help="contact state modality", type=str, 
-                    choices=["rgb", "cnn_rgb", "depth", "mask", "rgb+depth", "mask+rgb", "mask+depth", "mask+rgb+depth", "mask+rgb+depth+fusion", "mask+rgb+fusion", "rgb+depth+fusion", "rgb+fusion"])
+parser.add_argument(
+    '--contact_state_modality', 
+    default="mask+rgb+depth+kpts+fusion",  
+    help="Defines the input modalities for the contact state prediction head.", 
+    type=str, 
+    choices=[
+        "rgb", "cnn_rgb", "depth", "mask", "kpts",
+        "rgb+depth", "mask+rgb", "mask+depth", "rgb+kpts", "mask+kpts", "depth+kpts",
+        "mask+rgb+depth", "mask+rgb+kpts", "mask+depth+kpts", "rgb+depth+kpts",
+        "mask+rgb+depth+kpts",
+        "rgb+fusion", "rgb+depth+fusion", "mask+rgb+fusion", "mask+rgb+depth+fusion",
+        "mask+rgb+depth+kpts+fusion" 
+    ]
+)
 parser.add_argument('--contact_state_cnn_input_size', default="128", help="input size for the CNN contact state classification module", type=int)
 parser.add_argument('--cuda_device', default=0, help='CUDA device id', type=int)
 parser.add_argument('--base_lr', default=0.001, help='base learning rate.', type=float)
@@ -119,10 +131,18 @@ if __name__ == "__main__":
     train_images_path = os.path.join(args.train_json[:[x for x, v in enumerate(args.train_json) if v == '/'][-2]], "images/")
     register_coco_instances("dataset_train", {}, args.train_json, train_images_path)
     
-    # --- CORREZIONE DEL KEYERROR ---
-    # Forza il caricamento dei dati e dei metadati
     DatasetCatalog.get("dataset_train")
     dataset_train_metadata = MetadataCatalog.get("dataset_train")
+
+    KEYPOINT_NAMES = [
+        "wrist", "thumb_cmc", "thumb_mcp", "thumb_ip", "thumb_tip",
+        "index_mcp", "index_pip", "index_dip", "index_tip",
+        "middle_mcp", "middle_pip", "middle_dip", "middle_tip",
+        "ring_mcp", "ring_pip", "ring_dip", "ring_tip",
+        "pinky_mcp", "pinky_pip", "pinky_dip", "pinky_tip"
+    ]
+    KEYPOINT_FLIP_MAP = []
+    dataset_train_metadata.set(keypoint_names=KEYPOINT_NAMES, keypoint_flip_map=KEYPOINT_FLIP_MAP)
     num_classes = len(dataset_train_metadata.thing_classes)
     
     with open(dataset_train_metadata.json_file) as json_file: 

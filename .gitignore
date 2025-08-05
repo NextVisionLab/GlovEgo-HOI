@@ -4,6 +4,9 @@ instant_test_output
 inference_test_output
 output_dir
 output_detection
+output_dir_base
+output_dir_kpt
+output_dir_kpt_glove
 
 # compilation and distribution
 __pycache__
