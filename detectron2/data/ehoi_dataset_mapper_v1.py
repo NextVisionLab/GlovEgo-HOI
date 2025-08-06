@@ -27,47 +27,27 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
 
         dataset_dict = copy.deepcopy(dataset_dict)
         image = cv2.imread(dataset_dict["file_name"])
-        if image is None: return None
-        
-        new_anns = []
+        if image is None:
+            return None
+
         annotations_sup = [x for x in self._data_anns_sup['annotations'] if x['image_id'] == dataset_dict['image_id']]
         sup_ann_dict = {s_ann["id"]: s_ann for s_ann in annotations_sup}
-        diag = math.sqrt((math.pow(image.shape[0], 2) + math.pow(image.shape[1], 2)))
+        diag = math.sqrt(image.shape[0]**2 + image.shape[1]**2)
         
         for ann in dataset_dict["annotations"]:
-            tmp_ann = ann.copy()
-
-            if self._masks_gt:
-                if not "segmentation" in ann or not ann["segmentation"]: continue
-            elif "segmentation" in tmp_ann: 
-                tmp_ann.pop("segmentation")
-                
-            if self._keypoints_gt:
-                kpts = tmp_ann.get("keypoints")
-                if not kpts: 
-                    if "keypoints" in tmp_ann:
-                        tmp_ann.pop("keypoints")
-            elif "keypoints" in tmp_ann:
-                tmp_ann.pop("keypoints")
-            
             tmp_sup_ann = sup_ann_dict.get(ann["id"])
             if tmp_sup_ann:
-                tmp_ann["hand_side"] = tmp_sup_ann.get("hand_side", -1)
-                tmp_ann["contact_state"] = tmp_sup_ann.get("contact_state", -1)
-                if tmp_ann["contact_state"] == 1:
-                    tmp_ann["dx"] = float(tmp_sup_ann.get("dx", 0.0))
-                    tmp_ann["dy"] = float(tmp_sup_ann.get("dy", 0.0))
-                    tmp_ann["magnitude"] = (float(tmp_sup_ann.get("magnitude", 0.0)) / diag) * self._scale_factor
+                ann["hand_side"] = tmp_sup_ann.get("hand_side", -1)
+                ann["contact_state"] = tmp_sup_ann.get("contact_state", -1)
+                if ann["contact_state"] == 1:
+                    ann["dx"], ann["dy"] = float(tmp_sup_ann.get("dx", 0.0)), float(tmp_sup_ann.get("dy", 0.0))
+                    ann["magnitude"] = (float(tmp_sup_ann.get("magnitude", 0.0)) / diag) * self._scale_factor
                 else:
-                    tmp_ann["dx"], tmp_ann["dy"], tmp_ann["magnitude"] = 0.0, 0.0, 0.0
-                new_anns.append(tmp_ann)
+                    ann["dx"], ann["dy"], ann["magnitude"] = 0.0, 0.0, 0.0
         
-        if not new_anns: return None
-        
-        ####DATA AUGMENTATION
         transform_list = [
-            T.RandomContrast(self._cfg.AUG.RANDOM_CONTRAST_MIN, self._cfg.AUG.RANDOM_CONTRAST_MAX), 
-            T.RandomBrightness(self._cfg.AUG.RANDOM_BRIGHTNESS_MIN, self._cfg.AUG.RANDOM_BRIGHTNESS_MAX), 
+            T.RandomContrast(self._cfg.AUG.RANDOM_CONTRAST_MIN, self._cfg.AUG.RANDOM_CONTRAST_MAX),
+            T.RandomBrightness(self._cfg.AUG.RANDOM_BRIGHTNESS_MIN, self._cfg.AUG.RANDOM_BRIGHTNESS_MAX),
             T.RandomLighting(scale=self._cfg.AUG.RANDOM_LIGHTING_SCALE),
         ]
         
@@ -77,18 +57,43 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
 
         annos = [
             utils.transform_instance_annotations(
-                annotation, transforms, image_shape, keypoint_hflip_indices=self._keypoint_hflip_indices
-            ) for annotation in new_anns
+                obj, transforms, image_shape, keypoint_hflip_indices=self._keypoint_hflip_indices
+            )
+            for obj in dataset_dict["annotations"]
+            if obj.get("iscrowd", 0) == 0
         ]
         
-        instances = utils.annotations_to_instances(annos, image_shape, mask_format="polygon")
-        keypoints_list = [
-            obj.get("keypoints", np.zeros((self._num_keypoints, 3), dtype=np.float32)) 
-            for obj in annos
-        ]
+        use_masks = self._masks_gt
+        mask_format = self._cfg.INPUT.MASK_FORMAT if use_masks else "none"
+
+        annos_for_instances = []
+        for ann in annos:
+            ann_copy = copy.deepcopy(ann)
+            if "keypoints" in ann_copy:
+                ann_copy.pop("keypoints")
+
+            if not use_masks:
+                if "segmentation" in ann_copy:
+                    ann_copy.pop("segmentation")
+            else:
+                if "segmentation" not in ann_copy:
+                    ann_copy["segmentation"] = []
+            
+            annos_for_instances.append(ann_copy)
+        
+        instances = utils.annotations_to_instances(annos_for_instances, image_shape, mask_format=mask_format)
+
+        keypoints_list = []
+        for obj in annos:
+            kps_flat = obj.get("keypoints", [])
+            if len(kps_flat) > 0:
+                keypoints_list.append(np.array(kps_flat).reshape(self._num_keypoints, 3))
+            else:
+                keypoints_list.append(np.zeros((self._num_keypoints, 3), dtype=np.float32))
+
         keypoints_array = np.array(keypoints_list, dtype=np.float32)
         instances.gt_keypoints = Keypoints(torch.as_tensor(keypoints_array))
-
+        
         ids = [x.get("id", -1) for x in annos]
         contact_states = [x.get("contact_state", -1) for x in annos]
         sides = [x.get("hand_side", -1) for x in annos]
@@ -100,7 +105,7 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
         instances.set("gt_dxdymagn_hands", torch.tensor(dxdymagn_hands, dtype=torch.float32))
 
         dataset_dict["instances"] = utils.filter_empty_instances(instances)
-        if len(dataset_dict["instances"]) == 0:
+        if not len(dataset_dict["instances"]):
              return None
 
         return dataset_dict
