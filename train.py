@@ -121,7 +121,7 @@ def load_cfg(args, num_classes):
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.WARMUP_ITERS = args.warmup_iters
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir_kpt/last_training/"
+    cfg.OUTPUT_DIR = "./output_dir/last_training/"
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     setup_logger(output=cfg.OUTPUT_DIR)
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
