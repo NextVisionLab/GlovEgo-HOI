@@ -12,6 +12,7 @@ from _pycocotools.custom_handstate_cocoeval import CustomHandContactStateCOCOeva
 from _pycocotools.custom_hand_target_object_w_classification import CustomHandTargetCOCOeval
 from _pycocotools.custom_hand_all_cocoeval_w_classification import CustomHandAllCOCOeval
 
+from detectron2.evaluation.coco_evaluation import instances_to_coco_json
 from detectron2.data import MetadataCatalog
 from detectron2.utils.custom_utils import get_iou
 from detectron2.utils.file_io import PathManager
@@ -43,23 +44,44 @@ class EHOIEvaluator(DatasetEvaluator):
         self._predictions = []
         self._predictions_all = []
         self._predictions_targets = []
-        
+        self._prediction_counter = 0
+        self._prediction_target_counter = 0 
+
     def process(self, inputs, outputs):
         for input, output in zip(inputs, outputs):
             image_id = input["image_id"]
+
+            if "instances" not in output:
+                continue
+            
             instances = output["instances"].to(torch.device("cpu"))
-            confident_instances = self._converter.generate_confident_instances(instances)
-            predictions, predictions_target = self._converter.generate_predictions(image_id, confident_instances, output["additional_outputs"])
-            self._predictions += predictions
-            self._predictions_targets+= predictions_target
+            additional_outputs = output.get("additional_outputs")
+
+            if additional_outputs:
+                confident_instances_for_ehoi = self._converter.generate_confident_instances(instances)
+                predictions, predictions_target = self._converter.generate_predictions(
+                    image_id, 
+                    confident_instances_for_ehoi, 
+                    additional_outputs, 
+                    start_id=self._prediction_counter,
+                    start_id_target=self._prediction_target_counter
+                )
+                self._predictions.extend(predictions)
+                self._predictions_targets.extend(predictions_target)
+                self._prediction_counter += len(predictions)
+                self._prediction_target_counter += len(predictions_target)
+
             confident_instances_all = self._converter._nms(instances)
             self._predictions_all.extend(self._converter.convert_instances_to_coco(confident_instances_all, image_id, convert_boxes_xywh_abs = True))
 
     def evaluate(self):
+        # La chiamata a `loadRes` su `_predictions_all` causava l'errore.
+        # `_predictions` e `_predictions_targets` ORA hanno gli ID.
         cocoPreds = self._coco_gt.loadRes(self._predictions)
-        cocoPreds_all = self._coco_gt_all.loadRes(self._predictions_all)
         if(len(self._predictions_targets)):
             cocoPreds_target = self._coco_gt_targets.loadRes(self._predictions_targets)
+        else:
+            cocoPreds_target = None # Gestiamo il caso in cui sia vuoto
 
         if self._output_dir:
             PathManager.mkdirs(self._output_dir)
@@ -74,8 +96,13 @@ class EHOIEvaluator(DatasetEvaluator):
         coco_results = {}
 
         with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):    
+            # --- Inizio Modifica ---
+            # Per le metriche AP Hand e mAP Objects, usiamo un'istanza di COCOeval
+            # che non si basa sull'indicizzazione degli ID delle predizioni.
+            coco_dt_all = self._coco_gt_all.loadRes(self._predictions_all)
+
             ##### HAND
-            cocoEval = COCOeval(self._coco_gt_all, cocoPreds_all, annType)
+            cocoEval = COCOeval(self._coco_gt_all, coco_dt_all, annType)
             cocoEval.params.recThrs = np.linspace(.0, 1.00, int(np.round((1.00 - .0) / .1)) + 1, endpoint=True)
             cocoEval.params.iouThrs = np.array([0.5])
             cocoEval.params.catIds = [self._id_hand]
@@ -85,7 +112,7 @@ class EHOIEvaluator(DatasetEvaluator):
             coco_results["AP Hand"] = round(cocoEval.stats[0] * 100, 2)
 
             ##### OBJECTS
-            cocoEval = COCOeval(self._coco_gt_all, cocoPreds_all, annType)
+            cocoEval = COCOeval(self._coco_gt_all, coco_dt_all, annType)
             cocoEval.params.recThrs = np.linspace(.0, 1.00, int(np.round((1.00 - .0) / .1)) + 1, endpoint=True)
             cocoEval.params.iouThrs = np.array([0.5])
             cocoEval.params.catIds = [x["id"] for x in self._coco_gt_all.cats.values() if x["id"] != self._id_hand]
@@ -93,6 +120,7 @@ class EHOIEvaluator(DatasetEvaluator):
             cocoEval.accumulate()
             cocoEval.summarize()
             coco_results["mAP Objects"] = round(cocoEval.stats[0] * 100, 2)
+            # --- Fine Modifica ---
 
             ##### TARGET OBJECTS
             if len(self._predictions_targets):

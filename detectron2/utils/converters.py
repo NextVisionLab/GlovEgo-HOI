@@ -10,6 +10,7 @@ from detectron2.structures import BoxMode
 from detectron2.structures.instances import Instances
 from detectron2.structures.masks import ROIMasks
 from detectron2.utils.custom_utils import get_iou, calculate_center
+from detectron2.evaluation.coco_evaluation import instances_to_coco_json
 import cv2
 
 def get_hoi_categories(categories, is_object=False):
@@ -40,7 +41,7 @@ class Converter:
             result = {"image_id": img_id, "category_id": classes[k], "bbox": boxes[k], "score": scores[k]}
             results.append(result)
         return results
-    
+        
     def convert_coco_to_coco_target_object(self, coco_hands, coco_gt_all):
         tmp_dateset = {}
         tmp_dateset["images"] = coco_hands.dataset["images"]
@@ -67,7 +68,7 @@ class Converter:
         return tmp_dateset
 
     @abstractmethod
-    def generate_predictions(self):
+    def generate_predictions(self, image_id, confident_instances, instances_hand, **kwargs):
         pass
     
     def generate_confident_instances(self, instances):
@@ -100,7 +101,9 @@ class MMEhoiNetConverterv1(Converter):
         dist_min = np.argmin(dist) # find the nearest 
         return dist_min
 
-    def generate_predictions(self, image_id, confident_instances, instances_hand):
+    def generate_predictions(self, image_id, confident_instances, instances_hand, **kwargs):
+        start_id = kwargs.get("start_id", 0)
+        start_id_target = kwargs.get("start_id_target", 0)
         results = []
         results_target = []
         objs = self.convert_instances_to_coco(confident_instances[confident_instances.pred_classes != self._id_hand], image_id)
@@ -116,8 +119,9 @@ class MMEhoiNetConverterv1(Converter):
             side = instance_hand.sides.item()
 
             element = {
+                "id": start_id_target + len(results_target),
                 "image_id": image_id, 
-                "category_id": 0, 
+                "category_id": self._id_hand, 
                 "bbox": [x0_hand, y0_hand, width_hand, heigth_hand], 
                 "score": score, 
                 "hand_side": side, 
@@ -146,12 +150,13 @@ class MMEhoiNetConverterv1(Converter):
             results.append(element)
 
         return results, results_target
-
+    
 class MMEhoiNetConverterv2(Converter):
     def __init__(self, cfg, metadata) -> None:
         super().__init__(cfg, metadata)
 
-    def generate_predictions(self, image_id, confident_instances, instances_hand):
+    def generate_predictions(self, image_id, confident_instances, instances_hand, **kwargs):
+        start_id = kwargs.get("start_id", 0)
         results = []
         results_target = []
             
@@ -174,8 +179,9 @@ class MMEhoiNetConverterv2(Converter):
             pred_mask_target_object = instance_hand.pred_masks_target_object
 
             element = {
+                "id": start_id + idx_hand,
                 "image_id": image_id, 
-                "category_id": 0, 
+                "category_id": self._id_hand, 
                 "bbox": [x0_hand, y0_hand, width_hand, heigth_hand], 
                 "score": score, 
                 "hand_side": side, 
@@ -187,7 +193,8 @@ class MMEhoiNetConverterv2(Converter):
                 "mask_target_object": pred_mask_target_object
             }
 
-            if contact_state: results_target.append({"image_id": image_id, "category_id": element["category_id_obj"], "bbox": element["bbox_obj"], "score": 100})
+            if contact_state: 
+                results_target.append({"image_id": image_id, "category_id": element["category_id_obj"], "bbox": element["bbox_obj"], "score": 100})
             results.append(element)
 
         return results, results_target
@@ -233,10 +240,11 @@ class MMEhoiNetConverterv1DepthMask(Converter):
         dist_min = np.argmin(dist) # find the nearest 
         return dist_min
 
-    def generate_predictions(self, image_id, confident_instances, instances_hand, depth_map: torch.tensor = None, image: torch.tensor = None):
+    def generate_predictions(self, image_id, confident_instances, instances_hand, **kwargs):
+        start_id = kwargs.get("start_id", 0)
         results = []
         results_target = []
-        depth_map = self.resize_depth(depth_map)
+        depth_map = self.resize_depth(kwargs.get("depth_map"))
         objs = self.convert_instances_to_coco(confident_instances[confident_instances.pred_classes != self._id_hand], image_id)
         instances_hand = self.generate_confident_instances(instances_hand)
         masks_hand = self._mask_postprocess(confident_instances[confident_instances.pred_classes == self._id_hand], confident_instances.image_size)
@@ -266,8 +274,9 @@ class MMEhoiNetConverterv1DepthMask(Converter):
             contact_state = 0 if best_mean > 100 else contact_state
 
             element = {
+                "id": start_id + idx_hand,
                 "image_id": image_id, 
-                "category_id": 0, 
+                "category_id": self._id_hand, 
                 "bbox": [x0_hand, y0_hand, width_hand, heigth_hand], 
                 "score": score, 
                 "hand_side": side, 

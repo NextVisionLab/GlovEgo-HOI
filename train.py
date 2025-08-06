@@ -72,8 +72,23 @@ def parse_args():
     return args
 
 def get_evaluators(cfg, dataset_name, output_folder, converter):
-    cocoEvaluator = COCOEvaluator(dataset_name, output_dir=output_folder, tasks = ("bbox",)) 
-    return [cocoEvaluator, EHOIEvaluator(cfg, dataset_name, converter)]
+    tasks = ["bbox"]
+    
+    kpt_sigmas = () 
+    if cfg.MODEL.KEYPOINT_ON:
+        tasks.append("keypoints")
+        if cfg.TEST.KEYPOINT_OKS_SIGMAS:
+            kpt_sigmas = cfg.TEST.KEYPOINT_OKS_SIGMAS
+    coco_evaluator = COCOEvaluator(
+        dataset_name, 
+        tasks=tuple(tasks), 
+        output_dir=output_folder,
+        kpt_oks_sigmas=kpt_sigmas # 21 kpts not 17 as in COCO std
+    )
+    
+    ehoi_evaluator = EHOIEvaluator(cfg, dataset_name, converter)
+    
+    return [coco_evaluator, ehoi_evaluator]
 
 def do_test(cfg, model, * ,converter, mapper, data):
     results = OrderedDict()
@@ -106,7 +121,7 @@ def load_cfg(args, num_classes):
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.WARMUP_ITERS = args.warmup_iters
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir/last_training/"
+    cfg.OUTPUT_DIR = "./output_dir_kpt/last_training/"
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     setup_logger(output=cfg.OUTPUT_DIR)
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
@@ -227,11 +242,25 @@ if __name__ == "__main__":
                 if len(args.test_json) > 0 and cfg.TEST.EVAL_PERIOD > 0 and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0:
                     model.eval()
                     results_val = do_test(cfg, model, converter=converter, mapper=mapper_test, data=data_anns_train_sup)
+
+                    if comm.is_main_process() and "ehoi" in results_val:
+                        logger.info("EHOI evaluation results:")
+                        for key, value in results_val["ehoi"].items():
+                            logger.info(f"  {key}: {value}")
+
                     model.train()
                     
-                    if "bbox" in results_val and not args.no_wandb:
-                        wandb_val_metrics = {f"val/{k}": v for k, v in results_val["bbox"].items()}
-                        wandb.log(wandb_val_metrics, step=iteration + 1)
+                    val_metrics = {}
+                    if "bbox" in results_val:
+                        val_metrics.update({f"val/bbox_{k}": v for k, v in results_val["bbox"].items()})
+                    if "keypoints" in results_val:
+                        val_metrics.update({f"val/kpts_{k}": v for k, v in results_val["keypoints"].items()})
+
+                    if val_metrics and not args.no_wandb:
+                        wandb.log(val_metrics, step=iteration + 1)
+
+                    if "ehoi" in results_val and not args.no_wandb:
+                        wandb.log({f"val/{k}": v for k, v in results_val["ehoi"].items()}, step=iteration + 1)
                     
                     for writer in writers:
                         writer.write()

@@ -223,26 +223,19 @@ class COCOEvaluator(DatasetEvaluator):
         """
         Evaluate predictions. Fill self._results with the metrics of the tasks.
         """
-        self._logger.info("Preparing results for COCO format ...")
-        coco_results = list(itertools.chain(*[x["instances"] for x in predictions]))
-        #tasks = self._tasks or self._tasks_from_predictions(coco_results)
+        self._logger.info("Preparing results for COCO format...")
+        if self._distributed:
+            comm.synchronize()
+            predictions = comm.gather(self._predictions, dst=0)
+            predictions = list(itertools.chain(*predictions))
 
-        # unmap the category ids for COCO
-        if hasattr(self._metadata, "thing_dataset_id_to_contiguous_id"):
-            dataset_id_to_contiguous_id = self._metadata.thing_dataset_id_to_contiguous_id
-            all_contiguous_ids = list(dataset_id_to_contiguous_id.values())
-            num_classes = len(all_contiguous_ids)
-            assert min(all_contiguous_ids) == 0 and max(all_contiguous_ids) == num_classes - 1
-
-            reverse_id_mapping = {v: k for k, v in dataset_id_to_contiguous_id.items()}
-            for result in coco_results:
-                category_id = result["category_id"]
-                assert category_id < num_classes, (
-                    f"A prediction has class={category_id}, "
-                    f"but the dataset only has {num_classes} classes and "
-                    f"predicted class id should be in [0, {num_classes - 1}]."
-                )
-                result["category_id"] = reverse_id_mapping[category_id]
+            if not comm.is_main_process():
+                return {}
+        
+        if "instances" in predictions[0]:
+            coco_results = list(itertools.chain.from_iterable([x["instances"] for x in predictions]))
+        else:
+            coco_results = []
 
         if self._output_dir:
             file_path = os.path.join(self._output_dir, "coco_instances_results.json")
@@ -255,31 +248,47 @@ class COCOEvaluator(DatasetEvaluator):
             self._logger.info("Annotations are not available for evaluation.")
             return
 
-        self._logger.info(
-            "Evaluating predictions with {} COCO API...".format(
-                "unofficial" if self._use_fast_impl else "official"
-            )
-        )
+        self._logger.info("Evaluating predictions with official COCO API...")
         for task in sorted(self._tasks):
-            assert task in {"bbox", "segm", "keypoints"}, f"Got unknown task: {task}!"
-            coco_eval = (
-                _evaluate_predictions_on_coco(
-                    self._coco_api,
-                    coco_results,
-                    task,
-                    kpt_oks_sigmas=self._kpt_oks_sigmas,
-                    use_fast_impl=self._use_fast_impl,
-                    img_ids=img_ids,
-                    max_dets_per_image=self._max_dets_per_image,
+            self._logger.info(f"Evaluating a_ehoi_core for task: {task}")
+            
+            if task == "keypoints":
+                HAND_CATEGORY_ID = 19
+                predictions_for_eval = [
+                    p for p in coco_results if p["category_id"] == HAND_CATEGORY_ID
+                ]
+                
+                self._logger.info(
+                    f"Original predictions: {len(coco_results)}, "
+                    f"Filtered for keypoints (ID {HAND_CATEGORY_ID}): {len(predictions_for_eval)}"
                 )
-                if len(coco_results) > 0
-                else None  # cocoapi does not handle empty results very well
-            )
+                
+                if len(predictions_for_eval) == 0:
+                    self._logger.warning(f"No predictions found for category {HAND_CATEGORY_ID}. Skipping keypoint evaluation.")
+                    continue
+            else:
+                predictions_for_eval = coco_results
+            
+            coco_dt = self._coco_api.loadRes(predictions_for_eval)
 
-            res = self._derive_coco_results(
+            coco_eval = (COCOeval_opt if self._use_fast_impl else COCOeval)(self._coco_api, coco_dt, task)
+            
+            if img_ids is not None:
+                coco_eval.params.imgIds = img_ids
+
+            if task == "keypoints":
+                if self._kpt_oks_sigmas:
+                    coco_eval.params.kpt_oks_sigmas = np.array(self._kpt_oks_sigmas)
+                self._logger.info(f"Using OKS sigmas for evaluation: {coco_eval.params.kpt_oks_sigmas.tolist()}")
+
+            coco_eval.evaluate()
+            coco_eval.accumulate()
+            coco_eval.summarize()
+
+            results = self._derive_coco_results(
                 coco_eval, task, class_names=self._metadata.get("thing_classes")
             )
-            self._results[task] = res
+            self._results[task] = results
 
     def _eval_box_proposals(self, predictions):
         """

@@ -58,3 +58,4 @@ _darcs
 ###data and logs
 data/egoism-hoi-dataset/
 wandb/
+wandb_base/
