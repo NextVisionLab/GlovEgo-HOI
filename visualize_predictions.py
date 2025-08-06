@@ -124,8 +124,12 @@ def main(args):
     config_file = training_dir / "cfg.yaml"
     weights_file = find_best_weights_file(training_dir)
 
-    if not config_file.exists() or not weights_file:
-        logger.error(f"Could not find 'cfg.yaml' or model weights in {training_dir}")
+    if not config_file.exists() :
+        logger.error(f"Could not find 'cfg.yaml'")
+        return
+
+    if not weights_file:
+        logger.error(f"Could not find model weights in {training_dir}")
         return
 
     # --- 2. Load Configuration ---
