@@ -146,13 +146,24 @@ class KeypointHeatmapGenerator(nn.Module):
         for i in range(batch_size):
             valid_kps = norm_keypoints[i][confidence_mask[i]] 
             if valid_kps.numel() > 0:
-                grid = kornia.utils.create_meshgrid(self.output_size[0], self.output_size[1], device=keypoints.device, dtype=keypoints.dtype)
-                squared_dist = torch.sum((grid.unsqueeze(2) - valid_kps[:, :2])**2, dim=3)
-                gaussian_maps = torch.exp(-squared_dist / (2 * self.sigma**2))
-                heatmaps[i], _ = torch.max(gaussian_maps, dim=2)
+                grid = kornia.utils.create_meshgrid(
+                    self.output_size[0], self.output_size[1], device=keypoints.device, dtype=keypoints.dtype
+                ) # Shape: [H, W, 2]
+                
+                # Reshape dei tensori per un broadcasting corretto
+                # grid shape:     [H, W, 1,   2]
+                # valid_kps shape: [1, 1, N_kps, 2]
+                
+                squared_dist = torch.sum(
+                    (grid.unsqueeze(2) - valid_kps[:, :2].unsqueeze(0).unsqueeze(0)) ** 2,
+                    dim=-1
+                ) # Shape: [H, W, N_kps]
+                
+                gaussian_maps = torch.exp(-squared_dist / (2 * self.sigma**2)) # Shape: [H, W, N_kps]
+                heatmaps[i], _ = torch.max(gaussian_maps, dim=2) # Shape: [H, W]
                 
         return heatmaps.unsqueeze(1)
-
+    
 class ContactStateRGBClassificationModule(nn.Module):
     def __init__(self, cfg):
         super(ContactStateRGBClassificationModule, self).__init__()
