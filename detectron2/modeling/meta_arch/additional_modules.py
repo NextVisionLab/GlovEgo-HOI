@@ -124,7 +124,6 @@ class KeypointHeatmapGenerator(nn.Module):
         if len(keypoints) == 0:
             return torch.empty(0, 1, *self.output_size, device=hand_boxes.device)
         
-        # --- Normalizzazione (invariata) ---
         x0, y0 = hand_boxes[:, 0].unsqueeze(1), hand_boxes[:, 1].unsqueeze(1)
         box_w = (hand_boxes[:, 2] - x0.squeeze(1)).unsqueeze(1)
         box_h = (hand_boxes[:, 3] - y0.squeeze(1)).unsqueeze(1)
@@ -140,33 +139,25 @@ class KeypointHeatmapGenerator(nn.Module):
         batch_size = keypoints.shape[0]
         heatmaps = torch.zeros(batch_size, self.output_size[0], self.output_size[1], device=keypoints.device)
         
-        # --- Creazione griglia (invariata) ---
         grid_y, grid_x = torch.meshgrid(
             torch.arange(self.output_size[0], device=keypoints.device, dtype=keypoints.dtype),
             torch.arange(self.output_size[1], device=keypoints.device, dtype=keypoints.dtype),
-            indexing='ij' # Fondamentale per avere H, W
-        ) # grid_y shape: [H, W], grid_x shape: [H, W]
+            indexing='ij'
+        ) 
 
         for i in range(batch_size):
             visible_kps = norm_keypoints[i][norm_keypoints[i, :, 2] > 0]
             
             if visible_kps.numel() > 0:
-                # --- INIZIO LOGICA DI BROADCASTING DEFINITIVA ---
                 
                 kps_x = visible_kps[:, 0] # Shape: [N_kps]
                 kps_y = visible_kps[:, 1] # Shape: [N_kps]
-                
-                # Sottrazione esplicita per asse
-                # grid_x[:, :, None] -> [H, W, 1]
-                # kps_x[None, None, :] -> [1, 1, N_kps]
-                # Risultato -> [H, W, N_kps]
+
                 dist_x_sq = (grid_x.unsqueeze(-1) - kps_x) ** 2
                 dist_y_sq = (grid_y.unsqueeze(-1) - kps_y) ** 2
                 
                 squared_dist = dist_x_sq + dist_y_sq # Shape: [H, W, N_kps]
-                
-                # --- FINE LOGICA DI BROADCASTING DEFINITIVA ---
-                
+                                
                 gaussian_maps = torch.exp(-squared_dist / (2 * self.sigma**2))
                 heatmaps[i], _ = torch.max(gaussian_maps, dim=2)
                 

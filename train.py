@@ -83,7 +83,7 @@ def get_evaluators(cfg, dataset_name, output_folder, converter):
         dataset_name, 
         tasks=tuple(tasks), 
         output_dir=output_folder,
-        kpt_oks_sigmas=kpt_sigmas # 21 kpts not 17 as in COCO std
+        kpt_oks_sigmas=kpt_sigmas # 21 kpts not 17 like in COCO std
     )
     
     ehoi_evaluator = EHOIEvaluator(cfg, dataset_name, converter)

@@ -1,4 +1,3 @@
-from abc import abstractmethod
 import numpy as np
 import cv2
 from detectron2.structures import Instances

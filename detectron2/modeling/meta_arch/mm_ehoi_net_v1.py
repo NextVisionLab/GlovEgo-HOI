@@ -143,11 +143,8 @@ class MMEhoiNetv1(EhoiNet):
         if len(instances_hands) > 0:
             self._prepare_hands_features_inference(batched_inputs, instances_hands)
         
-            # --- INIZIO CORREZIONE SHAPE ---
-
             #### SIDE
             tmp_time = time.time()
-            # Aggiungiamo .squeeze(-1) per rimuovere la dimensione finale (es. da [N, 1] a [N])
             output_classification_side = torch.round(torch.sigmoid(self.classification_hand_lr(self._c_hands_features))).int().squeeze(-1)
             self._last_inference_times["classification_hand_lr"] = time.time() - tmp_time
             
@@ -167,8 +164,6 @@ class MMEhoiNetv1(EhoiNet):
                 self.scores_contact = torch.sigmoid(self.classification_contact_state(self._c_hands_features_cnn))
                 output_classification_contact = torch.round(self.scores_contact).int().squeeze(-1)
             self._last_inference_times["classification_contact_state"] = time.time() - tmp_time
-
-            # --- FINE CORREZIONE SHAPE ---
 
             num_instances = len(instances)
             device = instances.scores.device

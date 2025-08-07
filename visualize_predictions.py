@@ -1,5 +1,3 @@
-# visualize_predictions.py (Versione Finale con Logica di Profondità Ripristinata)
-
 import argparse
 import logging
 import os
@@ -15,12 +13,10 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.data.datasets import register_coco_instances
 from detectron2.checkpoint import DetectionCheckpointer
 
-# Import dei tuoi moduli custom
 from detectron2.modeling.meta_arch import MMEhoiNetv1
 from detectron2.utils.converters import MMEhoiNetConverterv1
 from detectron2.utils.custom_visualizer import EhoiVisualizerv1
 
-# --- IMPORT RIPRISTINATI PER IL MODULO DI PROFONDITÀ ---
 from detectron2.modeling.meta_arch.MiDaS import utils as midas_utils
 from torchvision.transforms import Compose
 from detectron2.modeling.meta_arch.MiDaS.midas.transforms import Resize, PrepareForNet
@@ -187,7 +183,6 @@ def main(args):
     coco_api = COCO(args.input_json)
     os.makedirs(args.output_dir, exist_ok=True)
     
-    # --- LOGICA DI TRASFORMAZIONE PER LA PROFONDITÀ RIPRISTINATA ---
     transform_for_depth = Compose([
         Resize(
             cfg.ADDITIONAL_MODULES.DEPTH_MODULE.NET_W,
@@ -200,16 +195,16 @@ def main(args):
     ])
     
     num_to_visualize = min(args.num_samples, len(dataset_dicts))
-    random_samples = random.sample(dataset_dicts, num_to_visualize)
+    #samples_to_process = random.sample(dataset_dicts, num_to_visualize)
+    samples_to_process = dataset_dicts[:num_to_visualize]
     
-    for i, image_dict in enumerate(random_samples):
+    for i, image_dict in enumerate(samples_to_process):
         file_name = os.path.basename(image_dict["file_name"])
         logger.info(f"Processing sample {i+1}/{num_to_visualize}: {file_name}")
         
         img = cv2.imread(image_dict["file_name"])
         if img is None: continue
 
-        # --- PREPARAZIONE INPUT COMPLETO RIPRISTINATA ---
         height, width = img.shape[:2]
         image_tensor = torch.as_tensor(img.astype("float32").transpose(2, 0, 1))
         
@@ -239,9 +234,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Visualize model predictions against ground truth for the EHOI project.")
     parser.add_argument("--num-samples", type=int, default=10, help="Number of random samples to visualize.")
     parser.add_argument("--input-json", type=str, default="data/egoism-hoi-dataset/annotations/val_coco.json", help="Path to the COCO JSON annotation file.")
-    parser.add_argument("--output-dir", default="./visualization_output", help="Directory to save the visualization images.")
+    parser.add_argument("--output-dir", default="./visualization_output_kpt", help="Directory to save the visualization images.")
     parser.add_argument("--conf-threshold", type=float, default=0.5, help="Confidence threshold for displaying predictions.")
-    parser.add_argument("--training-dir", type=str, default="output_dir_base/last_training", help="Path to the training directory for loading artifacts.")
+    parser.add_argument("--training-dir", type=str, default="output_dir/last_training", help="Path to the training directory for loading artifacts.")
     
     args = parser.parse_args()
     main(args)

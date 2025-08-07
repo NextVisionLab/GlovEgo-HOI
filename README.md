@@ -135,7 +135,7 @@ python visualize_predictions.py \
     --weights-file ./output_dir/last_training/model_final.pth \
     --json-file /path/to/your/dataset/test.json \
     --num-samples 15 \
-    --output-dir ./visualizations
+    --output-dir ./visualization_output
 ```
 
 Check more about argparse parameters in `inference.py`.

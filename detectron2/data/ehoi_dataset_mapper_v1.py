@@ -15,9 +15,11 @@ from detectron2.modeling.meta_arch.MiDaS.midas.transforms import Resize, Normali
 from detectron2.modeling.meta_arch.MiDaS import utils as midas_utils
 
 class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
-    def __init__(self, cfg, data_anns_sup=None, is_train=True, **kwargs):
+    def __init__(self, cfg, data_anns_sup=None, is_train=True, **kwargs):       
         super().__init__(cfg, data_anns_sup, is_train, **kwargs)
-        self._keypoint_hflip_indices = utils.create_keypoint_hflip_indices(cfg.DATASETS.TRAIN)
+        self._keypoint_hflip_indices = None
+        if is_train and cfg.MODEL.KEYPOINT_ON:
+            self._keypoint_hflip_indices = utils.create_keypoint_hflip_indices(cfg.DATASETS.TRAIN)
         self._num_keypoints = cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS
         self._keypoints_gt = cfg.ADDITIONAL_MODULES.KEYPOINTS_GT
 

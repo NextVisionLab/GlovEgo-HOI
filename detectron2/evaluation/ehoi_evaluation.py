@@ -56,13 +56,24 @@ class EHOIEvaluator(DatasetEvaluator):
             
             instances = output["instances"].to(torch.device("cpu"))
             additional_outputs = output.get("additional_outputs")
-
+            instances_with_hand_data = None
+            
             if additional_outputs:
+                instances_with_hand_data = additional_outputs
+            elif instances.has("sides") and instances.has("contact_states"):
+                hand_indices = (instances.pred_classes == self._id_hand)
+                instances_with_hand_data = instances[hand_indices]
+            
+            if instances_with_hand_data is not None and len(instances_with_hand_data) > 0:
+                if instances_with_hand_data.has("boxes") and not instances_with_hand_data.has("pred_boxes"):
+                    instances_with_hand_data.pred_boxes = instances_with_hand_data.boxes
+                
                 confident_instances_for_ehoi = self._converter.generate_confident_instances(instances)
+                
                 predictions, predictions_target = self._converter.generate_predictions(
                     image_id, 
                     confident_instances_for_ehoi, 
-                    additional_outputs, 
+                    instances_with_hand_data, 
                     start_id=self._prediction_counter,
                     start_id_target=self._prediction_target_counter
                 )
@@ -75,13 +86,11 @@ class EHOIEvaluator(DatasetEvaluator):
             self._predictions_all.extend(self._converter.convert_instances_to_coco(confident_instances_all, image_id, convert_boxes_xywh_abs = True))
 
     def evaluate(self):
-        # La chiamata a `loadRes` su `_predictions_all` causava l'errore.
-        # `_predictions` e `_predictions_targets` ORA hanno gli ID.
         cocoPreds = self._coco_gt.loadRes(self._predictions)
         if(len(self._predictions_targets)):
             cocoPreds_target = self._coco_gt_targets.loadRes(self._predictions_targets)
         else:
-            cocoPreds_target = None # Gestiamo il caso in cui sia vuoto
+            cocoPreds_target = None 
 
         if self._output_dir:
             PathManager.mkdirs(self._output_dir)

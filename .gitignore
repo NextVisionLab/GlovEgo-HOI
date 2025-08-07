@@ -1,13 +1,3 @@
-# output dir
-output
-instant_test_output
-inference_test_output
-output_dir
-output_detection
-output_dir_base
-output_dir_kpt
-output_dir_kpt_glove
-
 # compilation and distribution
 __pycache__
 _ext
@@ -55,8 +45,29 @@ _darcs
 *.png
 *.diff
 
-###data and logs
+###data
 data/egoism-hoi-dataset/
+
+###output dir
+output
+output_detection
+instant_test_output
+inference_test_output
+
+output_dir/
+output_dir_base/
+output_dir_kpt/
+output_dir_kpt_glove/
+
+###wandb logs dir
 wandb/
 wandb_base/
-visualization_output
+wandb_kpt/
+wandb_kpt_glove/
+
+###visualization dir
+visualization_output/
+visualization_output_alfio/
+visualization_output_rosario/
+visualization_output_kpt/
+visualization_output_kpt_glove/
