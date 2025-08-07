@@ -123,10 +123,8 @@ class KeypointHeatmapGenerator(nn.Module):
         """
         if len(keypoints) == 0:
             return torch.empty(0, 1, *self.output_size, device=hand_boxes.device)
-
-        scores = keypoints[:, :, 2]
-        confidence_mask = scores > self.confidence_threshold
         
+        # --- Normalizzazione (invariata) ---
         x0, y0 = hand_boxes[:, 0].unsqueeze(1), hand_boxes[:, 1].unsqueeze(1)
         box_w = (hand_boxes[:, 2] - x0.squeeze(1)).unsqueeze(1)
         box_h = (hand_boxes[:, 3] - y0.squeeze(1)).unsqueeze(1)
@@ -136,31 +134,41 @@ class KeypointHeatmapGenerator(nn.Module):
         norm_keypoints = keypoints.clone()
         norm_keypoints[:, :, 0] = (keypoints[:, :, 0] - x0) / box_w
         norm_keypoints[:, :, 1] = (keypoints[:, :, 1] - y0) / box_h
-
         norm_keypoints[:, :, 0] *= self.output_size[1] # width
         norm_keypoints[:, :, 1] *= self.output_size[0] # height
-
+        
         batch_size = keypoints.shape[0]
         heatmaps = torch.zeros(batch_size, self.output_size[0], self.output_size[1], device=keypoints.device)
+        
+        # --- Creazione griglia (invariata) ---
+        grid_y, grid_x = torch.meshgrid(
+            torch.arange(self.output_size[0], device=keypoints.device, dtype=keypoints.dtype),
+            torch.arange(self.output_size[1], device=keypoints.device, dtype=keypoints.dtype),
+            indexing='ij' # Fondamentale per avere H, W
+        ) # grid_y shape: [H, W], grid_x shape: [H, W]
 
         for i in range(batch_size):
-            valid_kps = norm_keypoints[i][confidence_mask[i]] 
-            if valid_kps.numel() > 0:
-                grid = kornia.utils.create_meshgrid(
-                    self.output_size[0], self.output_size[1], device=keypoints.device, dtype=keypoints.dtype
-                ) # Shape: [H, W, 2]
+            visible_kps = norm_keypoints[i][norm_keypoints[i, :, 2] > 0]
+            
+            if visible_kps.numel() > 0:
+                # --- INIZIO LOGICA DI BROADCASTING DEFINITIVA ---
                 
-                # Reshape dei tensori per un broadcasting corretto
-                # grid shape:     [H, W, 1,   2]
-                # valid_kps shape: [1, 1, N_kps, 2]
+                kps_x = visible_kps[:, 0] # Shape: [N_kps]
+                kps_y = visible_kps[:, 1] # Shape: [N_kps]
                 
-                squared_dist = torch.sum(
-                    (grid.unsqueeze(2) - valid_kps[:, :2].unsqueeze(0).unsqueeze(0)) ** 2,
-                    dim=-1
-                ) # Shape: [H, W, N_kps]
+                # Sottrazione esplicita per asse
+                # grid_x[:, :, None] -> [H, W, 1]
+                # kps_x[None, None, :] -> [1, 1, N_kps]
+                # Risultato -> [H, W, N_kps]
+                dist_x_sq = (grid_x.unsqueeze(-1) - kps_x) ** 2
+                dist_y_sq = (grid_y.unsqueeze(-1) - kps_y) ** 2
                 
-                gaussian_maps = torch.exp(-squared_dist / (2 * self.sigma**2)) # Shape: [H, W, N_kps]
-                heatmaps[i], _ = torch.max(gaussian_maps, dim=2) # Shape: [H, W]
+                squared_dist = dist_x_sq + dist_y_sq # Shape: [H, W, N_kps]
+                
+                # --- FINE LOGICA DI BROADCASTING DEFINITIVA ---
+                
+                gaussian_maps = torch.exp(-squared_dist / (2 * self.sigma**2))
+                heatmaps[i], _ = torch.max(gaussian_maps, dim=2)
                 
         return heatmaps.unsqueeze(1)
     

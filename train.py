@@ -93,7 +93,9 @@ def get_evaluators(cfg, dataset_name, output_folder, converter):
 def do_test(cfg, model, * ,converter, mapper, data):
     results = OrderedDict()
     for dataset_name in cfg.DATASETS.TEST:
-        data_loader = build_detection_test_loader(cfg, dataset_name, mapper = mapper(cfg, data, is_train = False))
+        test_mapper = mapper(cfg, data, is_train=False) 
+        data_loader = build_detection_test_loader(cfg, dataset_name, mapper=test_mapper)
+        
         evaluators = get_evaluators(cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name), converter)
         results_i = inference_on_dataset(model, data_loader, evaluators)
         results[dataset_name] = results_i
@@ -113,6 +115,8 @@ def load_cfg(args, num_classes):
     cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE = True if "depth" in args.contact_state_modality else args.depth_module
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY = args.contact_state_modality
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_CNN_INPUT_SIZE = args.contact_state_cnn_input_size
+    cfg.MODEL.KEYPOINT_ON = True
+    cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS = 21 
     cfg.SOLVER.BASE_LR = args.base_lr
     cfg.SOLVER.IMS_PER_BATCH = args.ims_per_batch
     cfg.SOLVER.STEPS = tuple(args.solver_steps)
