@@ -110,7 +110,7 @@ class MMEhoiNetConverterv1(Converter):
             
         for idx_hand in range(len(instances_hand)):
             instance_hand = instances_hand[idx_hand]
-            bbox_hand = instance_hand.boxes.numpy()[0]
+            bbox_hand = instance_hand.pred_boxes.tensor.cpu().numpy()[0]
             x0_hand, y0_hand, x1_hand, y1_hand = bbox_hand
             width_hand, heigth_hand = x1_hand - x0_hand, y1_hand - y0_hand
             dxdymag_v = instance_hand.dxdymagn_hand.numpy()[0]
@@ -162,7 +162,7 @@ class MMEhoiNetConverterv2(Converter):
             
         for idx_hand in range(len(instances_hand)):
             instance_hand = instances_hand[idx_hand]
-            bbox_hand = instance_hand.boxes.numpy()[0]
+            bbox_hand = instance_hand.pred_boxes.tensor.cpu().numpy()[0]
             x0_hand, y0_hand, x1_hand, y1_hand = bbox_hand
             width_hand, heigth_hand = x1_hand - x0_hand, y1_hand - y0_hand
             interaction_box = instance_hand.pred_interaction_boxes.numpy()[0]
@@ -255,7 +255,7 @@ class MMEhoiNetConverterv1DepthMask(Converter):
 
         for idx_hand in range(len(instances_hand)):
             instance_hand = instances_hand[idx_hand]
-            bbox_hand = instance_hand.boxes.numpy()[0]
+            bbox_hand = instance_hand.pred_boxes.tensor.cpu().numpy()[0]
             x0_hand, y0_hand, x1_hand, y1_hand = bbox_hand
             width_hand, heigth_hand = x1_hand - x0_hand, y1_hand - y0_hand
             dxdymag_v = instance_hand.dxdymagn_hand.numpy()[0]

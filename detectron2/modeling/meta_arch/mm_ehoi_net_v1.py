@@ -117,21 +117,16 @@ class MMEhoiNetv1(EhoiNet):
         ###ROI HEAD
         tmp_time = time.time()
         proposals, _ = self.proposal_generator(images, features, None)
-        results, _ = self.roi_heads(images, features, proposals, None)
+        
+        results_list, _ = self.roi_heads(images, features, proposals, None)
         self._last_inference_times["roi_heads"] = time.time() - tmp_time
-
-        if do_postprocess:
-            assert not torch.jit.is_scripting(), "Scripting is not supported for postprocess."
-            results = GeneralizedRCNN._postprocess(results, batched_inputs, images.image_sizes)
-
-        ###ADDITIONAL OUTPUT
-        instances = results[0]["instances"]
-        results[0]['additional_outputs'] = Instances(instances.image_size)
+        
+        instances = results_list[0]
 
         ###DEPTH MODULE OUTPUT
         if self._use_depth_module: 
             tmp_time = time.time()
-            self._last_extracted_features["depth"], self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
+            _, self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
             self._last_inference_times["depth.extract_features_maps"] = time.time() - tmp_time
 
         ###MASK HEAD
@@ -141,46 +136,64 @@ class MMEhoiNetv1(EhoiNet):
             instances = self._mask_rcnn_head(features_mask, [instances])[0]
             self._last_inference_times["mask_rcnn_head"] = time.time() - tmp_time
         
-        ###PREPARE HANDS FEATURES
-        tmp_time = time.time()
-        instances_hands = instances[instances.pred_classes == self._id_hand]
-        self._prepare_hands_features_inference(batched_inputs, instances_hands)
-        self._last_inference_times["data.prep.additional_modules"] = time.time() - tmp_time
-    
-        #### SIDE
-        tmp_time = time.time()
-        output_classification_side = torch.round(torch.sigmoid(self.classification_hand_lr(self._c_hands_features))).int()
-        self._last_inference_times["classification_hand_lr"] = time.time() - tmp_time
+        ###PREPARE HANDS FEATURES E CAMPI CUSTOM
+        hand_indices = (instances.pred_classes == self._id_hand)
+        instances_hands = instances[hand_indices]
         
-        #### DXDYMAGN VECTOR
-        tmp_time = time.time()
-        output_dxdymagn = self.association_vector_regressor(self._c_hands_features_padded)
-        self._last_inference_times["association_vector_regressor"] = time.time() - tmp_time
+        if len(instances_hands) > 0:
+            self._prepare_hands_features_inference(batched_inputs, instances_hands)
+        
+            # --- INIZIO CORREZIONE SHAPE ---
 
-        #### CONTACT STATE
-        tmp_time = time.time()   
-        if self._contact_state_modality == "rgb":
-            output_classification_contact = torch.round(torch.sigmoid(self.classification_contact_state(self._c_hands_features_padded))).int()
-        elif "fusion" in self._contact_state_modality:
-            self.scores_contact = self.classification_contact_state(self._c_hands_features_cnn, self._c_hands_features_padded)
-            output_classification_contact = torch.round(self.scores_contact).int()
+            #### SIDE
+            tmp_time = time.time()
+            # Aggiungiamo .squeeze(-1) per rimuovere la dimensione finale (es. da [N, 1] a [N])
+            output_classification_side = torch.round(torch.sigmoid(self.classification_hand_lr(self._c_hands_features))).int().squeeze(-1)
+            self._last_inference_times["classification_hand_lr"] = time.time() - tmp_time
+            
+            #### DXDYMAGN VECTOR
+            tmp_time = time.time()
+            output_dxdymagn = self.association_vector_regressor(self._c_hands_features_padded)
+            self._last_inference_times["association_vector_regressor"] = time.time() - tmp_time
+
+            #### CONTACT STATE
+            tmp_time = time.time()   
+            if self._contact_state_modality == "rgb":
+                output_classification_contact = torch.round(torch.sigmoid(self.classification_contact_state(self._c_hands_features_padded))).int().squeeze(-1)
+            elif "fusion" in self._contact_state_modality:
+                self.scores_contact = self.classification_contact_state(self._c_hands_features_cnn, self._c_hands_features_padded)
+                output_classification_contact = torch.round(self.scores_contact).int().squeeze(-1)
+            else:
+                self.scores_contact = torch.sigmoid(self.classification_contact_state(self._c_hands_features_cnn))
+                output_classification_contact = torch.round(self.scores_contact).int().squeeze(-1)
+            self._last_inference_times["classification_contact_state"] = time.time() - tmp_time
+
+            # --- FINE CORREZIONE SHAPE ---
+
+            num_instances = len(instances)
+            device = instances.scores.device
+            
+            sides_full = torch.zeros(num_instances, dtype=torch.int, device=device)
+            contact_states_full = torch.zeros(num_instances, dtype=torch.int, device=device)
+            dxdymagn_hand_full = torch.zeros(num_instances, 3, dtype=torch.float32, device=device)
+
+            sides_full[hand_indices] = output_classification_side
+            contact_states_full[hand_indices] = output_classification_contact
+            dxdymagn_hand_full[hand_indices] = output_dxdymagn
+
+            instances.set("sides", sides_full)
+            instances.set("contact_states", contact_states_full)
+            instances.set("dxdymagn_hand", dxdymagn_hand_full)
+
+        if do_postprocess:
+            processed_results = GeneralizedRCNN._postprocess([instances], batched_inputs, images.image_sizes)
         else:
-            self.scores_contact = torch.sigmoid(self.classification_contact_state(self._c_hands_features_cnn))
-            output_classification_contact = torch.round(self.scores_contact).int()
-        self._last_inference_times["classification_contact_state"] = time.time() - tmp_time
+            processed_results = [{"instances": instances}]
 
-        results[0]['additional_outputs'].set("boxes", instances_hands.pred_boxes.tensor.reshape(-1, 4).detach().cpu())
-        results[0]['additional_outputs'].set("sides", output_classification_side.detach().cpu())
-        results[0]['additional_outputs'].set("scores", instances_hands.scores.detach().cpu())
-        results[0]['additional_outputs'].set("contact_states", output_classification_contact.detach().cpu())
-        results[0]['additional_outputs'].set("dxdymagn_hand", output_dxdymagn.reshape(-1, 3).detach().cpu())
-        if self._use_depth_module: results[0]['depth_map'] = self._depth_maps_predicted
-
-        _total = round(sum(self._last_inference_times.values()) * 1000, 2)
-        self._last_inference_times = {k: round(v * 1000, 2) for k, v in self._last_inference_times.items()}
-        self._last_inference_times["total"] = _total
-        self._last_instances_hands = instances_hands
-        return results
+        if self._use_depth_module:
+            processed_results[0]['depth_map'] = self._depth_maps_predicted
+            
+        return processed_results
 
     ###PREPARE GT LABELS
     def _prepare_gt_labels(self, proposals_match):
