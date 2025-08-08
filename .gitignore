@@ -56,6 +56,8 @@ inference_test_output
 
 output_dir/
 output_dir_base/
+output_dir_base_alfio/
+output_dir_base_rosario/
 output_dir_kpt/
 output_dir_kpt_glove/
 
@@ -71,3 +73,6 @@ visualization_output_alfio/
 visualization_output_rosario/
 visualization_output_kpt/
 visualization_output_kpt_glove/
+
+###telegram notifier
+telegram_notifier/

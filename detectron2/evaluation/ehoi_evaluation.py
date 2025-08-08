@@ -1,7 +1,6 @@
 import contextlib
 import torch
 import os
-import math
 import numpy as np
 import copy
 
@@ -28,17 +27,42 @@ class EHOIEvaluator(DatasetEvaluator):
         self._metadata = MetadataCatalog.get(dataset_name)
         self._thing_classes = self._metadata.as_dict()["thing_classes"]
         self._id_hand = self._thing_classes.index("hand") if "hand" in self._thing_classes else self._thing_classes.index("mano")
-        self._class_names_objs = copy.deepcopy(self._metadata.as_dict()["thing_classes"])
-        self._class_names_objs.pop(self._id_hand)
+        self._class_names_objs = [cls for cls in self._metadata.as_dict()["thing_classes"] if cls not in ["hand", "mano"]]
 
         self._converter = converter 
-        self._coco_gt = COCO(PathManager.get_local_path(self._metadata.coco_gt_hands))
+        
+        # Carica i due GT
         self._coco_gt_all = COCO(PathManager.get_local_path(self._metadata.json_file))
-    
+        self._coco_gt = COCO(PathManager.get_local_path(self._metadata.coco_gt_hands))
+        
+        # --- INIZIO DELLA SOLUZIONE ---
+        # Arricchisci il GT delle mani con la category_id_obj per renderlo compatibile
+        self._enrich_hand_gt_with_object_category()
+        # --- FINE DELLA SOLUZIONE ---
+        
+        # La logica per creare il GT degli oggetti target rimane la stessa
         coco_gt_targets_dict = self._converter.convert_coco_to_coco_target_object(self._coco_gt, self._coco_gt_all)
         self._coco_gt_targets = COCO()
-        self._coco_gt_targets.dataset = coco_gt_targets_dict
-        self._coco_gt_targets.createIndex()
+        if coco_gt_targets_dict['annotations']:
+            self._coco_gt_targets.dataset = coco_gt_targets_dict
+            self._coco_gt_targets.createIndex()
+
+    def _enrich_hand_gt_with_object_category(self):
+        """
+        Iterates through the hand GT and adds the 'category_id_obj' field.
+        This makes the GT structure compatible with the custom evaluator's expectations.
+        """
+        all_anns_by_id = {ann['id']: ann for ann in self._coco_gt_all.dataset['annotations']}
+        
+        for ann_id, ann in self._coco_gt.anns.items():
+            if ann.get('contact_state') == 1 and 'id_obj' in ann:
+                obj_id = ann['id_obj']
+                if obj_id in all_anns_by_id:
+                    # Trovato l'oggetto, aggiungi la sua category_id
+                    ann['category_id_obj'] = all_anns_by_id[obj_id]['category_id']
+            else:
+                # Mano non in contatto, imposta un default
+                ann['category_id_obj'] = 0
         
     def reset(self):
         self._predictions = []
@@ -68,14 +92,12 @@ class EHOIEvaluator(DatasetEvaluator):
                 if instances_with_hand_data.has("boxes") and not instances_with_hand_data.has("pred_boxes"):
                     instances_with_hand_data.pred_boxes = instances_with_hand_data.boxes
                 
-                confident_instances_for_ehoi = self._converter.generate_confident_instances(instances)
-                
+                confident_instances = self._converter.generate_confident_instances(instances)
+        
                 predictions, predictions_target = self._converter.generate_predictions(
                     image_id, 
-                    confident_instances_for_ehoi, 
-                    instances_with_hand_data, 
-                    start_id=self._prediction_counter,
-                    start_id_target=self._prediction_target_counter
+                    confident_instances, 
+                    **output 
                 )
                 self._predictions.extend(predictions)
                 self._predictions_targets.extend(predictions_target)
@@ -101,13 +123,11 @@ class EHOIEvaluator(DatasetEvaluator):
             with PathManager.open(os.path.join(self._output_dir, "ehoi_predictions_targets.pth"), "wb") as f:
                 torch.save(self._predictions_targets, f)
 
+
         annType = 'bbox'
         coco_results = {}
 
         with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):    
-            # --- Inizio Modifica ---
-            # Per le metriche AP Hand e mAP Objects, usiamo un'istanza di COCOeval
-            # che non si basa sull'indicizzazione degli ID delle predizioni.
             coco_dt_all = self._coco_gt_all.loadRes(self._predictions_all)
 
             ##### HAND

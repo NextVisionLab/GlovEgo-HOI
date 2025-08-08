@@ -5,9 +5,10 @@ import random
 import os
 import json
 import torch
-from collections import OrderedDict
 import logging
 import wandb
+from collections import OrderedDict
+from telegram_notifier import notify
 
 # import some common detectron2 utilities
 from detectron2.config import get_cfg 
@@ -125,7 +126,7 @@ def load_cfg(args, num_classes):
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.WARMUP_ITERS = args.warmup_iters
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir/last_training/"
+    cfg.OUTPUT_DIR = "./output_dir_short/last_training/"
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     setup_logger(output=cfg.OUTPUT_DIR)
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
@@ -133,7 +134,8 @@ def load_cfg(args, num_classes):
     cfg.freeze()
     return cfg
 
-if __name__ == "__main__":
+#@notify("Train HOIE script")
+def main():
     args = parse_args()
     print("Command-line args:\n", args)
 
@@ -277,3 +279,7 @@ if __name__ == "__main__":
 
     if not args.no_wandb and comm.is_main_process():
         wandb.finish()
+
+
+if __name__ == "__main__":
+    main()

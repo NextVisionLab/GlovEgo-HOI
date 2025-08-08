@@ -91,6 +91,7 @@ class MMEhoiNetConverterv1(Converter):
         super().__init__(cfg, metadata)
         self._diag = math.sqrt((math.pow(int(cfg.UTILS.TARGET_SHAPE_W), 2) + math.pow(int(cfg.UTILS.TARGET_SHAPE_H), 2)))
         self._scale_factor = cfg.ADDITIONAL_MODULES.ASSOCIATION_VECTOR_SCALE_FACTOR
+        self.HAND_ID_FOR_EHOI_EVALUATOR = 1
 
     def match_object(self, obj_dets, hand_bb, hand_dxdymag):
         object_cc_list = np.array([calculate_center(bbox) for bbox in obj_dets]) # object center list
@@ -101,56 +102,73 @@ class MMEhoiNetConverterv1(Converter):
         dist_min = np.argmin(dist) # find the nearest 
         return dist_min
 
-    def generate_predictions(self, image_id, confident_instances, instances_hand, **kwargs):
-        start_id = kwargs.get("start_id", 0)
-        start_id_target = kwargs.get("start_id_target", 0)
+    def generate_predictions(self, image_id, confident_instances, **kwargs):
         results = []
         results_target = []
-        objs = self.convert_instances_to_coco(confident_instances[confident_instances.pred_classes != self._id_hand], image_id)
+        
+        obj_indices = (confident_instances.pred_classes != self._id_hand)
+        hand_indices = (confident_instances.pred_classes == self._id_hand)
+        
+        instances_objs = confident_instances[obj_indices]
+        instances_hands = confident_instances[hand_indices]
+        
+        objs_coco = self.convert_instances_to_coco(instances_objs, image_id, convert_boxes_xywh_abs=True)
+        
+        if not len(instances_hands):
+            return [], []
+
+        boxes_hand_tensor = instances_hands.pred_boxes.tensor.cpu()
+        dxdymagn_tensor = instances_hands.get("dxdymagn_hand").cpu()
+        contact_states_tensor = instances_hands.get("contact_states").cpu()
+        scores_tensor = instances_hands.get("scores").cpu()
+        sides_tensor = instances_hands.get("sides").cpu()
+        
+        for i in range(len(instances_hands)):
+            x0_h, y0_h, x1_h, y1_h = boxes_hand_tensor[i]
+            bbox_hand_xyxy = [float(x0_h), float(y0_h), float(x1_h), float(y1_h)]
+            bbox_hand_xywh = [float(x0_h), float(y0_h), float(x1_h - x0_h), float(y1_h - y0_h)]
             
-        for idx_hand in range(len(instances_hand)):
-            instance_hand = instances_hand[idx_hand]
-            bbox_hand = instance_hand.pred_boxes.tensor.cpu().numpy()[0]
-            x0_hand, y0_hand, x1_hand, y1_hand = bbox_hand
-            width_hand, heigth_hand = x1_hand - x0_hand, y1_hand - y0_hand
-            dxdymag_v = instance_hand.dxdymagn_hand.numpy()[0]
-            contact_state = instance_hand.contact_states.item()
-            score = instance_hand.scores.item()
-            side = instance_hand.sides.item()
+            dxdymag_v = dxdymagn_tensor[i].numpy()
+            contact_state = int(contact_states_tensor[i].item())
 
             element = {
-                "id": start_id_target + len(results_target),
+                "id": len(results),
                 "image_id": image_id, 
-                "category_id": self._id_hand, 
-                "bbox": [x0_hand, y0_hand, width_hand, heigth_hand], 
-                "score": score, 
-                "hand_side": side, 
+                "category_id": self.HAND_ID_FOR_EHOI_EVALUATOR,
+                "bbox": bbox_hand_xywh, 
+                "score": float(scores_tensor[i].item()), 
+                "hand_side": int(sides_tensor[i].item()), 
                 "contact_state": contact_state, 
                 "bbox_obj": [], 
                 "category_id_obj": -1, 
-                "dx":dxdymag_v[0],
-                "dy": dxdymag_v[1],
-                "magnitude": dxdymag_v[2] / self._scale_factor * self._diag
+                "dx": float(dxdymag_v[0]),
+                "dy": float(dxdymag_v[1]),
+                "magnitude": float(dxdymag_v[2] / self._scale_factor * self._diag if self._scale_factor > 0 else 0)
             }
             
-            objs_iou, bbox_objs = [], []
-            for obj in objs:
-                if get_iou(obj["bbox"], bbox_hand) > 0:
-                    objs_iou.append(obj)
-                    bbox_objs.append(obj["bbox"])
+            if contact_state and len(objs_coco) > 0:
+                objs_iou = [obj for obj in objs_coco if get_iou(obj["bbox"], bbox_hand_xyxy) > 0]
+                if len(objs_iou) > 0:
+                    bbox_objs_iou = [obj["bbox"] for obj in objs_iou]
+                    idx_closest_obj = self.match_object(bbox_objs_iou, bbox_hand_xyxy, dxdymag_v)
+                    matched_obj = objs_iou[idx_closest_obj]
+                    
+                    element["bbox_obj"] = [float(c) for c in matched_obj["bbox"]]
+                    element["category_id_obj"] = int(matched_obj["category_id"])
+                    element["score_obj"] = float(matched_obj["score"])
+                    
+                    results_target.append({
+                        "id": len(results_target),
+                        "image_id": image_id, 
+                        "category_id": element["category_id_obj"], 
+                        "bbox": element["bbox_obj"], 
+                        "score": element["score_obj"]
+                    })
             
-            if contact_state and len(bbox_objs): 
-                idx_closest_obj = self.match_object(bbox_objs, bbox_hand, dxdymag_v)
-                x0, y0, x1, y1 = np.array(bbox_objs[idx_closest_obj]).astype(float)
-                width, heigth = x1 - x0, y1 - y0                
-                element["bbox_obj"] = [x0, y0, width, heigth]
-                element["category_id_obj"] = int(objs_iou[idx_closest_obj]["category_id"])
-                element["score_obj"] = objs_iou[idx_closest_obj]["score"]
-                results_target.append({"image_id": image_id, "category_id": element["category_id_obj"], "bbox": [x0, y0, width, heigth], "score": element["score_obj"]})
             results.append(element)
 
         return results, results_target
-    
+
 class MMEhoiNetConverterv2(Converter):
     def __init__(self, cfg, metadata) -> None:
         super().__init__(cfg, metadata)
