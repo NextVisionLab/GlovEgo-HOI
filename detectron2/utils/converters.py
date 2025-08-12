@@ -1,17 +1,17 @@
 import numpy as np
 import torch
 from torchvision.ops.boxes import nms
-import copy
 from pycocotools.coco import COCO
 import math
 from abc import abstractmethod
+import cv2
+import pprint
 
 from detectron2.structures import BoxMode
 from detectron2.structures.instances import Instances
 from detectron2.structures.masks import ROIMasks
-from detectron2.utils.custom_utils import get_iou, calculate_center
-from detectron2.evaluation.coco_evaluation import instances_to_coco_json
-import cv2
+from detectron2.utils.custom_utils import calculate_center, get_iou
+
 
 def get_hoi_categories(categories, is_object=False):
     if not is_object: 
@@ -66,9 +66,9 @@ class Converter:
         tmp_dateset["annotations"] = []
 
         all_annotations_by_id = {ann['id']: ann for ann in coco_gt_all.dataset['annotations']}
-
+        
         for hand_ann in coco_hands.anns.values():
-            if hand_ann["contact_state"] == 1:
+            if hand_ann.get("contact_state") == 1:
                 object_id = hand_ann.get("id_obj")
                 if object_id is not None and object_id in all_annotations_by_id:
                     object_ann = all_annotations_by_id[object_id]
@@ -76,12 +76,11 @@ class Converter:
                         "id": hand_ann["id"],  
                         "image_id": hand_ann["image_id"],
                         "category_id": object_ann["category_id"], 
-                        "area": object_ann["area"], 
-                        "bbox": hand_ann["bbox_obj"], 
+                        "area": object_ann.get("area", 0.0), 
+                        "bbox": hand_ann["bbox_obj"],       
                         "iscrowd": 0
                     }
                     tmp_dateset["annotations"].append(new_target_ann)
-
         return tmp_dateset
 
     @abstractmethod
@@ -118,6 +117,7 @@ class MMEhoiNetConverterv1(Converter):
         dist = np.sum((object_cc_list - point_cc)**2, axis=1)
         dist_min = np.argmin(dist)
         return dist_min
+
 
     def generate_predictions(self, image_id, confident_instances, **kwargs):
         results = []
@@ -187,6 +187,53 @@ class MMEhoiNetConverterv1(Converter):
 
             results.append(element)
 
+        return results, results_target
+
+
+    def _generate_predictions(self, image_id, confident_instances, instances_hand):
+        results = []
+        results_target = []
+        objs = self.convert_instances_to_coco(confident_instances[confident_instances.pred_classes != self._id_hand], image_id)
+            
+        for idx_hand in range(len(instances_hand)):
+            instance_hand = instances_hand[idx_hand]
+            bbox_hand = instance_hand.boxes.numpy()[0]
+            x0_hand, y0_hand, x1_hand, y1_hand = bbox_hand
+            width_hand, heigth_hand = x1_hand - x0_hand, y1_hand - y0_hand
+            dxdymag_v = instance_hand.dxdymagn_hand.numpy()[0]
+            contact_state = instance_hand.contact_states.item()
+            score = instance_hand.scores.item()
+            side = instance_hand.sides.item()
+
+            element = {
+                "image_id": image_id, 
+                "category_id": self._id_hand,
+                "bbox": [x0_hand, y0_hand, width_hand, heigth_hand], 
+                "score": score, 
+                "hand_side": side, 
+                "contact_state": contact_state, 
+                "bbox_obj": [], 
+                "category_id_obj": -1, 
+                "dx":dxdymag_v[0],
+                "dy": dxdymag_v[1],
+                "magnitude": dxdymag_v[2] / self._scale_factor * self._diag
+            }
+            
+            objs_iou, bbox_objs = [], []
+            for obj in objs:
+                if get_iou(obj["bbox"], bbox_hand) > 0:
+                    objs_iou.append(obj)
+                    bbox_objs.append(obj["bbox"])
+            
+            if contact_state and len(bbox_objs): 
+                idx_closest_obj = self.match_object(bbox_objs, bbox_hand, dxdymag_v)
+                x0, y0, x1, y1 = np.array(bbox_objs[idx_closest_obj]).astype(float)
+                width, heigth = x1 - x0, y1 - y0                
+                element["bbox_obj"] = [x0, y0, width, heigth]
+                element["category_id_obj"] = int(objs_iou[idx_closest_obj]["category_id"])
+                element["score_obj"] = objs_iou[idx_closest_obj]["score"]
+                results_target.append({"image_id": image_id, "category_id": element["category_id_obj"], "bbox": [x0, y0, width, heigth], "score": element["score_obj"]})
+            results.append(element)
         return results, results_target
 
 class MMEhoiNetConverterv2(Converter):

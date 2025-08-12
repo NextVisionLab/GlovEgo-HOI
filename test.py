@@ -8,7 +8,7 @@ import copy
 import json
 import torch
 from collections import OrderedDict
-import pprint
+from telegram_notifier import notify
 
 # import some common detectron2 utilities
 from detectron2.config import get_cfg, CfgNode
@@ -51,7 +51,8 @@ def do_test(cfg, model, *, converter, mapper, data):
 header = f"| {'Metric':<28} | {'Score (%)':>10} |"
 separator = "+" + "-"*30 + "+" + "-"*12 + "+"
 
-if __name__ == "__main__":
+@notify
+def main():
     ###SET SEED
     torch.manual_seed(args.seed)
     random.seed(args.seed)
@@ -129,3 +130,6 @@ if __name__ == "__main__":
     print_row(f"Overall HOI (mAP All) ", map_all_hoi)
     
     print(separator)
+
+if __name__ == "__main__":
+    main()

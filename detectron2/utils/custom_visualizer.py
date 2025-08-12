@@ -1,149 +1,185 @@
+from abc import abstractmethod
 import numpy as np
 import cv2
-from detectron2.structures import Instances
+import copy
+import torch
+from detectron2.structures.boxes import Boxes
+from detectron2.structures.instances import Instances
+from detectron2.structures.masks import ROIMasks
+
 from detectron2.utils.converters import Converter
 
-def draw_text_with_outline(img, text, pos, font_face=cv2.FONT_HERSHEY_SIMPLEX, font_scale=0.6, text_color=(255, 255, 255), thickness=2):
-    x, y = pos
-    cv2.putText(img, text, (x, y), font_face, font_scale, (0, 0, 0), thickness * 2, cv2.LINE_AA)
-    cv2.putText(img, text, (x, y), font_face, font_scale, text_color, thickness, cv2.LINE_AA)
-    return img
+def normalizeData(data):
+    return (data - np.min(data)) / (np.max(data) - np.min(data))
 
 class BaseEhoiVisualizer:
     def __init__(self, cfg, metadata, converter: Converter, **kwargs):
         self._thing_classes = metadata.as_dict()["thing_classes"]
-        self._id_hand = next(i for i, name in enumerate(self._thing_classes) if name in ["hand", "mano"])
+        self._id_hand = self._thing_classes.index("hand") if "hand" in self._thing_classes else self._thing_classes.index("mano")
         self.cfg = cfg
-        self.class_names = metadata.thing_classes
+        self.class_names = {v: metadata.thing_classes[k] for k, v in metadata.thing_dataset_id_to_contiguous_id.items()}
+        self._input_size = (cfg.UTILS.TARGET_SHAPE_W, cfg.UTILS.TARGET_SHAPE_H)
+
+        ###PARAMS
         self._converter = converter
-        self._draw_keypoints = self.cfg.UTILS.VISUALIZER.DRAW_KEYPOINTS
-        
-        self.colors = {
-            "hand_contact": (0, 255, 0),
-            "hand_no_contact": (0, 0, 255),
-            "obj_contact": (0, 255, 0),
-            "obj_no_contact": (255, 100, 0),
-            "interaction_line": (0, 0, 255),
-            "keypoints": (255, 255, 0),
-            "vector": (255, 150, 50)
-        }
-        self.create_class_colors(metadata)
+        self._draw_ehoi = self.cfg.UTILS.VISUALIZER.DRAW_EHOI
+        self._draw_masks = self.cfg.UTILS.VISUALIZER.DRAW_MASK
+        self._draw_objs = self.cfg.UTILS.VISUALIZER.DRAW_OBJS
+        self._draw_depth = self.cfg.UTILS.VISUALIZER.DRAW_DEPTH and cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE
+        self.create_colors()
 
-    def create_class_colors(self, metadata):
-        self.class_colors = {}
-        num_classes = len(self.class_names)
-        for i in range(num_classes):
-            hue = int(180 * i / num_classes)
-            self.class_colors[i] = tuple(map(int, cv2.cvtColor(np.uint8([[[hue, 200, 220]]]), cv2.COLOR_HSV2BGR)[0][0]))
-
-    def _manual_mask_paste(self, mask, box, image_h, image_w):
-        x1, y1, x2, y2 = box.astype(int)
-        w, h = x2 - x1, y2 - y1
-        if w <= 0 or h <= 0: return np.zeros((image_h, image_w), dtype=bool)
-        mask_resized = cv2.resize(mask.astype(np.uint8), (w, h), interpolation=cv2.INTER_LINEAR)
-        full_res_mask = np.zeros((image_h, image_w), dtype=bool)
-        full_res_mask[y1:y2, x1:x2] = mask_resized > 0.5
-        return full_res_mask
-
-    def _draw_all_predictions(self, image, instances, predictions_hands, predictions_objs):
-        overlay = image.copy()
-        image_h, image_w = image.shape[:2]
-        
-        contacting_obj_ids = {p["id_obj"] for p in predictions_hands if p.get("contact_state") == 1 and p.get("id_obj")}
-
-        if instances.has("pred_masks"):
-            masks_small = instances.pred_masks.cpu().numpy()
-            boxes_abs = instances.pred_boxes.tensor.cpu().numpy()
-            class_ids = instances.pred_classes.cpu().numpy()
-            for i in range(len(instances)):
-                mask_full = self._manual_mask_paste(np.squeeze(masks_small[i]), boxes_abs[i], image_h, image_w)
-                color = self.class_colors.get(class_ids[i], (255, 255, 255))
-                overlay[mask_full] = color
-        
-        image = cv2.addWeighted(overlay, 0.4, image, 0.6, 0)
-        
-        obj_id_map = {p.get('id'): p for p in predictions_objs}
-
-        for p_obj in predictions_objs:
-            x, y, w, h = [int(c) for c in p_obj['bbox']]
-            is_in_contact = any(p_hand.get("id_obj") == p_obj.get("id") for p_hand in predictions_hands if p_hand.get("contact_state") == 1)
-            color = self.colors["obj_contact"] if is_in_contact else self.colors["obj_no_contact"]
-            label = f"{self.class_names[p_obj['category_id']]} {p_obj['score']:.1%}"
-            cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
-            draw_text_with_outline(image, label, (x, y - 10), text_color=color)
-
-        for p_hand in predictions_hands:
-            x, y, w, h = [int(c) for c in p_hand['bbox']]
-            is_contact = p_hand.get('contact_state') == 1
-            color = self.colors["hand_contact"] if is_contact else self.colors["hand_no_contact"]
+    def create_colors(self):
+        colors = np.array([(190, 209, 18), (108, 233, 247), (255, 188, 73), (221, 149, 42), (191, 80, 61), (144, 183, 3), (14, 160, 41), (75, 229, 96), (78, 80, 183), (35, 33, 150), (103, 252, 103), (38, 116, 193), (72, 52, 153), (51, 198, 154), (191, 70, 22), (160, 14, 29), (150, 242, 101), (214, 17, 30), (11, 229, 142), (190, 234, 32)], np.uint8 )
+        self._colors_classes = {k: v for k, v in enumerate(colors)}
             
-            side_text = "R Hand" if p_hand.get('hand_side', 1) == 1 else "L Hand"
-            label = f"{side_text} {p_hand['score']:.1%}"
-            if is_contact:
-                label += " CONTACT"
-            
-            cv2.rectangle(image, (x, y), (x + w, y + h), color, 2)
-            draw_text_with_outline(image, label, (x, y - 10), text_color=color)
+    @abstractmethod
+    def _draw_masks_f(self, *args, **kwargs):
+        pass
 
-            if is_contact and "bbox_obj" in p_hand and p_hand["bbox_obj"]:
-                obj_box = p_hand['bbox_obj']
-                hand_center = (x + w // 2, y + h // 2)
-                obj_center = (int(obj_box[0] + obj_box[2] / 2), int(obj_box[1] + obj_box[3] / 2))
-                cv2.arrowedLine(image, hand_center, obj_center, self.colors["interaction_line"], 2, tipLength=0.3)
+    @abstractmethod
+    def _mask_postprocess(self, results: Instances, size: tuple, mask_threshold: float = 0.5, *args, **kwargs):
+        pass
+
+    def _draw_ehoi_f(self, image, predictions):
+        predictions_hands, _ = self._converter.generate_predictions("", predictions)
+        if not len(predictions_hands): 
+            return image 
         
-        if self._draw_keypoints and instances.has("pred_keypoints"):
-            keypoints_all = instances.pred_keypoints.cpu().numpy()
-            class_ids = instances.pred_classes.cpu().numpy()
-            for i in range(len(instances)):
-                if class_ids[i] == self._id_hand:
-                    for kx, ky, v in keypoints_all[i]:
-                        if v > 0.2:
-                            cv2.circle(image, (int(kx), int(ky)), 3, self.colors["keypoints"], -1, cv2.LINE_AA)
-        
+        annotations_active_objs = [x for x in copy.deepcopy(predictions_hands) if x["contact_state"] and x["category_id_obj"] != -1]
+        for element in annotations_active_objs:
+            x,y,w,h = np.array(element['bbox_obj'], int)
+            cv2.rectangle(image, (x, y), ((x+w), (y+h)), (0, 255, 0), 2)   
+
+        for element in predictions_hands:
+            x,y,w,h = np.array(element['bbox'], int)
+            hand_side = element["hand_side"]
+            hand_state = element["contact_state"]
+
+            if hand_state == 1: color = (0, 255, 0)
+            else: color = (0, 0, 255)    
+            cv2.rectangle(image, (x, y), ((x+w), (y+h)), color, 2)
+            cv2.rectangle(image, (x, y), ((x+w), y+15), (255,255,255), -1)
+
+            if hand_side == 1: cv2.putText(image, f'Right Hand {round(element["score"] * 100, 2)} %', (x + 5, y + 11), 1,  1, (0, 0, 0), 1, cv2.LINE_AA)        
+            else: cv2.putText(image, f'Left Hand {round(element["score"] * 100, 2)} %', (x + 5, y + 11), 1,  1, (0, 0, 0), 1, cv2.LINE_AA)         
+
+            if hand_state and element["category_id_obj"] != -1:
+                obj_box = np.array(element['bbox_obj'], int)
+                hand_cc = (x + w//2, y + h//2)
+                point_cc = (obj_box[0] + obj_box[2]//2, obj_box[1] + obj_box[3]//2)
+                cv2.line(image, hand_cc, point_cc, (0, 255, 0), 4)
+                cv2.circle(image, hand_cc, 4, (0, 0, 255), -1)
+                cv2.circle(image, point_cc, 4, (0, 255, 0), -1)
+        return image
+
+    def _draw_objs_f(self, image, predictions):
+        predictions_obj = predictions[predictions.pred_classes != self._id_hand]
+        predictions_objs = self._converter.convert_instances_to_coco(predictions_obj, "", convert_boxes_xywh_abs=True)
+        for element in predictions_objs:
+            x,y,w,h = np.array(element['bbox'], int)
+            class_name = self.class_names[element['category_id']] + " " + str(round(element["score"] * 100, 2)) + " %"
+            cv2.rectangle(image, (x, y), ((x+w), (y+h)), (128,128,128), 1)        
+            cv2.rectangle(image, (x, y), ((x+w), y+15), (255,255,255), -1) 
+            cv2.putText(image, class_name, (x + 5, y + 11), 1,  1, (0, 0, 0), 1, cv2.LINE_AA)
+        return image
+
+    def _draw_depth_f(self, image, outputs, **kwargs):
+        depth = cv2.resize(outputs["depth_map"].detach().to("cpu").numpy().transpose(1, 2, 0), self._input_size)
+        depth = np.array(depth).astype(np.uint8)
+        depth = cv2.applyColorMap(depth, cv2.COLORMAP_JET)
+        if "save_depth_map" in kwargs.keys() and kwargs["save_depth_map"]: cv2.imwrite(kwargs["save_depth_map_path"], depth)
+        image =  np.concatenate((image, depth), axis=0)
         return image
 
     def draw_results(self, image_, outputs, **kwargs):
-        image = image_.copy()
-        
+        image = cv2.resize(image_, self._input_size)
         predictions = outputs["instances"].to("cpu")
-        additional_outputs = outputs.get("additional_outputs")
-        if additional_outputs:
-             additional_outputs = additional_outputs.to("cpu")
+        additional_outputs = outputs["additional_outputs"].to("cpu")
+        num_predictions = len(predictions)
+        num_hands = len(additional_outputs)
+        hand_indices = (predictions.pred_classes == self._id_hand).nonzero(as_tuple=True)[0]
+        assert len(hand_indices) == num_hands, \
+            f"Mismatch: Found {len(hand_indices)} hands in predictions, but HOIE head produced {num_hands} outputs."
+        device = predictions.pred_boxes.tensor.device
+        
+        # Align 'dxdymagn_hand'
+        if additional_outputs.has("dxdymagn_hand"):
+            dxdymagn_data = additional_outputs.get("dxdymagn_hand")
+            dxdymagn_full = torch.zeros((num_predictions, 3), device=device, dtype=dxdymagn_data.dtype)
+            dxdymagn_full[hand_indices] = dxdymagn_data
+            predictions.set("dxdymagn_hand", dxdymagn_full)
+
+        # Align 'contact_states'
+        if additional_outputs.has("contact_states"):
+            contact_data = additional_outputs.get("contact_states")
+            contact_data = contact_data.squeeze() 
+            contact_full = torch.full((num_predictions,), -1, device=device, dtype=contact_data.dtype)
+            contact_full[hand_indices] = contact_data
+            predictions.set("contact_states", contact_full)
+
+        # Align 'sides'
+        if additional_outputs.has("sides"):
+            sides_data = additional_outputs.get("sides")
+            sides_data = sides_data.squeeze()
+            sides_full = torch.full((num_predictions,), -1, device=device, dtype=sides_data.dtype)
+            sides_full[hand_indices] = sides_data
+            predictions.set("sides", sides_full)
 
         confident_instances = self._converter.generate_confident_instances(predictions)
-        if len(confident_instances) == 0:
-            return image
-        
-        kwargs_for_converter = {
-            "depth_map": outputs.get("depth_map"),
-            **kwargs 
-        }
 
-        instances_hand_confident = confident_instances[confident_instances.pred_classes == self._id_hand]
-        
-        predictions_hands, _ = self._converter.generate_predictions(
-            "", confident_instances, instances_hand_confident, **kwargs_for_converter
-        )
-        
-        instances_objs_confident = confident_instances[confident_instances.pred_classes != self._id_hand]
-        predictions_objs = self._converter.convert_instances_to_coco(instances_objs_confident, "", True)
-        
-        return self._draw_all_predictions(image, confident_instances, predictions_hands, predictions_objs)
+        if self._draw_masks and predictions.has("pred_masks"): 
+            image = self._draw_masks_f(image, confident_instances, **kwargs)
+        if self._draw_ehoi: 
+            image = self._draw_ehoi_f(image, confident_instances)
+        if self._draw_objs: 
+            image = self._draw_objs_f(image, confident_instances)
+        if self._draw_depth:
+            image = self._draw_depth_f(image, outputs, **kwargs)
+
+        return image
 
 class EhoiVisualizerv1(BaseEhoiVisualizer):
     def __init__(self, cfg, metadata, converter: Converter, **kwargs):
         super().__init__(cfg, metadata, converter, **kwargs)
+        ###PARAMS
+        self._draw_keypoints = self.cfg.UTILS.VISUALIZER.DRAW_KEYPOINTS
 
-    def _draw_all_predictions(self, image, instances, predictions_hands, predictions_objs):
-        image = super()._draw_all_predictions(image, instances, predictions_hands, predictions_objs)
-        
-        for p_hand in predictions_hands:
-            if all(k in p_hand for k in ['dx', 'dy', 'magnitude']):
-                x, y, w, h = [int(c) for c in p_hand['bbox']]
-                dx, dy, magn = p_hand['dx'], p_hand['dy'], p_hand['magnitude']
-                
-                hand_center = np.array([x + w / 2, y + h / 2])
-                end_point = hand_center + np.array([dx, dy]) * magn
-                cv2.arrowedLine(image, tuple(hand_center.astype(int)), tuple(end_point.astype(int)), self.colors["vector"], 2, tipLength=0.4)
-        
+    def _mask_postprocess(self, results: Instances, size: tuple, mask_threshold: float = 0.5):
+        results = Instances(size, **results.get_fields())
+        if results.has("pred_masks"):
+            if isinstance(results.pred_masks, ROIMasks): roi_masks = results.pred_masks
+            else: roi_masks = ROIMasks(results.pred_masks[:, 0, :, :])
+            results.pred_masks = roi_masks.to_bitmasks(results.pred_boxes, size[0], size[1], mask_threshold).tensor
+        return results.pred_masks
+
+    def _draw_masks_f(self, image, predictions, save_masks = False, save_masks_path = "./masks.png", **kwargs):
+        masks = self._mask_postprocess(predictions, predictions.image_size)
+        masked_img = np.zeros(image.shape)
+
+        for idx, mask in enumerate(masks):
+            id_class = predictions[idx].pred_classes.item()
+            masked_img = np.where(mask[...,None], self._colors_classes[id_class], masked_img)
+            
+        if save_masks: cv2.imwrite(save_masks_path, masked_img)
+        masked_img = np.where(masked_img != 0, masked_img, image)
+        image = cv2.addWeighted(image, 0.4, np.asarray(masked_img, np.uint8), 0.6, 0)
         return image
+
+    def _draw_keypoints_f(self, image):
+        raise NotImplementedError
+
+    def _draw_vector(self, image, annotations_hands):
+        for element in annotations_hands:
+            x,y,w,h = np.array(element['bbox'], int)
+            dx, dy, magn = float(element['dx']), float(element['dy']), float(element['magnitude'])
+            hand_cc = np.array([x + w//2, y + h//2])
+            point_cc = np.array([(hand_cc[0] + dx * magn), (hand_cc[1] + dy * magn)])
+            cv2.line(image, tuple(hand_cc.astype(int)), tuple(point_cc.astype(int)), (255, 0, 0), 4)
+            cv2.circle(image, tuple(hand_cc.astype(int)), 4, (255, 0, 255), -1)
+        return image
+    
+    def _draw_ehoi_f(self, image, predictions):
+        predictions_hands, _ = self._converter.generate_predictions("", predictions)
+        if not len(predictions_hands): return image
+        image = self._draw_vector(image, predictions_hands)
+        return super()._draw_ehoi_f(image, predictions)

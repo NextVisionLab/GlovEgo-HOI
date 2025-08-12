@@ -670,3 +670,362 @@ Category ids in annotations are not in [1, #categories]! We'll apply a mapping f
 | working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
 | left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
 | right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/12 19:49:54] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 19:49:54] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/12 19:49:54] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/12 19:49:54] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/12 19:49:54] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 19:49:54] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/12 19:49:58] d2.evaluation.evaluator INFO: Total inference time: 0:00:00.838747 (0.167749 s / iter per device, on 1 devices)
+[08/12 19:49:58] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:00 (0.142148 s / iter per device, on 1 devices)
+[08/12 19:49:58] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 19:49:58] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 19:49:58] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 19:49:58] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 19:49:58] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/12 19:49:58] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/12 19:53:05] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 19:53:05] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/12 19:53:05] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/12 19:53:05] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/12 19:53:05] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 19:53:05] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/12 19:53:09] d2.evaluation.evaluator INFO: Total inference time: 0:00:00.885175 (0.177035 s / iter per device, on 1 devices)
+[08/12 19:53:09] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:00 (0.156436 s / iter per device, on 1 devices)
+[08/12 19:53:09] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 19:53:09] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 19:53:09] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 19:53:09] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 19:53:09] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/12 19:53:09] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/12 19:55:38] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 19:55:38] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/12 19:55:38] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/12 19:55:38] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/12 19:55:38] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 19:55:38] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/12 19:55:42] d2.evaluation.evaluator INFO: Total inference time: 0:00:00.910172 (0.182034 s / iter per device, on 1 devices)
+[08/12 19:55:42] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:00 (0.157040 s / iter per device, on 1 devices)
+[08/12 19:55:42] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 19:55:42] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 19:55:42] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 19:55:42] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 19:55:42] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/12 19:55:42] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/12 20:05:02] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 20:05:02] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/12 20:05:02] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/12 20:05:02] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/12 20:05:02] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 20:05:02] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/12 20:05:05] d2.evaluation.evaluator INFO: Total inference time: 0:00:00.916904 (0.183381 s / iter per device, on 1 devices)
+[08/12 20:05:05] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:00 (0.159681 s / iter per device, on 1 devices)
+[08/12 20:05:05] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 20:05:05] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 20:05:05] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 20:05:05] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 20:05:06] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/12 20:05:06] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/12 20:08:12] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 20:08:12] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/12 20:08:12] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/12 20:08:12] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/12 20:08:12] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 20:08:12] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/12 20:08:15] d2.evaluation.evaluator INFO: Total inference time: 0:00:00.683222 (0.136644 s / iter per device, on 1 devices)
+[08/12 20:08:15] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:00 (0.113949 s / iter per device, on 1 devices)
+[08/12 20:08:15] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 20:08:15] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 20:08:15] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 20:08:15] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 20:08:16] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/12 20:08:16] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/12 20:09:48] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 20:09:48] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/12 20:09:48] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/12 20:09:48] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/12 20:09:48] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 20:09:48] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/12 20:09:53] d2.evaluation.evaluator INFO: Total inference time: 0:00:01.506285 (0.301257 s / iter per device, on 1 devices)
+[08/12 20:09:53] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:01 (0.279704 s / iter per device, on 1 devices)
+[08/12 20:09:53] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 20:09:53] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 20:09:53] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 20:09:53] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 20:09:53] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/12 20:09:53] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/12 20:11:29] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 20:11:29] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/12 20:11:29] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/12 20:11:29] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/12 20:11:29] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 20:11:29] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/12 20:11:32] d2.evaluation.evaluator INFO: Total inference time: 0:00:00.615451 (0.123090 s / iter per device, on 1 devices)
+[08/12 20:11:32] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:00 (0.096344 s / iter per device, on 1 devices)
+[08/12 20:11:32] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 20:11:32] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 20:11:32] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 20:11:32] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 20:11:33] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/12 20:11:33] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/12 20:14:38] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 20:14:38] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/12 20:14:38] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/12 20:14:38] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/12 20:14:38] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 20:14:38] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/12 20:14:41] d2.evaluation.evaluator INFO: Total inference time: 0:00:00.704263 (0.140853 s / iter per device, on 1 devices)
+[08/12 20:14:41] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:00 (0.106688 s / iter per device, on 1 devices)
+[08/12 20:14:41] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 20:14:41] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 20:14:41] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 20:14:41] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 20:14:41] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/12 20:14:41] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/12 20:15:31] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 20:15:31] d2.data.datasets.coco INFO: Loaded 496 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[08/12 20:15:31] d2.data.common INFO: Serializing 496 elements to byte tensors and concatenating them all ...
+[08/12 20:15:31] d2.data.common INFO: Serialized dataset takes 3.63 MiB
+[08/12 20:15:31] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 20:15:32] d2.evaluation.evaluator INFO: Start inference on 496 batches
+[08/12 20:15:35] d2.evaluation.evaluator INFO: Inference done 11/496. Dataloading: 0.0024 s/iter. Inference: 0.1498 s/iter. Eval: 0.0088 s/iter. Total: 0.1609 s/iter. ETA=0:01:18
+[08/12 20:15:41] d2.evaluation.evaluator INFO: Inference done 40/496. Dataloading: 0.0071 s/iter. Inference: 0.1575 s/iter. Eval: 0.0104 s/iter. Total: 0.1751 s/iter. ETA=0:01:19
+[08/12 20:15:46] d2.evaluation.evaluator INFO: Inference done 67/496. Dataloading: 0.0062 s/iter. Inference: 0.1621 s/iter. Eval: 0.0127 s/iter. Total: 0.1811 s/iter. ETA=0:01:17
+[08/12 20:15:51] d2.evaluation.evaluator INFO: Inference done 98/496. Dataloading: 0.0059 s/iter. Inference: 0.1576 s/iter. Eval: 0.0122 s/iter. Total: 0.1758 s/iter. ETA=0:01:09
+[08/12 20:15:56] d2.evaluation.evaluator INFO: Inference done 127/496. Dataloading: 0.0059 s/iter. Inference: 0.1572 s/iter. Eval: 0.0119 s/iter. Total: 0.1752 s/iter. ETA=0:01:04
+[08/12 20:16:01] d2.evaluation.evaluator INFO: Inference done 158/496. Dataloading: 0.0058 s/iter. Inference: 0.1551 s/iter. Eval: 0.0119 s/iter. Total: 0.1729 s/iter. ETA=0:00:58
+[08/12 20:16:06] d2.evaluation.evaluator INFO: Inference done 189/496. Dataloading: 0.0057 s/iter. Inference: 0.1532 s/iter. Eval: 0.0123 s/iter. Total: 0.1713 s/iter. ETA=0:00:52
+[08/12 20:16:11] d2.evaluation.evaluator INFO: Inference done 222/496. Dataloading: 0.0054 s/iter. Inference: 0.1517 s/iter. Eval: 0.0118 s/iter. Total: 0.1691 s/iter. ETA=0:00:46
+[08/12 20:16:16] d2.evaluation.evaluator INFO: Inference done 253/496. Dataloading: 0.0056 s/iter. Inference: 0.1505 s/iter. Eval: 0.0121 s/iter. Total: 0.1682 s/iter. ETA=0:00:40
+[08/12 20:16:21] d2.evaluation.evaluator INFO: Inference done 282/496. Dataloading: 0.0054 s/iter. Inference: 0.1518 s/iter. Eval: 0.0119 s/iter. Total: 0.1693 s/iter. ETA=0:00:36
+[08/12 20:16:26] d2.evaluation.evaluator INFO: Inference done 311/496. Dataloading: 0.0055 s/iter. Inference: 0.1522 s/iter. Eval: 0.0121 s/iter. Total: 0.1699 s/iter. ETA=0:00:31
+[08/12 20:16:31] d2.evaluation.evaluator INFO: Inference done 340/496. Dataloading: 0.0055 s/iter. Inference: 0.1527 s/iter. Eval: 0.0120 s/iter. Total: 0.1704 s/iter. ETA=0:00:26
+[08/12 20:16:37] d2.evaluation.evaluator INFO: Inference done 370/496. Dataloading: 0.0056 s/iter. Inference: 0.1527 s/iter. Eval: 0.0122 s/iter. Total: 0.1706 s/iter. ETA=0:00:21
+[08/12 20:16:42] d2.evaluation.evaluator INFO: Inference done 402/496. Dataloading: 0.0055 s/iter. Inference: 0.1515 s/iter. Eval: 0.0123 s/iter. Total: 0.1694 s/iter. ETA=0:00:15
+[08/12 20:16:47] d2.evaluation.evaluator INFO: Inference done 431/496. Dataloading: 0.0055 s/iter. Inference: 0.1520 s/iter. Eval: 0.0123 s/iter. Total: 0.1700 s/iter. ETA=0:00:11
+[08/12 20:16:52] d2.evaluation.evaluator INFO: Inference done 463/496. Dataloading: 0.0056 s/iter. Inference: 0.1513 s/iter. Eval: 0.0122 s/iter. Total: 0.1691 s/iter. ETA=0:00:05
+[08/12 20:16:57] d2.evaluation.evaluator INFO: Total inference time: 0:01:22.212735 (0.167439 s / iter per device, on 1 devices)
+[08/12 20:16:57] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:13 (0.149661 s / iter per device, on 1 devices)
+[08/12 20:16:57] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 20:16:57] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 20:16:57] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 20:16:57] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 20:16:59] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 66.666 | 85.145 | 78.363 | 36.698 | 73.026 | 75.079 |
+[08/12 20:16:59] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 64.744 | oscilloscope           | 78.681 | welder station               | 80.183 |
+| electric screwdriver | 55.306 | screwdriver            | 49.662 | pliers                       | 54.255 |
+| welder probe tip     | 53.143 | oscilloscope probe tip | 53.380 | low voltage board            | 71.580 |
+| high voltage board   | 49.686 | register               | 76.768 | electric screwdriver battery | 68.384 |
+| working area         | 59.217 | welder base            | 69.258 | socket                       | 73.246 |
+| left red button      | 74.900 | left green button      | 80.562 | right red button             | 75.840 |
+| right green button   | 78.761 | hand                   | 65.760 |                              |        |
+[08/12 20:20:58] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 20:20:58] d2.data.datasets.coco INFO: Loaded 496 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[08/12 20:20:58] d2.data.common INFO: Serializing 496 elements to byte tensors and concatenating them all ...
+[08/12 20:20:58] d2.data.common INFO: Serialized dataset takes 3.63 MiB
+[08/12 20:20:58] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 20:20:59] d2.evaluation.evaluator INFO: Start inference on 496 batches
+[08/12 20:21:02] d2.evaluation.evaluator INFO: Inference done 11/496. Dataloading: 0.0071 s/iter. Inference: 0.1684 s/iter. Eval: 0.0139 s/iter. Total: 0.1895 s/iter. ETA=0:01:31
+[08/12 20:21:08] d2.evaluation.evaluator INFO: Inference done 37/496. Dataloading: 0.0066 s/iter. Inference: 0.1778 s/iter. Eval: 0.0140 s/iter. Total: 0.1985 s/iter. ETA=0:01:31
+[08/12 20:21:13] d2.evaluation.evaluator INFO: Inference done 65/496. Dataloading: 0.0060 s/iter. Inference: 0.1711 s/iter. Eval: 0.0132 s/iter. Total: 0.1904 s/iter. ETA=0:01:22
+[08/12 20:21:18] d2.evaluation.evaluator INFO: Inference done 94/496. Dataloading: 0.0065 s/iter. Inference: 0.1674 s/iter. Eval: 0.0123 s/iter. Total: 0.1863 s/iter. ETA=0:01:14
+[08/12 20:21:23] d2.evaluation.evaluator INFO: Inference done 120/496. Dataloading: 0.0065 s/iter. Inference: 0.1685 s/iter. Eval: 0.0127 s/iter. Total: 0.1878 s/iter. ETA=0:01:10
+[08/12 20:21:28] d2.evaluation.evaluator INFO: Inference done 146/496. Dataloading: 0.0063 s/iter. Inference: 0.1697 s/iter. Eval: 0.0127 s/iter. Total: 0.1888 s/iter. ETA=0:01:06
+[08/12 20:21:33] d2.evaluation.evaluator INFO: Inference done 174/496. Dataloading: 0.0064 s/iter. Inference: 0.1682 s/iter. Eval: 0.0124 s/iter. Total: 0.1872 s/iter. ETA=0:01:00
+[08/12 20:21:38] d2.evaluation.evaluator INFO: Inference done 202/496. Dataloading: 0.0064 s/iter. Inference: 0.1678 s/iter. Eval: 0.0122 s/iter. Total: 0.1865 s/iter. ETA=0:00:54
+[08/12 20:21:43] d2.evaluation.evaluator INFO: Inference done 230/496. Dataloading: 0.0066 s/iter. Inference: 0.1672 s/iter. Eval: 0.0121 s/iter. Total: 0.1860 s/iter. ETA=0:00:49
+[08/12 20:21:48] d2.evaluation.evaluator INFO: Inference done 258/496. Dataloading: 0.0065 s/iter. Inference: 0.1667 s/iter. Eval: 0.0121 s/iter. Total: 0.1854 s/iter. ETA=0:00:44
+[08/12 20:21:53] d2.evaluation.evaluator INFO: Inference done 288/496. Dataloading: 0.0065 s/iter. Inference: 0.1651 s/iter. Eval: 0.0118 s/iter. Total: 0.1836 s/iter. ETA=0:00:38
+[08/12 20:21:58] d2.evaluation.evaluator INFO: Inference done 318/496. Dataloading: 0.0065 s/iter. Inference: 0.1637 s/iter. Eval: 0.0118 s/iter. Total: 0.1821 s/iter. ETA=0:00:32
+[08/12 20:22:03] d2.evaluation.evaluator INFO: Inference done 348/496. Dataloading: 0.0064 s/iter. Inference: 0.1628 s/iter. Eval: 0.0117 s/iter. Total: 0.1810 s/iter. ETA=0:00:26
+[08/12 20:22:08] d2.evaluation.evaluator INFO: Inference done 378/496. Dataloading: 0.0064 s/iter. Inference: 0.1618 s/iter. Eval: 0.0116 s/iter. Total: 0.1799 s/iter. ETA=0:00:21
+[08/12 20:22:13] d2.evaluation.evaluator INFO: Inference done 405/496. Dataloading: 0.0064 s/iter. Inference: 0.1626 s/iter. Eval: 0.0115 s/iter. Total: 0.1806 s/iter. ETA=0:00:16
+[08/12 20:22:19] d2.evaluation.evaluator INFO: Inference done 433/496. Dataloading: 0.0064 s/iter. Inference: 0.1626 s/iter. Eval: 0.0115 s/iter. Total: 0.1806 s/iter. ETA=0:00:11
+[08/12 20:22:24] d2.evaluation.evaluator INFO: Inference done 462/496. Dataloading: 0.0065 s/iter. Inference: 0.1623 s/iter. Eval: 0.0115 s/iter. Total: 0.1804 s/iter. ETA=0:00:06
+[08/12 20:22:29] d2.evaluation.evaluator INFO: Inference done 496/496. Dataloading: 0.0064 s/iter. Inference: 0.1601 s/iter. Eval: 0.0115 s/iter. Total: 0.1782 s/iter. ETA=0:00:00
+[08/12 20:22:29] d2.evaluation.evaluator INFO: Total inference time: 0:01:27.563931 (0.178338 s / iter per device, on 1 devices)
+[08/12 20:22:29] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:18 (0.160087 s / iter per device, on 1 devices)
+[08/12 20:22:29] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 20:22:29] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 20:22:29] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 20:22:29] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 20:22:30] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 66.666 | 85.145 | 78.363 | 36.698 | 73.026 | 75.079 |
+[08/12 20:22:30] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 64.744 | oscilloscope           | 78.681 | welder station               | 80.183 |
+| electric screwdriver | 55.306 | screwdriver            | 49.662 | pliers                       | 54.255 |
+| welder probe tip     | 53.143 | oscilloscope probe tip | 53.380 | low voltage board            | 71.580 |
+| high voltage board   | 49.686 | register               | 76.768 | electric screwdriver battery | 68.384 |
+| working area         | 59.217 | welder base            | 69.258 | socket                       | 73.246 |
+| left red button      | 74.900 | left green button      | 80.562 | right red button             | 75.840 |
+| right green button   | 78.761 | hand                   | 65.760 |                              |        |
+[08/12 20:26:06] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/12 20:26:06] d2.data.datasets.coco INFO: Loaded 496 images in COCO format from ./data/egoism-hoi-dataset/annotations/test_coco.json
+[08/12 20:26:06] d2.data.common INFO: Serializing 496 elements to byte tensors and concatenating them all ...
+[08/12 20:26:06] d2.data.common INFO: Serialized dataset takes 3.63 MiB
+[08/12 20:26:06] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/12 20:26:07] d2.evaluation.evaluator INFO: Start inference on 496 batches
+[08/12 20:26:10] d2.evaluation.evaluator INFO: Inference done 11/496. Dataloading: 0.0034 s/iter. Inference: 0.1747 s/iter. Eval: 0.0076 s/iter. Total: 0.1857 s/iter. ETA=0:01:30
+[08/12 20:26:15] d2.evaluation.evaluator INFO: Inference done 41/496. Dataloading: 0.0055 s/iter. Inference: 0.1551 s/iter. Eval: 0.0109 s/iter. Total: 0.1716 s/iter. ETA=0:01:18
+[08/12 20:26:20] d2.evaluation.evaluator INFO: Inference done 68/496. Dataloading: 0.0058 s/iter. Inference: 0.1603 s/iter. Eval: 0.0131 s/iter. Total: 0.1793 s/iter. ETA=0:01:16
+[08/12 20:26:25] d2.evaluation.evaluator INFO: Inference done 98/496. Dataloading: 0.0059 s/iter. Inference: 0.1581 s/iter. Eval: 0.0124 s/iter. Total: 0.1764 s/iter. ETA=0:01:10
+[08/12 20:26:30] d2.evaluation.evaluator INFO: Inference done 124/496. Dataloading: 0.0061 s/iter. Inference: 0.1622 s/iter. Eval: 0.0124 s/iter. Total: 0.1807 s/iter. ETA=0:01:07
+[08/12 20:26:35] d2.evaluation.evaluator INFO: Inference done 153/496. Dataloading: 0.0062 s/iter. Inference: 0.1606 s/iter. Eval: 0.0127 s/iter. Total: 0.1796 s/iter. ETA=0:01:01
+[08/12 20:26:40] d2.evaluation.evaluator INFO: Inference done 183/496. Dataloading: 0.0060 s/iter. Inference: 0.1590 s/iter. Eval: 0.0126 s/iter. Total: 0.1776 s/iter. ETA=0:00:55
+[08/12 20:26:45] d2.evaluation.evaluator INFO: Inference done 213/496. Dataloading: 0.0061 s/iter. Inference: 0.1577 s/iter. Eval: 0.0124 s/iter. Total: 0.1763 s/iter. ETA=0:00:49
+[08/12 20:26:50] d2.evaluation.evaluator INFO: Inference done 242/496. Dataloading: 0.0064 s/iter. Inference: 0.1575 s/iter. Eval: 0.0122 s/iter. Total: 0.1763 s/iter. ETA=0:00:44
+[08/12 20:26:56] d2.evaluation.evaluator INFO: Inference done 269/496. Dataloading: 0.0066 s/iter. Inference: 0.1584 s/iter. Eval: 0.0124 s/iter. Total: 0.1776 s/iter. ETA=0:00:40
+[08/12 20:27:01] d2.evaluation.evaluator INFO: Inference done 296/496. Dataloading: 0.0067 s/iter. Inference: 0.1592 s/iter. Eval: 0.0127 s/iter. Total: 0.1787 s/iter. ETA=0:00:35
+[08/12 20:27:06] d2.evaluation.evaluator INFO: Inference done 323/496. Dataloading: 0.0068 s/iter. Inference: 0.1598 s/iter. Eval: 0.0126 s/iter. Total: 0.1793 s/iter. ETA=0:00:31
+[08/12 20:27:11] d2.evaluation.evaluator INFO: Inference done 354/496. Dataloading: 0.0067 s/iter. Inference: 0.1586 s/iter. Eval: 0.0125 s/iter. Total: 0.1778 s/iter. ETA=0:00:25
+[08/12 20:27:16] d2.evaluation.evaluator INFO: Inference done 383/496. Dataloading: 0.0065 s/iter. Inference: 0.1587 s/iter. Eval: 0.0124 s/iter. Total: 0.1777 s/iter. ETA=0:00:20
+[08/12 20:27:21] d2.evaluation.evaluator INFO: Inference done 413/496. Dataloading: 0.0064 s/iter. Inference: 0.1581 s/iter. Eval: 0.0123 s/iter. Total: 0.1769 s/iter. ETA=0:00:14
+[08/12 20:27:26] d2.evaluation.evaluator INFO: Inference done 443/496. Dataloading: 0.0066 s/iter. Inference: 0.1577 s/iter. Eval: 0.0123 s/iter. Total: 0.1767 s/iter. ETA=0:00:09
+[08/12 20:27:31] d2.evaluation.evaluator INFO: Inference done 472/496. Dataloading: 0.0066 s/iter. Inference: 0.1575 s/iter. Eval: 0.0123 s/iter. Total: 0.1764 s/iter. ETA=0:00:04
+[08/12 20:27:35] d2.evaluation.evaluator INFO: Total inference time: 0:01:25.923916 (0.174998 s / iter per device, on 1 devices)
+[08/12 20:27:35] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:01:16 (0.155899 s / iter per device, on 1 devices)
+[08/12 20:27:35] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/12 20:27:35] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/12 20:27:35] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/12 20:27:35] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/12 20:27:36] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 66.666 | 85.145 | 78.363 | 36.698 | 73.026 | 75.079 |
+[08/12 20:27:36] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 64.744 | oscilloscope           | 78.681 | welder station               | 80.183 |
+| electric screwdriver | 55.306 | screwdriver            | 49.662 | pliers                       | 54.255 |
+| welder probe tip     | 53.143 | oscilloscope probe tip | 53.380 | low voltage board            | 71.580 |
+| high voltage board   | 49.686 | register               | 76.768 | electric screwdriver battery | 68.384 |
+| working area         | 59.217 | welder base            | 69.258 | socket                       | 73.246 |
+| left red button      | 74.900 | left green button      | 80.562 | right red button             | 75.840 |
+| right green button   | 78.761 | hand                   | 65.760 |                              |        |
