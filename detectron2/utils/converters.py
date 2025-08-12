@@ -30,15 +30,32 @@ class Converter:
         self._thresh_objs = cfg.ADDITIONAL_MODULES.THRESH_OBJS
         self._nms_thresh = cfg.ADDITIONAL_MODULES.NMS_THRESH
 
-    def convert_instances_to_coco(self, instances, img_id, convert_boxes_xywh_abs = False):
+    def convert_instances_to_coco(self, instances, img_id, convert_boxes_xywh_abs=False):
         boxes = instances.pred_boxes.tensor.detach().clone()
-        if convert_boxes_xywh_abs: boxes = BoxMode.convert(boxes, BoxMode.XYXY_ABS, BoxMode.XYWH_ABS)
+        if convert_boxes_xywh_abs:
+            boxes = BoxMode.convert(boxes, BoxMode.XYXY_ABS, BoxMode.XYWH_ABS)
         boxes = boxes.tolist()
         scores = instances.scores.tolist()
         classes = instances.pred_classes.tolist()
+        
+        has_keypoints = instances.has("pred_keypoints")
+        if has_keypoints:
+            keypoints = instances.pred_keypoints.tolist()
+
         results = []
         for k in range(len(instances)):
-            result = {"image_id": img_id, "category_id": classes[k], "bbox": boxes[k], "score": scores[k]}
+            result = {
+                "image_id": img_id,
+                "category_id": classes[k],
+                "bbox": boxes[k],
+                "score": scores[k],
+            }
+            
+            if has_keypoints:
+                # Convert lists from [[x1,y1,v1], [x2,y2,v2],..] to [x1,y1,v1,x2,y2,v2,...]
+                flat_keypoints = [coord for kp in keypoints[k] for coord in kp]
+                result["keypoints"] = flat_keypoints
+            
             results.append(result)
         return results
         
@@ -93,13 +110,13 @@ class MMEhoiNetConverterv1(Converter):
         self._scale_factor = cfg.ADDITIONAL_MODULES.ASSOCIATION_VECTOR_SCALE_FACTOR
         self.HAND_ID_FOR_EHOI_EVALUATOR = 1
 
-    def match_object(self, obj_dets, hand_bb, hand_dxdymag):
-        object_cc_list = np.array([calculate_center(bbox) for bbox in obj_dets]) # object center list
-        magn =  hand_dxdymag[2] / self._scale_factor
-        hand_cc = np.array(calculate_center(hand_bb)) # hand center points
-        point_cc = np.array([(hand_cc[0] + hand_dxdymag[0] * magn * self._diag), (hand_cc[1] + hand_dxdymag[1] * magn * self._diag)])
-        dist = np.sum((object_cc_list - point_cc)**2,axis=1)
-        dist_min = np.argmin(dist) # find the nearest 
+    def match_object(self, obj_dets_xyxy, hand_bb_xyxy, hand_dxdymag):
+        object_cc_list = np.array([calculate_center(bbox) for bbox in obj_dets_xyxy])
+        magn = hand_dxdymag[2] * self._diag 
+        hand_cc = np.array(calculate_center(hand_bb_xyxy))
+        point_cc = np.array([(hand_cc[0] + hand_dxdymag[0] * magn), (hand_cc[1] + hand_dxdymag[1] * magn)])
+        dist = np.sum((object_cc_list - point_cc)**2, axis=1)
+        dist_min = np.argmin(dist)
         return dist_min
 
     def generate_predictions(self, image_id, confident_instances, **kwargs):
@@ -112,21 +129,19 @@ class MMEhoiNetConverterv1(Converter):
         instances_objs = confident_instances[obj_indices]
         instances_hands = confident_instances[hand_indices]
         
-        objs_coco = self.convert_instances_to_coco(instances_objs, image_id, convert_boxes_xywh_abs=True)
+        object_boxes_xyxy = instances_objs.pred_boxes.tensor.cpu()
+        object_categories = instances_objs.pred_classes.cpu().tolist()
+        object_scores = instances_objs.scores.cpu().tolist()
         
-        if not len(instances_hands):
-            return [], []
-
-        boxes_hand_tensor = instances_hands.pred_boxes.tensor.cpu()
+        hand_boxes_tensor = instances_hands.pred_boxes.tensor.cpu()
         dxdymagn_tensor = instances_hands.get("dxdymagn_hand").cpu()
         contact_states_tensor = instances_hands.get("contact_states").cpu()
-        scores_tensor = instances_hands.get("scores").cpu()
+        scores_tensor = instances_hands.scores.cpu()
         sides_tensor = instances_hands.get("sides").cpu()
         
         for i in range(len(instances_hands)):
-            x0_h, y0_h, x1_h, y1_h = boxes_hand_tensor[i]
-            bbox_hand_xyxy = [float(x0_h), float(y0_h), float(x1_h), float(y1_h)]
-            bbox_hand_xywh = [float(x0_h), float(y0_h), float(x1_h - x0_h), float(y1_h - y0_h)]
+            bbox_hand_xyxy = hand_boxes_tensor[i].tolist()
+            bbox_hand_xywh = BoxMode.convert(np.array(bbox_hand_xyxy).reshape(1,4), BoxMode.XYXY_ABS, BoxMode.XYWH_ABS).flatten().tolist()
             
             dxdymag_v = dxdymagn_tensor[i].numpy()
             contact_state = int(contact_states_tensor[i].item())
@@ -134,7 +149,7 @@ class MMEhoiNetConverterv1(Converter):
             element = {
                 "id": len(results),
                 "image_id": image_id, 
-                "category_id": self.HAND_ID_FOR_EHOI_EVALUATOR,
+                "category_id": self.HAND_ID_FOR_EHOI_EVALUATOR, 
                 "bbox": bbox_hand_xywh, 
                 "score": float(scores_tensor[i].item()), 
                 "hand_side": int(sides_tensor[i].item()), 
@@ -143,28 +158,33 @@ class MMEhoiNetConverterv1(Converter):
                 "category_id_obj": -1, 
                 "dx": float(dxdymag_v[0]),
                 "dy": float(dxdymag_v[1]),
-                "magnitude": float(dxdymag_v[2] / self._scale_factor * self._diag if self._scale_factor > 0 else 0)
+                "magnitude": float(dxdymag_v[2])
             }
             
-            if contact_state and len(objs_coco) > 0:
-                objs_iou = [obj for obj in objs_coco if get_iou(obj["bbox"], bbox_hand_xyxy) > 0]
-                if len(objs_iou) > 0:
-                    bbox_objs_iou = [obj["bbox"] for obj in objs_iou]
-                    idx_closest_obj = self.match_object(bbox_objs_iou, bbox_hand_xyxy, dxdymag_v)
-                    matched_obj = objs_iou[idx_closest_obj]
-                    
-                    element["bbox_obj"] = [float(c) for c in matched_obj["bbox"]]
-                    element["category_id_obj"] = int(matched_obj["category_id"])
-                    element["score_obj"] = float(matched_obj["score"])
-                    
-                    results_target.append({
-                        "id": len(results_target),
-                        "image_id": image_id, 
-                        "category_id": element["category_id_obj"], 
-                        "bbox": element["bbox_obj"], 
-                        "score": element["score_obj"]
-                    })
-            
+            if contact_state == 1 and len(instances_objs) > 0:
+                hand_cc = np.array(calculate_center(bbox_hand_xyxy))
+                magn_in_pixels = dxdymag_v[2] * self._diag 
+                target_point = np.array([
+                    (hand_cc[0] + dxdymag_v[0] * magn_in_pixels), 
+                    (hand_cc[1] + dxdymag_v[1] * magn_in_pixels)
+                ])
+
+                all_obj_centers = [calculate_center(box) for box in object_boxes_xyxy]
+                distances = np.sum((all_obj_centers - target_point)**2, axis=1)
+                idx_closest_obj = np.argmin(distances)
+
+                matched_obj_box_xyxy = object_boxes_xyxy[idx_closest_obj].tolist()
+                matched_obj_box_xywh = BoxMode.convert(np.array(matched_obj_box_xyxy).reshape(1,4), BoxMode.XYXY_ABS, BoxMode.XYWH_ABS).flatten().tolist()
+
+                element["bbox_obj"] = matched_obj_box_xywh
+                element["category_id_obj"] = int(object_categories[idx_closest_obj])
+                element["score_obj"] = float(object_scores[idx_closest_obj])
+                
+                results_target.append({
+                    "id": len(results_target), "image_id": image_id, "category_id": element["category_id_obj"], 
+                    "bbox": element["bbox_obj"], "score": element["score_obj"]
+                })
+
             results.append(element)
 
         return results, results_target

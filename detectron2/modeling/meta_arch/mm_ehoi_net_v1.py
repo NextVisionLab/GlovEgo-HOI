@@ -252,12 +252,11 @@ class MMEhoiNetv1(EhoiNet):
                     self._last_masks_roi = torch.zeros(c_roi.shape[0], 1, *c_roi.shape[2:], device=self.device)
                     c_roi = torch.cat((c_roi, self._last_masks_roi), dim=1)
 
-            if self._predict_keypoints:
+            if self._predict_keypoints and "kpts" in self._contact_state_modality:
                 if len(all_hand_proposals_kpts) > 0:
                     hand_boxes_kpts = torch.cat([p.proposal_boxes.tensor for p in all_hand_proposals_kpts], dim=0)
                     pred_keypoints_kpts = torch.cat([p.pred_keypoints for p in all_hand_proposals_kpts], dim=0)
                     keypoint_heatmaps = self.keypoint_heatmap_generator(pred_keypoints_kpts, hand_boxes_kpts)
-                    # concatenates the new channel
                     c_roi = torch.cat((c_roi, keypoint_heatmaps), dim=1)
                 else:
                     keypoint_heatmaps_zeros = torch.zeros(c_roi.shape[0], 1, *c_roi.shape[2:], device=self.device)
@@ -298,7 +297,7 @@ class MMEhoiNetv1(EhoiNet):
                     self._last_masks_roi = torch.zeros(c_roi.shape[0], 1, *c_roi.shape[2:], device=self.device)
                     c_roi = torch.cat((c_roi, self._last_masks_roi), dim=1)
             
-            if self._predict_keypoints:
+            if self._predict_keypoints and "kpts" in self._contact_state_modality: 
                 if instances_hands.has("pred_keypoints"):
                     keypoint_heatmaps = self.keypoint_heatmap_generator(instances_hands.pred_keypoints, instances_hands.pred_boxes.tensor)
                     c_roi = torch.cat((c_roi, keypoint_heatmaps), dim=1)

@@ -37,7 +37,8 @@ parser.add_argument('--mask_gt', action='store_true', default=False)
 parser.add_argument('--no_depth_module', dest='depth_module', action='store_false', default=True)
 parser.add_argument(
     '--contact_state_modality', 
-    default="mask+rgb+depth+kpts+fusion",  
+    default="mask+rgb+depth+fusion", 
+    #default="mask+rgb+depth+kpts+fusion",  
     help="Defines the input modalities for the contact state prediction head.", 
     type=str, 
     choices=[
@@ -126,7 +127,7 @@ def load_cfg(args, num_classes):
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.WARMUP_ITERS = args.warmup_iters
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir_short/last_training/"
+    cfg.OUTPUT_DIR = "./output_dir/last_training/"
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     setup_logger(output=cfg.OUTPUT_DIR)
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:

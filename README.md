@@ -78,8 +78,13 @@ To replicate the results of the paper, train your model using these pre-trained 
 To train the system enter the following command:
 
 ```bash
-python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json  --test_dataset_names val  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth  --mask_gt  --max_iter 20  --eval_period 10  --checkpoint_period 10 --warmup_iters 5 --no_wandb
+python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json  --test_dataset_names val  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth  --mask_gt  --max_iter 20  --eval_period 10  --checkpoint_period 10 --warmup_iters 5 --no_wandb
 ```
+
+clear && python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json  --test_dataset_names val  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth  --mask_gt  --max_iter 20  --eval_period 10  --checkpoint_period 10 --warmup_iters 5 --no_wandb
+
+python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json  --test_dataset_names val  --weights_path ./output_dir_base_alfio/last_training/model_final.pth  --mask_gt  --max_iter 20  --eval_period 10  --checkpoint_period 10 --warmup_iters 5 --no_wandb --contact_state_modality mask+rgb+depth+fusion
+
 
 ```bash
 python train.py \
@@ -111,31 +116,22 @@ wandb sync wandb/latest-run/
 
 ### Test
 To test the models run the command below:
-```
+```bash
 python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/r_test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/383__33_lf/model_final.pth 
 ```
+
+```bash
+python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/383__33_lf/model_final.pth 
+```
+
+python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./output_dir_base_alfio/last_training/model_final.pth
 
 Check more about argparse parameters in `test.py`.
 
 ### Inference
 Run the command below for an example of inference. A new folder **output_detection** will be created with the visualization:
-```
-python inference.py --weights_path <weights_path> --images_path <images_path>
-```
-
 ```bash
-python inference.py --weights_path ./weights/full_model/model_final.pth --images_path ./data/test_images/ --use_keypoints --contact_state_modality "mask+rgb+depth+keypoints+fusion" --save_features --output_dir ./output_detection_keypoints/
-```
-
-### Visualization
-
-```bash
-python visualize_predictions.py \
-    --config-file ./output_dir/last_training/cfg.yaml \
-    --weights-file ./output_dir/last_training/model_final.pth \
-    --json-file /path/to/your/dataset/test.json \
-    --num-samples 15 \
-    --output-dir ./visualization_output
+python inference.py --weights_path ./weights/383__33_lf/model_final.pth  --images_path ./data/test_images
 ```
 
 Check more about argparse parameters in `inference.py`.

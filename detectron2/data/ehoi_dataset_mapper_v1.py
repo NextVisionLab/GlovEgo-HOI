@@ -8,7 +8,7 @@ import cv2
 from . import detection_utils as utils
 from . import transforms as T
 from . import BaseEhoiDatasetMapper
-from detectron2.structures import Keypoints 
+from detectron2.structures import Keypoints, Instances
 
 from torchvision.transforms import Compose
 from detectron2.modeling.meta_arch.MiDaS.midas.transforms import Resize, NormalizeImage, PrepareForNet
@@ -31,9 +31,23 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
         image = cv2.imread(dataset_dict["file_name"])
         if image is None:
             return None
-
+        
         annotations_sup = [x for x in self._data_anns_sup['annotations'] if x['image_id'] == dataset_dict['image_id']]
         sup_ann_dict = {s_ann["id"]: s_ann for s_ann in annotations_sup}
+        
+        for i, ann in enumerate(dataset_dict["annotations"]):
+            ann_id = ann.get("id")            
+            tmp_sup_ann = sup_ann_dict.get(ann_id)
+            
+            if tmp_sup_ann:
+                contact_state_raw = tmp_sup_ann.get("contact_state", "MISSING")
+                magnitude_raw = tmp_sup_ann.get("magnitude", "MISSING")
+                ann["contact_state"] = contact_state_raw if contact_state_raw != "MISSING" else -1
+                ann["magnitude"] = float(magnitude_raw) if ann["contact_state"] == 1 else 0.0
+            else:
+                ann["contact_state"] = -1
+                ann["magnitude"] = 0.0
+
         diag = math.sqrt(image.shape[0]**2 + image.shape[1]**2)
         
         for ann in dataset_dict["annotations"]:
@@ -42,8 +56,9 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
                 ann["hand_side"] = tmp_sup_ann.get("hand_side", -1)
                 ann["contact_state"] = tmp_sup_ann.get("contact_state", -1)
                 if ann["contact_state"] == 1:
-                    ann["dx"], ann["dy"] = float(tmp_sup_ann.get("dx", 0.0)), float(tmp_sup_ann.get("dy", 0.0))
-                    ann["magnitude"] = (float(tmp_sup_ann.get("magnitude", 0.0)) / diag) * self._scale_factor
+                    ann["dx"] = float(tmp_sup_ann.get("dx", 0.0))
+                    ann["dy"] = float(tmp_sup_ann.get("dy", 0.0))
+                    ann["magnitude"] = float(tmp_sup_ann.get("magnitude", 0.0))
                 else:
                     ann["dx"], ann["dy"], ann["magnitude"] = 0.0, 0.0, 0.0
         
@@ -111,7 +126,7 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
              return None
 
         return dataset_dict
-    
+
 class EhoiDatasetMapperDepthv1(EhoiDatasetMapperv1):
 	def __init__(self, cfg, data_anns_sup = None, is_train = True, _gt = True,  **kwargs):
 		super().__init__(cfg, data_anns_sup, is_train, **kwargs)
