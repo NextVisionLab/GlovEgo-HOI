@@ -1029,3 +1029,67 @@ Category ids in annotations are not in [1, #categories]! We'll apply a mapping f
 | working area         | 59.217 | welder base            | 69.258 | socket                       | 73.246 |
 | left red button      | 74.900 | left green button      | 80.562 | right red button             | 75.840 |
 | right green button   | 78.761 | hand                   | 65.760 |                              |        |
+[08/13 00:32:52] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/13 00:32:52] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/13 00:32:52] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/13 00:32:52] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/13 00:32:52] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/13 00:32:52] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/13 00:35:38] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/13 00:35:38] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/13 00:35:38] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/13 00:35:38] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/13 00:35:38] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/13 00:35:38] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/13 00:35:40] d2.evaluation.evaluator INFO: Total inference time: 0:00:00.501647 (0.100329 s / iter per device, on 1 devices)
+[08/13 00:35:40] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:00 (0.080465 s / iter per device, on 1 devices)
+[08/13 00:35:40] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/13 00:35:40] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/13 00:35:40] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/13 00:35:40] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/13 00:35:41] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/13 00:35:41] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |
+[08/13 01:35:50] d2.data.datasets.coco WARNING: 
+Category ids in annotations are not in [1, #categories]! We'll apply a mapping for you.
+
+[08/13 01:35:50] d2.data.datasets.coco INFO: Loaded 10 images in COCO format from ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json
+[08/13 01:35:50] d2.data.common INFO: Serializing 10 elements to byte tensors and concatenating them all ...
+[08/13 01:35:50] d2.data.common INFO: Serialized dataset takes 0.09 MiB
+[08/13 01:35:50] d2.evaluation.coco_evaluation INFO: Fast COCO eval is not built. Falling back to official COCO eval.
+[08/13 01:35:50] d2.evaluation.evaluator INFO: Start inference on 10 batches
+[08/13 01:35:52] d2.evaluation.evaluator INFO: Total inference time: 0:00:00.512929 (0.102586 s / iter per device, on 1 devices)
+[08/13 01:35:52] d2.evaluation.evaluator INFO: Total inference pure compute time: 0:00:00 (0.084492 s / iter per device, on 1 devices)
+[08/13 01:35:52] d2.evaluation.coco_evaluation INFO: Preparing results for COCO format...
+[08/13 01:35:52] d2.evaluation.coco_evaluation INFO: Saving results to ./weights/383__33_lf/inference/test/coco_instances_results.json
+[08/13 01:35:52] d2.evaluation.coco_evaluation INFO: Evaluating predictions with official COCO API...
+[08/13 01:35:52] d2.evaluation.coco_evaluation INFO: Evaluating a_ehoi_core for task: bbox
+[08/13 01:35:52] d2.evaluation.coco_evaluation INFO: Evaluation results for bbox: 
+|   AP   |  AP50  |  AP75  |  APs   |  APm   |  APl   |
+|:------:|:------:|:------:|:------:|:------:|:------:|
+| 72.841 | 89.295 | 87.933 | 59.147 | 81.530 | 85.336 |
+[08/13 01:35:52] d2.evaluation.coco_evaluation INFO: Per-category bbox AP: 
+| category             | AP     | category               | AP     | category                     | AP     |
+|:---------------------|:-------|:-----------------------|:-------|:-----------------------------|:-------|
+| power supply         | 51.683 | oscilloscope           | 81.921 | welder station               | 79.109 |
+| electric screwdriver | 72.277 | screwdriver            | 25.462 | pliers                       | 56.766 |
+| welder probe tip     | 54.851 | oscilloscope probe tip | 76.667 | low voltage board            | 89.307 |
+| high voltage board   | 65.149 | register               | 95.050 | electric screwdriver battery | 79.901 |
+| working area         | 69.307 | welder base            | 76.106 | socket                       | 83.036 |
+| left red button      | 80.000 | left green button      | 85.050 | right red button             | 75.050 |
+| right green button   | 82.525 | hand                   | 77.604 |                              |        |

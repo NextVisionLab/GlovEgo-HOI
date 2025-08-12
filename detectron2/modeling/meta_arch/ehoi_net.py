@@ -3,6 +3,7 @@ from abc import abstractmethod
 import torchvision
 
 from detectron2.modeling.roi_heads.mask_head import build_mask_head
+from detectron2.modeling.roi_heads.keypoint_head import build_keypoint_head
 from .rcnn import GeneralizedRCNN
 from .build import META_ARCH_REGISTRY
 from .additional_modules import *
@@ -25,6 +26,8 @@ class EhoiNet(GeneralizedRCNN):
             pixel_std=GeneralizedRCNN_modules["pixel_std"],
             input_format=GeneralizedRCNN_modules["input_format"],
             vis_period=GeneralizedRCNN_modules["vis_period"])
+        
+        self.cfg = cfg.clone()
 
         ###ATTRIBUTI
         thing_classes = metadata.as_dict()["thing_classes"]
@@ -36,6 +39,7 @@ class EhoiNet(GeneralizedRCNN):
         self._mask_gt = cfg.ADDITIONAL_MODULES.USE_MASK_GT
         self._use_depth_module = cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE
         self._predict_keypoints = cfg.MODEL.KEYPOINT_ON
+        self._use_kpts_in_contact_state = "kpts" in self._contact_state_modality
 
         ###UTILS
         self._last_extracted_features = {}
@@ -47,7 +51,7 @@ class EhoiNet(GeneralizedRCNN):
         if self._predict_mask:
             self.build_mask_module(cfg)
         if self._predict_keypoints:
-            self.keypoint_heatmap_generator = KeypointHeatmapGenerator(cfg)
+            self.build_keypoint_module(cfg)
         
         ###DEPTH MODULE
         if self._use_depth_module: 
@@ -66,7 +70,6 @@ class EhoiNet(GeneralizedRCNN):
     def build_contact_state_head(self, cfg):
         modality = self._contact_state_modality
         
-        # Gestione dei moduli non-fusion
         if "fusion" not in modality:
             n_channels = 0
             if "rgb" in modality: n_channels += 3
@@ -80,7 +83,6 @@ class EhoiNet(GeneralizedRCNN):
                 use_pretrain = "rgb" in modality
                 return ContactStateCNNClassificationModule(cfg, n_channels=n_channels, use_pretrain_first_layer=use_pretrain)
 
-        # Gestione dei moduli fusion
         if "fusion" in modality:
             n_channels = 0
             if "rgb" in modality: n_channels += 3
@@ -105,6 +107,29 @@ class EhoiNet(GeneralizedRCNN):
         self._mask_pooler = ROIPooler(output_size=pooler_resolution, scales=pooler_scales, sampling_ratio=sampling_ratio, pooler_type=pooler_type)
         shape = ShapeSpec(channels=in_channels, width=pooler_resolution, height=pooler_resolution)
         self._mask_rcnn_head = build_mask_head(cfg, shape)
+
+    def build_keypoint_module(self, cfg):
+        in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
+        input_shape = self.backbone.output_shape()
+        pooler_resolution = cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_RESOLUTION
+        pooler_scales = tuple(1.0 / input_shape[k].stride for k in in_features)
+        sampling_ratio = cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_SAMPLING_RATIO
+        pooler_type = cfg.MODEL.ROI_KEYPOINT_HEAD.POOLER_TYPE
+        in_channels = [input_shape[f].channels for f in in_features][0]
+
+        self._keypoint_in_features = in_features
+        self._keypoint_pooler = ROIPooler(
+            output_size=pooler_resolution,
+            scales=pooler_scales,
+            sampling_ratio=sampling_ratio,
+            pooler_type=pooler_type,
+        )
+        
+        shape = ShapeSpec(channels=in_channels, width=pooler_resolution, height=pooler_resolution)
+        self._keypoint_head = build_keypoint_head(cfg, shape)
+        
+        if self._use_kpts_in_contact_state:
+            self.keypoint_heatmap_generator = KeypointHeatmapGenerator(cfg)
 
     ###EXTRACT FEATURES MAPS
     def extract_features_maps(self, batched_inputs):
