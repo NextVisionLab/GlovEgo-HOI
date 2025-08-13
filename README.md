@@ -128,6 +128,10 @@ Run the command below for an example of inference. A new folder **output_detecti
 python inference.py --weights_path ./weights/383__33_lf/model_final.pth  --images_path ./data/test_images
 ```
 
+```
+python inference.py  --images_path ./data/test_images --weights_path ./output_dir_kpt/last_training/model_0011999.pth
+```
+
 Check more about argparse parameters in `inference.py`.
 
 ## Ackowledgements

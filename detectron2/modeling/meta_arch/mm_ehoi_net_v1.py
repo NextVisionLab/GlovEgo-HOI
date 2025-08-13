@@ -58,43 +58,31 @@ class MMEhoiNetv1(EhoiNet):
         mask_losses = {}
         keypoint_losses = {}
 
-        # Se dobbiamo predire maschere o keypoint, selezioniamo le proposte positive una sola volta
         if self._predict_mask or self._predict_keypoints:
             proposals_fg, _ = select_foreground_proposals(proposals_match, self._num_classes)
         
-            # 1. Logica per la MASK HEAD (rimane quasi identica)
             if self._predict_mask:
                 features_mask = self._mask_pooler([features[f] for f in self._mask_in_features], [x.proposal_boxes for x in proposals_fg])
                 pred_mask_logits = self._mask_rcnn_head.layers(features_mask)
                 if self._mask_gt:
                     mask_losses = {"loss_mask": mask_rcnn_loss(pred_mask_logits, proposals_fg) * self._mask_rcnn_head.loss_weight}
-                # Aggiorniamo le proposte con le maschere predette per l'uso successivo
                 proposals_match = mask_rcnn_inference_in_training(pred_mask_logits, proposals_fg)
             
-            # 2. Logica per la KEYPOINT HEAD (corretta)
             if self._predict_keypoints:
-                # Filtriamo le proposte per avere solo quelle delle mani, che hanno GT per i keypoint
                 proposals_hands_kpts = [p[p.gt_classes == self._id_hand] for p in proposals_fg]
                 
-                # Estraiamo le features corrispondenti
                 features_kpts = self._keypoint_pooler(
                     [features[f] for f in self._keypoint_in_features], 
                     [x.proposal_boxes for x in proposals_hands_kpts]
                 )
                 
-                # Controlliamo se ci sono mani nel batch per evitare errori
                 if features_kpts.shape[0] > 0:
-                    # La KeypointHead, se chiamata con le istanze GT, calcola già la loss.
-                    # Il suo output è un dizionario di loss, es. {"loss_keypoint": ...}.
                     keypoint_losses = self._keypoint_head(features_kpts, proposals_hands_kpts)
                     
-                    # Moltiplichiamo per il peso della loss (a volte ridondante, ma sicuro)
                     weight = self.cfg.MODEL.ROI_KEYPOINT_HEAD.LOSS_WEIGHT
                     for k in keypoint_losses.keys():
                         keypoint_losses[k] *= weight
                 else:
-                    # Se non ci sono mani, la loss è zero. Lo definiamo esplicitamente.
-                    # Questo previene crash e assicura che keypoint_losses esista sempre.
                     keypoint_losses = {"loss_keypoint": torch.tensor(0.0, device=features['p2'].device)}
 
         self._prepare_hands_features(batched_inputs, proposals_match)
@@ -308,6 +296,7 @@ class MMEhoiNetv1(EhoiNet):
                 channels_to_cat.append(roi_kpts)
 
             self._c_hands_features_cnn = torch.cat(channels_to_cat, dim=1)
+            self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="train")
         
     def _prepare_hands_features_inference(self, batched_inputs, instances_hands):
         image_width, image_height = batched_inputs[0]['width'], batched_inputs[0]['height']
@@ -356,19 +345,44 @@ class MMEhoiNetv1(EhoiNet):
             
             if len(channels_to_cat) > 0:
                 self._c_hands_features_cnn = torch.cat(channels_to_cat, dim=1)
-
+                self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="inference", img_to_save=3)
 
     def debug_roi(self, c_roi, batched_inputs, phase, img_to_save=5):
         if not hasattr(self, "_debug_save_count"): self._debug_save_count = 0
         if self._debug_save_count >= img_to_save: return
+
         if c_roi.shape[0] > 0:
             first_hand_roi = c_roi[0].detach().cpu().numpy()
-            image_id = batched_inputs[0].get("image_id", "unknown")
+
+            if "file_name" in batched_inputs[0]:
+                image_name = os.path.splitext(os.path.basename(batched_inputs[0]["file_name"]))[0]
+            else:
+                image_name = batched_inputs[0].get("image_id", "unknown")
+
             debug_dir = os.path.join(self.cfg.OUTPUT_DIR, "debug_rois")
             os.makedirs(debug_dir, exist_ok=True)
-            rgb_roi = np.transpose(first_hand_roi[:3], (1, 2, 0))
-            cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_id}_0_rgb.png"), (rgb_roi * 255).astype(np.uint8))
-            cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_id}_1_depth.png"), (first_hand_roi[3] * 255).astype(np.uint8))
-            cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_id}_2_mask.png"), (first_hand_roi[4] * 255).astype(np.uint8))
-            print(f"--- DEBUG: Saved RoI for image {image_id} to {debug_dir} ---")
+            
+            # RGB (3 channels) 
+            rgb_roi_chw = first_hand_roi[:3]
+            rgb_roi_hwc = np.transpose(rgb_roi_chw, (1, 2, 0))
+            cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_0_rgb.png"), rgb_roi_hwc)
+
+            # Depth (1 channel) 
+            if first_hand_roi.shape[0] > 3:
+                depth_roi = (first_hand_roi[3] * 255).astype(np.uint8)
+                cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_1_depth.png"), depth_roi)
+
+            # Mask (1 channel) 
+            if first_hand_roi.shape[0] > 4:
+                mask_roi = (first_hand_roi[4] * 255).astype(np.uint8)
+                cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_2_mask.png"), mask_roi)
+
+            # Keypoints (1 channel) 
+            if self._use_kpts_in_contact_state and first_hand_roi.shape[0] > 5:
+                kpts_heatmap_roi = first_hand_roi[5]
+                kpts_heatmap_vis = cv2.normalize(kpts_heatmap_roi, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                kpts_heatmap_color = cv2.applyColorMap(kpts_heatmap_vis, cv2.COLORMAP_JET)
+                cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_3_kpts_heatmap.png"), kpts_heatmap_color)
+            
+            print(f"--- DEBUG: Saved RoI for image {image_name} to {debug_dir} ---")
             self._debug_save_count += 1
