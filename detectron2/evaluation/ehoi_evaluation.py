@@ -153,7 +153,7 @@ class EHOIEvaluator(DatasetEvaluator):
                 eval_target.evaluate(); eval_target.accumulate(); eval_target.summarize()
                 coco_results["mAP Target Objects"] = round(eval_target.stats[0] * 100, 2) if eval_target.stats[0] > -1 else 0.0
             else:
-                coco_results["mAP Target Objects"] = -100.0 # Segnala che non è stato possibile calcolarla
+                coco_results["mAP Target Objects"] = -1
 
             ##### HAND + SIDE
             eval_side = CustomHandSideCOCOeval(self._coco_gt, cocoPreds, annType)

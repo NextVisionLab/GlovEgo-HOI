@@ -88,19 +88,12 @@ class Converter:
         pass
     
     def generate_confident_instances(self, instances):
-        confident_instances = instances[instances.scores >= self._thresh_objs]
-        return self._nms(confident_instances)
-
-    def _nms(self, confident_instances):
-        confident_instances.to(torch.device("cpu"))
-        if "pred_boxes" in confident_instances.get_fields():
-            keep = nms(confident_instances.pred_boxes.tensor, confident_instances.scores.float(), self._nms_thresh)
-        elif "boxes" in confident_instances.get_fields():
-            keep = nms(confident_instances.boxes, confident_instances.scores.float(), self._nms_thresh)
-        else:
-            assert False
-        confident_instances = confident_instances[keep]
-        return confident_instances
+        confident_mask = instances.scores >= self._thresh_objs
+        confident_instances = instances[confident_mask]
+        if len(confident_instances) == 0: return confident_instances
+        keep = nms(confident_instances.pred_boxes.tensor, confident_instances.scores.float(), self._nms_thresh)
+        final_instances = confident_instances[keep]
+        return final_instances
 
 class MMEhoiNetConverterv1(Converter):
     def __init__(self, cfg, metadata) -> None:

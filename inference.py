@@ -29,15 +29,15 @@ parser.add_argument('--seed', type=int, default=0, metavar='S', help='random see
 parser.add_argument('--cuda_device', default=0, help='CUDA device id', type=int)
 parser.add_argument('--images_path', type=str, help='directory/file to load images')
 parser.add_argument('--video_path', type=str, help='video to process')
-parser.add_argument('--save_dir', type=str, help='directory to save results', default = "./output_detection/")
+parser.add_argument('--save_dir', type=str, help='directory to save results', default = "./output_dir_kpt/inference/")
 parser.add_argument('--skip_the_fist_frames', type=int, help='skip the first n frames of the video.', default = 0)
 parser.add_argument('--duration_of_record_sec', type=int, help='time (seconds) of the video to process', default = 10000000)
 parser.add_argument('--hide_depth', action='store_true', default=False)
 parser.add_argument('--hide_ehois', action='store_true', default=False)
 parser.add_argument('--hide_bbs', action='store_true', default=False)
 parser.add_argument('--hide_masks', action='store_true', default=False)
-parser.add_argument('--save_masks', action='store_true', help='save masks of the image (only supported for images)', default=False)
-parser.add_argument('--save_depth_map', action='store_true', help='save depth of the image (only supported for images)', default=False)
+parser.add_argument('--save_masks', action='store_true', help='save masks of the image (only supported for images)', default=True)
+parser.add_argument('--save_depth_map', action='store_true', help='save depth of the image (only supported for images)', default=True)
 parser.add_argument('--thresh', help='thresh of the score', default=0.5, type = float)
 
 args = parser.parse_args()
@@ -64,7 +64,7 @@ def load_cfg():
     cfg.DATASETS.TEST = ("val_set",)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(metadata.as_dict()["thing_dataset_id_to_contiguous_id"])
     cfg.MODEL.WEIGHTS = weights_path
-    cfg.OUTPUT_DIR = "./output_dir/test"
+    cfg.OUTPUT_DIR = args.save_dir
     
     cfg.ADDITIONAL_MODULES.NMS_THRESH = args.nms
     cfg.UTILS.VISUALIZER.THRESH_OBJS = args.thresh
@@ -96,7 +96,7 @@ def main():
     device = "cuda:" + str(args.cuda_device) if not args.no_cuda else "cpu"
     model.to(device)
     model.eval()
-    print("Modello caricato:", model.device)
+    print("Model loaded:", model.device)
 
     #VISUALIZER AND MAPPER
     visualizer = EhoiVisualizerv1(cfg, metadata, converter, ** kwargs)
@@ -147,7 +147,7 @@ def main():
                     
                     image = cv2.imread(os.path.join(args.images_path, file))
                     r_ = model([mapper(image)])
-                    msg = f"\nfile checked: {id_} of {n_files} \t\nInference times:\n{format_times(model._last_inference_times)}"
+                    msg = f"\nfile checked: {id_+1} of {n_files} \t\nInference times:\n{format_times(model._last_inference_times)}"
                     print(msg)
                     clear_output(msg)
                     im_r = visualizer.draw_results(image, r_[0], **kwargs)
