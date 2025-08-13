@@ -1,10 +1,9 @@
 # import some common libraries
 import argparse
 import numpy as np
-import cv2
 import random
 import os
-import copy
+import logging
 import json
 import torch
 from collections import OrderedDict
@@ -74,8 +73,12 @@ def main():
     cfg.MODEL.WEIGHTS = args.weights
     cfg.OUTPUT_DIR = args.weights[:args.weights.rfind("/") + 1]
     os.makedirs(cfg.OUTPUT_DIR, exist_ok = True)
+
+    log_file_path = os.path.join(cfg.OUTPUT_DIR, "log_test.txt")
+    setup_logger(output=log_file_path) 
+    logger = logging.getLogger("detectron2")
+    
     cfg.freeze()
-    setup_logger(output = cfg.OUTPUT_DIR)
 
     ###INIT MODEL
     if "EHOINET_VERSION" not in cfg or cfg.EHOINET_VERSION == 1:
@@ -94,18 +97,17 @@ def main():
     ###OUTPUT
     bbox_results = results.get('bbox', {})
     ehoi_results = results.get('ehoi', {})
-
-    print("\n" + "="*80)
-    print(" EVALUATION RESULTS ")
-    print("="*80)
     
-    print("\n--- [ Task: Standard Object Detection (COCOEvaluator) ] ---\n")
+    logger.info("\n\n")
+    logger.info(" EVALUATION RESULTS ".center(80, "="))
+    
+    logger.info("\n\n--- [ Task: Standard Object Detection (COCOEvaluator) ] ---")
     for key, value in bbox_results.items():
-        print(f"{key:<35} : {value:.2f}")
+        logger.info(f"{key:<35} : {value:.2f}")
     
-    print("\n--- [ Task: Egocentric HOI Evaluation (EHOIEvaluator) ] ---\n")
+    logger.info("\n\n--- [ Task: Egocentric HOI Evaluation (EHOIEvaluator) ] ---")
     for key, value in ehoi_results.items():
-        print(f"{key:<35} : {value:.2f}")
+        logger.info(f"{key:<35} : {value:.2f}")
     
     ap_hand = bbox_results.get('AP-hand', 0.0)
     map_objects = bbox_results.get('AP', 0.0)
@@ -113,23 +115,23 @@ def main():
     ap_hand_side = ehoi_results.get('AP Hand + Side', 0.0)
     ap_hand_state = ehoi_results.get('AP Hand + State', 0.0)
     map_all_hoi = ehoi_results.get('mAP All', 0.0)
-
-    print("\n" + "="*80)
-    print(f"MMEhoiNetv1 PERFORMANCE SUMMARY")
-    print("="*80)
     
-    print(separator)
-    print(header)
-    print(separator)
+    summary_string = "\n"
+    summary_string += "="*80 + "\n"
+    summary_string += "MMEhoiNetv1 PERFORMANCE SUMMARY\n"
+    summary_string += "="*80 + "\n"
+    summary_string += separator + "\n"
+    summary_string += header + "\n"
+    summary_string += separator + "\n"
+    summary_string += f"| {'Object Detection (mAP)':<28} | {map_objects:>9.2f} |\n"
+    summary_string += f"| {'Hand Detection (AP)':<28} | {ap_hand:>9.2f} |\n"
+    summary_string += f"| {'Target Object (mAP)':<28} | {map_target_objects:>9.2f} |\n"
+    summary_string += f"| {'Hand Side (AP)':<28} | {ap_hand_side:>9.2f} |\n"
+    summary_string += f"| {'Contact State (AP)':<28} | {ap_hand_state:>9.2f} |\n"
+    summary_string += f"| {f'Overall HOI (mAP All)':<28} | {map_all_hoi:>9.2f} |\n"
+    summary_string += separator
     
-    print_row("Object Detection (mAP)", map_objects)
-    print_row("Hand Detection (AP)", ap_hand)
-    print_row("Target Object (mAP)", map_target_objects)
-    print_row("Hand Side (AP)", ap_hand_side)
-    print_row("Contact State (AP)", ap_hand_state)
-    print_row(f"Overall HOI (mAP All) ", map_all_hoi)
-    
-    print(separator)
+    logger.info(summary_string)
 
 if __name__ == "__main__":
     main()

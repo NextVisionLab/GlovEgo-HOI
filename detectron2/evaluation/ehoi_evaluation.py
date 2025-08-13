@@ -3,6 +3,7 @@ import torch
 import os
 import numpy as np
 import copy
+import logging
 
 from _pycocotools.coco import COCO
 from _pycocotools.cocoeval import COCOeval
@@ -23,6 +24,7 @@ class EHOIEvaluator(DatasetEvaluator):
     def __init__(self, cfg, dataset_name, converter):
         self._cfg = cfg
         self._output_dir = os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
+        self._logger = logging.getLogger(__name__)
         
         self._metadata = MetadataCatalog.get(dataset_name)
         self._thing_classes = self._metadata.as_dict()["thing_classes"]
@@ -69,18 +71,18 @@ class EHOIEvaluator(DatasetEvaluator):
             additional_outputs = output.get("additional_outputs")
             instances_with_hand_data = None
             
-            if additional_outputs:
+            if additional_outputs is not None and additional_outputs.has("pred_boxes"):
                 instances_with_hand_data = additional_outputs
+            
             elif instances.has("sides") and instances.has("contact_states"):
                 hand_indices = (instances.pred_classes == self._id_hand)
                 instances_with_hand_data = instances[hand_indices]
-            
+
             if instances_with_hand_data is not None and len(instances_with_hand_data) > 0:
                 if instances_with_hand_data.has("boxes") and not instances_with_hand_data.has("pred_boxes"):
                     instances_with_hand_data.pred_boxes = instances_with_hand_data.boxes
-                
+
                 confident_instances = self._converter.generate_confident_instances(instances)
-        
                 predictions, predictions_target = self._converter.generate_predictions(
                     image_id, 
                     confident_instances, 
@@ -100,6 +102,10 @@ class EHOIEvaluator(DatasetEvaluator):
         
         filtered_hoi_predictions = [p for p in self._predictions if p['image_id'] in valid_hand_gt_img_ids]
         filtered_target_predictions = [p for p in self._predictions_targets if p['image_id'] in valid_target_gt_img_ids]
+
+        if len(filtered_hoi_predictions) == 0:
+            self._logger.warning("No HOI predictions found after confidence filtering. Skipping EHOI evaluation.")
+            return {"ehoi": {}}
         
         cocoPreds = self._coco_gt.loadRes(filtered_hoi_predictions)
         coco_dt_all = self._coco_gt_all.loadRes(self._predictions_all)
