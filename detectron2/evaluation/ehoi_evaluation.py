@@ -93,7 +93,7 @@ class EHOIEvaluator(DatasetEvaluator):
                 self._prediction_counter += len(predictions)
                 self._prediction_target_counter += len(predictions_target)
 
-            confident_instances_all = self._converter._nms(instances)
+            confident_instances_all = self._converter.generate_confident_instances(instances)
             self._predictions_all.extend(self._converter.convert_instances_to_coco(confident_instances_all, image_id, convert_boxes_xywh_abs = True))
 
     def evaluate(self):
