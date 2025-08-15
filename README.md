@@ -125,7 +125,7 @@ Check more about argparse parameters in `test.py`.
 ### Inference
 Run the command below for an example of inference. A new folder **output_detection** will be created with the visualization:
 ```bash
-python inference.py --weights_path ./weights/383__33_lf/model_final.pth  --images_path ./data/test_images
+python inference.py  --images_path ./data/test_images --weights_path ./weights/383__33_lf/model_final.pth
 ```
 
 ```

@@ -348,41 +348,50 @@ class MMEhoiNetv1(EhoiNet):
                 self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="inference", img_to_save=3)
 
     def debug_roi(self, c_roi, batched_inputs, phase, img_to_save=5):
-        if not hasattr(self, "_debug_save_count"): self._debug_save_count = 0
-        if self._debug_save_count >= img_to_save: return
-
-        if c_roi.shape[0] > 0:
+        if not hasattr(self, f"_debug_save_count_{phase}"):
+            setattr(self, f"_debug_save_count_{phase}", 0)
+        
+        save_count = getattr(self, f"_debug_save_count_{phase}")
+        if save_count >= img_to_save: return
+        
+        if c_roi is not None and c_roi.shape[0] > 0:
             first_hand_roi = c_roi[0].detach().cpu().numpy()
-
-            if "file_name" in batched_inputs[0]:
-                image_name = os.path.splitext(os.path.basename(batched_inputs[0]["file_name"]))[0]
-            else:
-                image_name = batched_inputs[0].get("image_id", "unknown")
+            
+            file_name = batched_inputs[0].get("file_name", f"unknown_{save_count}.png")
+            image_name = os.path.splitext(os.path.basename(file_name))[0]
 
             debug_dir = os.path.join(self.cfg.OUTPUT_DIR, "debug_rois")
             os.makedirs(debug_dir, exist_ok=True)
             
-            # RGB (3 channels) 
-            rgb_roi_chw = first_hand_roi[:3]
-            rgb_roi_hwc = np.transpose(rgb_roi_chw, (1, 2, 0))
-            cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_0_rgb.png"), rgb_roi_hwc)
+            channel_map = {}
+            current_channel = 0
+            if "rgb" in self._contact_state_modality:
+                channel_map["rgb"] = slice(current_channel, current_channel + 3); current_channel += 3
+            if "depth" in self._contact_state_modality:
+                channel_map["depth"] = current_channel; current_channel += 1
+            if "mask" in self._contact_state_modality:
+                channel_map["mask"] = current_channel; current_channel += 1
+            if "kpts" in self._contact_state_modality:
+                channel_map["kpts"] = current_channel; current_channel += 1
+            
+            if "rgb" in channel_map and first_hand_roi.shape[0] >= channel_map["rgb"].stop:
+                rgb_roi_chw = first_hand_roi[channel_map["rgb"]]
+                rgb_roi_hwc = np.transpose(rgb_roi_chw, (1, 2, 0))
+                rgb_uint8 = (rgb_roi_hwc * 255).astype(np.uint8)
+                cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_0_rgb.png"), rgb_uint8)
 
-            # Depth (1 channel) 
-            if first_hand_roi.shape[0] > 3:
+            if "depth" in channel_map and first_hand_roi.shape[0] > channel_map["depth"]:
                 depth_roi = (first_hand_roi[3] * 255).astype(np.uint8)
                 cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_1_depth.png"), depth_roi)
-
-            # Mask (1 channel) 
-            if first_hand_roi.shape[0] > 4:
-                mask_roi = (first_hand_roi[4] * 255).astype(np.uint8)
-                cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_2_mask.png"), mask_roi)
-
-            # Keypoints (1 channel) 
-            if self._use_kpts_in_contact_state and first_hand_roi.shape[0] > 5:
-                kpts_heatmap_roi = first_hand_roi[5]
-                kpts_heatmap_vis = cv2.normalize(kpts_heatmap_roi, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-                kpts_heatmap_color = cv2.applyColorMap(kpts_heatmap_vis, cv2.COLORMAP_JET)
-                cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_3_kpts_heatmap.png"), kpts_heatmap_color)
             
-            print(f"--- DEBUG: Saved RoI for image {image_name} to {debug_dir} ---")
-            self._debug_save_count += 1
+            if "mask" in channel_map and first_hand_roi.shape[0] > channel_map["mask"]:
+                mask_roi_uint8 = (first_hand_roi[channel_map["mask"]] * 255).astype(np.uint8)
+                cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_2_mask.png"), mask_roi_uint8)
+            
+            if "kpts" in channel_map and first_hand_roi.shape[0] > channel_map["kpts"]:
+                kpt_heatmap = first_hand_roi[channel_map["kpts"]]
+                kpt_heatmap_uint8 = (kpt_heatmap * 255).astype(np.uint8)
+                kpt_heatmap_color = cv2.applyColorMap(kpt_heatmap_uint8, cv2.COLORMAP_JET)
+                cv2.imwrite(os.path.join(debug_dir, f"debug_{phase}_{image_name}_3_kpts_heatmap.png"), kpt_heatmap_color)
+
+            setattr(self, f"_debug_save_count_{phase}", save_count + 1)

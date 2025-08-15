@@ -1,24 +1,27 @@
-# import some common libraries
+# Common libraries
+import argparse
 import numpy as np
 import cv2
 import random
 import os
 import torch
-from typing import Dict, List
-import argparse
 import sys
+from tqdm import tqdm
 
-# import some common detectron2 utilities
-from detectron2.config import CfgNode
+# Detectron2 utilities
+from detectron2.config import get_cfg, CfgNode
 from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.data import MetadataCatalog, DatasetCatalog,  SimpleMapper
-from detectron2.data.datasets import register_coco_instances
-from detectron2.data.ehoi_dataset_mapper_v1 import *
-from detectron2.modeling.meta_arch.mm_ehoi_net_v1 import MMEhoiNetv1
-from detectron2.utils.custom_visualizer import *
-from detectron2.utils.converters import *
+from detectron2.data import MetadataCatalog
+from detectron2.data.datasets import register_coco_instances, load_coco_json
+from detectron2.data.detection_utils import read_image
 
-##### ArgumentParser
+# Project-specific modules
+from detectron2.modeling.meta_arch.mm_ehoi_net_v1 import MMEhoiNetv1
+from detectron2.utils.custom_visualizer import EhoiVisualizerv1
+from detectron2.utils.converters import MMEhoiNetConverterv1
+from detectron2.data import SimpleMapper
+
+# Command-line arguments
 parser = argparse.ArgumentParser(description='Inference script')
 parser.add_argument('--dataset', dest='ref_dataset_json', help='reference json', default='./data/ref_enigma.json', type=str)
 parser.add_argument('-w', '--weights_path', dest='weights', help='weights path', type=str, required = True)
@@ -42,30 +45,30 @@ parser.add_argument('--thresh', help='thresh of the score', default=0.5, type = 
 
 args = parser.parse_args()
 
+
 def format_times(times_dict):
-    str_ = ""
-    for k, v in times_dict.items():
-        str_+= f"\t{k}: {v} ms\t\n"
-    return str_
+    """Formats the inference time dictionary for printing."""
+    if not times_dict:
+        return ""
+    return "\n".join([f"\t{k}: {v} ms" for k, v in times_dict.items()])
 
-def clear_output(str_):
-    for i in range(str_.count('\n') + 1):
-        sys.stdout.write("\033[K\033[F")
-
-def load_cfg():
-    register_coco_instances("val_set", {}, args.ref_dataset_json, args.ref_dataset_json)
-    _ = DatasetCatalog.get("val_set")
-    metadata = MetadataCatalog.get("val_set")
-    weights_path = args.weights
-    cfg_path = os.path.join(weights_path.split("model_")[0], "cfg.yaml") if not args.cfg_path else args.cfg_path
-
+def setup_cfg(args, metadata):
+    """Loads model configuration from the YAML file associated with the weights."""
+    cfg_path = args.cfg_path or os.path.join(os.path.dirname(args.weights), "cfg.yaml")
+    if not os.path.exists(cfg_path):
+        raise FileNotFoundError(f"Config file not found. Expected at '{cfg_path}' or specify with --cfg_path.")
+    
     cfg = CfgNode(CfgNode.load_yaml_with_base(cfg_path))
     cfg.set_new_allowed(True)
-    cfg.DATASETS.TEST = ("val_set",)
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(metadata.as_dict()["thing_dataset_id_to_contiguous_id"])
-    cfg.MODEL.WEIGHTS = weights_path
+
+    # Override settings for inference
+    cfg.MODEL.WEIGHTS = args.weights
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = args.thresh
+    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = args.nms
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = len(metadata.thing_classes)
     cfg.OUTPUT_DIR = args.save_dir
     
+    # Custom module settings
     cfg.ADDITIONAL_MODULES.NMS_THRESH = args.nms
     cfg.UTILS.VISUALIZER.THRESH_OBJS = args.thresh
     cfg.UTILS.VISUALIZER.DRAW_EHOI = not args.hide_ehois
@@ -73,117 +76,103 @@ def load_cfg():
     cfg.UTILS.VISUALIZER.DRAW_OBJS = not args.hide_bbs
     cfg.UTILS.VISUALIZER.DRAW_DEPTH = not args.hide_depth
 
-    os.makedirs(cfg.OUTPUT_DIR, exist_ok = True)
+    os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     cfg.freeze()
-
     return cfg, metadata
 
-def main():
-    kwargs = {}
-    kwargs["cuda_device"] = args.cuda_device
+def process_images(args, model, mapper, visualizer):
+    """Processes a single image or a directory of images."""
+    image_paths = []
+    if os.path.isdir(args.images_path):
+        image_paths = [os.path.join(args.images_path, f) for f in sorted(os.listdir(args.images_path)) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    else:
+        image_paths.append(args.images_path)
 
+    save_dir_images = os.path.join(args.save_dir, "images_processed")
+    os.makedirs(save_dir_images, exist_ok=True)
+
+    for image_path in tqdm(image_paths, desc="Processing Images"):
+        # The mapper requires a file path to include 'file_name' in the output dict
+        model_input = mapper(image_path)
+        predictions = model([model_input])[0]
+        
+        original_image = cv2.imread(image_path)
+        vis_output = visualizer.draw_results(original_image, predictions)
+        
+        output_fname = os.path.basename(image_path)
+        cv2.imwrite(os.path.join(save_dir_images, output_fname), vis_output)
+
+def process_video(args, model, mapper, visualizer):
+    """Processes a video file frame by frame."""
+    video_capture = cv2.VideoCapture(args.video_path)
+    width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = video_capture.get(cv2.CAP_PROP_FPS)
+    total_frames = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    save_dir_videos = os.path.join(args.save_dir, "videos_processed")
+    os.makedirs(save_dir_videos, exist_ok=True)
+    output_fname = os.path.basename(args.video_path)
+    video_writer = cv2.VideoWriter(os.path.join(save_dir_videos, f"processed_{output_fname}"), 
+                                   cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+
+    frame_count = 0
+    max_frames = args.duration_of_record_sec * fps + args.skip_the_fist_frames
+    
+    with tqdm(total=min(total_frames, max_frames), desc="Processing Video") as pbar:
+        while True:
+            has_frame, frame = video_capture.read()
+            if not has_frame or frame_count >= max_frames:
+                break
+            
+            frame_count += 1
+            if frame_count <= args.skip_the_fist_frames:
+                pbar.update(1)
+                continue
+            
+            model_input = mapper(frame)
+            predictions = model([model_input])[0]
+            
+            vis_output = visualizer.draw_results(frame, predictions)
+            video_writer.write(vis_output)
+            pbar.update(1)
+            
+    video_capture.release()
+    video_writer.release()
+
+def main():
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     np.random.seed(args.seed)
-    cfg, metadata = load_cfg()
 
-    ###INIT MODEL
+    # Load metadata
+    register_coco_instances("inference_ref", {}, args.ref_dataset_json, os.path.dirname(args.ref_dataset_json))
+    load_coco_json(args.ref_dataset_json, os.path.dirname(args.ref_dataset_json), "inference_ref")
+    metadata = MetadataCatalog.get("inference_ref")
+
+    # Setup configuration and model
+    cfg, metadata = setup_cfg(args, metadata)
     converter = MMEhoiNetConverterv1(cfg, metadata)
     model = MMEhoiNetv1(cfg, metadata)
 
-    ####INIT MODEL
+    # Load weights
     DetectionCheckpointer(model).load(cfg.MODEL.WEIGHTS)
-    device = "cuda:" + str(args.cuda_device) if not args.no_cuda else "cpu"
+    device = "cuda:" + str(args.cuda_device) if not args.no_cuda and torch.cuda.is_available() else "cpu"
     model.to(device)
     model.eval()
     print("Model loaded:", model.device)
 
-    #VISUALIZER AND MAPPER
-    visualizer = EhoiVisualizerv1(cfg, metadata, converter, ** kwargs)
+    # Initialize visualizer and mapper
+    visualizer = EhoiVisualizerv1(cfg, metadata, converter, cuda_device=args.cuda_device)
     mapper = SimpleMapper(cfg)
 
-    os.makedirs(args.save_dir, exist_ok = True)
-    
     with torch.no_grad():
-
-        ###PROC IMAGES
         if args.images_path:
-            
-            #### kwargs init
-            kwargs = {}
-            kwargs["save_masks"] = args.save_masks
-            kwargs["save_depth_map"] = args.save_depth_map
-            if args.save_masks: 
-                os.makedirs(os.path.join(args.save_dir, "masks_processed/"), exist_ok = True)
-            if args.save_depth_map:
-                os.makedirs(os.path.join(args.save_dir, "depth_maps_processed/"), exist_ok = True)
-            save_dir_images = os.path.join(args.save_dir, "images_processed")
-            os.makedirs(save_dir_images, exist_ok = True)
-            
-            ####IMAGE
-            if args.images_path.lower().endswith(('.png', '.jpg', '.jpeg')):
-                image = cv2.imread(args.images_path)
-                r_ = model([mapper(image)])
-                print(f"Inference times:\n {format_times(model._last_inference_times)}")
+            process_images(args, model, mapper, visualizer)
+        elif args.video_path:
+            process_video(args, model, mapper, visualizer)
 
-                ####kwargs
-                if args.save_masks: 
-                    kwargs["save_masks_path"] = os.path.join(args.save_dir, "masks_processed/" + args.images_path.split("/")[-1].split(".")[0] + "_masks.png")
-                if args.save_depth_map: 
-                    kwargs["save_depth_map_path"] = os.path.join(args.save_dir, "depth_maps_processed/" + args.images_path.split("/")[-1].split(".")[0] + "_depth_map.png")
-
-                im_r = visualizer.draw_results(image, r_[0], **kwargs)
-                filename = args.images_path.split("/")[-1]
-                save_path = os.path.join(save_dir_images, filename)
-                cv2.imwrite(save_path, im_r)
-
-            elif os.path.isdir(args.images_path):
-                n_files = len(os.listdir(args.images_path))
-                for id_, file in enumerate(os.listdir(args.images_path)):
-                    if args.save_masks: 
-                        kwargs["save_masks_path"] = os.path.join(args.save_dir, "masks_processed/" + file.split(".")[0] + "_masks.png")
-                    if args.save_depth_map: 
-                        kwargs["save_depth_map_path"] = os.path.join(args.save_dir, "depth_maps_processed/" + file.split(".")[0] + "_depth_map.png")
-                    
-                    image = cv2.imread(os.path.join(args.images_path, file))
-                    r_ = model([mapper(image)])
-                    msg = f"\nfile checked: {id_+1} of {n_files} \t\nInference times:\n{format_times(model._last_inference_times)}"
-                    print(msg)
-                    clear_output(msg)
-                    im_r = visualizer.draw_results(image, r_[0], **kwargs)
-                    save_path = os.path.join(save_dir_images, file)
-                    cv2.imwrite(save_path, im_r)
-                print(msg)
-
-        if args.video_path:
-            save_dir_videos = os.path.join(args.save_dir, "videos_processed")
-            os.makedirs(save_dir_videos, exist_ok = True)
-            ####VIDEO
-            if args.video_path.lower().endswith(('.mp4', '.avi')):
-                filename = args.video_path.split("/")[-1]
-                save_video_path = os.path.join(save_dir_videos, "p_" + filename)
-                current_video_cap = cv2.VideoCapture(args.video_path)
-                ret, frame = current_video_cap.read()
-                r_ = model([mapper(frame)])
-                im_r = visualizer.draw_results(frame, r_[0])
-                current_video_writer = cv2.VideoWriter(save_video_path, cv2.VideoWriter_fourcc(*'mp4v'), current_video_cap.get(5), (im_r.shape[1], im_r.shape[0]))
-                duration_of_record_frames = args.duration_of_record_sec * current_video_cap.get(5) + args.skip_the_fist_frames
-                while(ret):
-                    frame_number = int(current_video_cap.get(1)) - 1
-                    if frame_number > args.skip_the_fist_frames:
-                        r_ = model([mapper(frame)])
-                        msg = f"frame nr: {frame_number  - args.skip_the_fist_frames} of {int(min(current_video_cap.get(7) - args.skip_the_fist_frames, duration_of_record_frames  - args.skip_the_fist_frames))} \t\nInference times\n{format_times(model._last_inference_times)}"
-                        print(msg)
-                        clear_output(msg)
-                        im_r = visualizer.draw_results(frame, r_[0])
-                        current_video_writer.write(im_r.astype(np.uint8))
-                    if frame_number >= duration_of_record_frames: break
-                    ret, frame = current_video_cap.read()
-
-                current_video_cap.release()
-                current_video_writer.release()
-
-    print("Done.")
+    print("\nDone.")
 
 if __name__ == "__main__":
     main()

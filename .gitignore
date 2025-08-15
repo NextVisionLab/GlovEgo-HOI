@@ -59,6 +59,7 @@ output_dir_base/
 output_dir_base_alfio/
 output_dir_base_rosario/
 output_dir_kpt/
+output_dir_kpt_short/
 output_dir_kpt_glove/
 
 ###wandb logs dir
