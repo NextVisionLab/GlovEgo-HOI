@@ -1,4 +1,3 @@
-# import some common libraries
 import argparse
 import numpy as np
 import random
@@ -9,6 +8,7 @@ import logging
 import wandb
 from collections import OrderedDict
 from telegram_notifier import notify
+import sys
 
 # import some common detectron2 utilities
 from detectron2.config import get_cfg 
@@ -32,9 +32,8 @@ parser.add_argument('--weights_path', dest='weights', help='weights path', type=
 parser.add_argument('--seed', type=int, default=0, metavar='S', help='random seed (default: 0)')
 parser.add_argument('--test_json', dest='test_json', nargs='*', help='test json paths', type=str)
 parser.add_argument('--test_dataset_names', dest='test_dataset_names', nargs='*', help='test dataset names', type=str)
-parser.add_argument('--no_predict_mask', dest='predict_mask', action='store_false', default=True)
 parser.add_argument('--mask_gt', action='store_true', default=False)
-parser.add_argument('--no_depth_module', dest='depth_module', action='store_false', default=True)
+parser.add_argument('--keypoints_gt', action='store_true', default=False)
 parser.add_argument(
     '--contact_state_modality', 
     default="mask+rgb+depth+kpts+fusion",  
@@ -108,40 +107,56 @@ def load_cfg(args, num_classes):
     cfg.set_new_allowed(True)
     cfg.merge_from_file("./configs/COCO-Detection/faster_rcnn_R_101_FPN_3x.yaml")
     cfg.merge_from_file("./configs/Custom/custom.yaml")
+    
     cfg.DATASETS.TRAIN = ("dataset_train",)
     cfg.DATASETS.TEST = tuple(args.test_dataset_names)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = num_classes
+    
+    # Mask
+    cfg.ADDITIONAL_MODULES.USE_MASK = "mask" in args.contact_state_modality
     cfg.ADDITIONAL_MODULES.USE_MASK_GT = args.mask_gt
-    cfg.ADDITIONAL_MODULES.USE_MASK =  True if "mask" in args.contact_state_modality else args.predict_mask
-    cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE = True if "depth" in args.contact_state_modality else args.depth_module
+    
+    # Depth
+    cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE = "depth" in args.contact_state_modality
+    
+    # Keypoints
+    cfg.MODEL.KEYPOINT_ON = "kpts" in args.contact_state_modality
+    cfg.ADDITIONAL_MODULES.KEYPOINTS = "kpts" in args.contact_state_modality
+    cfg.ADDITIONAL_MODULES.KEYPOINTS_GT = args.keypoints_gt 
+    
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY = args.contact_state_modality
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_CNN_INPUT_SIZE = args.contact_state_cnn_input_size
-    cfg.MODEL.KEYPOINT_ON = True
     cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS = 21 
+
+    # Visualizer
+    cfg.UTILS.VISUALIZER.DRAW_DEPTH = "depth" in args.contact_state_modality
+    cfg.UTILS.VISUALIZER.DRAW_MASK = "mask" in args.contact_state_modality
+    cfg.UTILS.VISUALIZER.DRAW_KEYPOINTS = "kpts" in args.contact_state_modality
+    cfg.UTILS.VISUALIZER.DRAW_SKELETON = "kpts" in args.contact_state_modality
+
     cfg.SOLVER.BASE_LR = args.base_lr
     cfg.SOLVER.IMS_PER_BATCH = args.ims_per_batch
     cfg.SOLVER.STEPS = tuple(args.solver_steps)
     cfg.SOLVER.MAX_ITER = args.max_iter
     cfg.SOLVER.CHECKPOINT_PERIOD = args.checkpoint_period
+
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.WARMUP_ITERS = args.warmup_iters
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir_kpt/last_training/"
+    cfg.OUTPUT_DIR = "./output_dir_kpt/last_training/" 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-    setup_logger(output=cfg.OUTPUT_DIR)
+    
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
         f.write(cfg.dump()) 
+        
+    setup_logger(output=cfg.OUTPUT_DIR)
     cfg.freeze()
     return cfg
 
-@notify("Train HOIE keypoints")
+@notify("Train HOIE w keypoints")
 def main():
     args = parse_args()
     print("Command-line args:\n", args)
-
-    if not args.no_wandb:
-        run_name = args.wandb_run_name if args.wandb_run_name else f"run_iter{args.max_iter}_{os.path.basename(args.train_json).split('.')[0]}"
-        wandb.init(project=args.wandb_project, name=run_name, config=vars(args))
 
     ###SET SEED
     torch.manual_seed(args.seed)
@@ -181,6 +196,9 @@ def main():
     cfg = load_cfg(args, num_classes=num_classes)
     
     if not args.no_wandb:
+        run_name = args.wandb_run_name if args.wandb_run_name else f"run_iter{args.max_iter}_{os.path.basename(args.train_json).split('.')[0]}"
+        wandb_dir = cfg.OUTPUT_DIR
+        wandb.init(project=args.wandb_project, name=run_name, config=vars(args), dir=wandb_dir)
         wandb.config.update(cfg)
 
     ###INIT MODEL

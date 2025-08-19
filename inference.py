@@ -32,7 +32,7 @@ parser.add_argument('--seed', type=int, default=0, metavar='S', help='random see
 parser.add_argument('--cuda_device', default=0, help='CUDA device id', type=int)
 parser.add_argument('--images_path', type=str, help='directory/file to load images')
 parser.add_argument('--video_path', type=str, help='video to process')
-parser.add_argument('--save_dir', type=str, help='directory to save results', default = "./output_dir_kpt/inference/")
+parser.add_argument('--save_dir', type=str, help='directory to save results', default = "./output_dir/inference/")
 parser.add_argument('--skip_the_fist_frames', type=int, help='skip the first n frames of the video.', default = 0)
 parser.add_argument('--duration_of_record_sec', type=int, help='time (seconds) of the video to process', default = 10000000)
 parser.add_argument('--hide_depth', action='store_true', default=False)
@@ -92,7 +92,6 @@ def process_images(args, model, mapper, visualizer):
     os.makedirs(save_dir_images, exist_ok=True)
 
     for image_path in tqdm(image_paths, desc="Processing Images"):
-        # The mapper requires a file path to include 'file_name' in the output dict
         model_input = mapper(image_path)
         predictions = model([model_input])[0]
         
@@ -101,6 +100,8 @@ def process_images(args, model, mapper, visualizer):
         
         output_fname = os.path.basename(image_path)
         cv2.imwrite(os.path.join(save_dir_images, output_fname), vis_output)
+
+    print(f'Inferred images saved in {save_dir_images}.')
 
 def process_video(args, model, mapper, visualizer):
     """Processes a video file frame by frame."""

@@ -330,15 +330,18 @@ class EhoiVisualizerv1(BaseEhoiVisualizer):
         
         if self._draw_masks and confident_instances.has("pred_masks"): 
             image = self._draw_masks_f(image, confident_instances, **kwargs)
+        
         if self._draw_ehoi: 
             image = self._draw_ehoi_f(image, confident_instances)
+        
         if self._draw_objs: 
             image = self._draw_objs_f(image, confident_instances)
-        
-        if (self._draw_keypoints or self._draw_skeleton) and confident_instances.has("pred_keypoints"):
+    
+        should_draw_kpts = (self._draw_keypoints or self._draw_skeleton)
+        if should_draw_kpts and confident_instances.has("pred_keypoints"):
             image = self._draw_keypoints_f(image, confident_instances)
         
-        if self._draw_depth:
+        if self._draw_depth and "depth_map" in outputs:
             image = self._draw_depth_f(image, outputs, **kwargs)
 
-        return image
+            return image

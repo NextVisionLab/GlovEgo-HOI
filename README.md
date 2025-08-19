@@ -84,6 +84,7 @@ python train.py \
  --test_dataset_names val \
  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
  --mask_gt \
+ --keypoints_gt \
  --wandb_project "ehoi-exp-$(date +%s)" \
  --wandb_run_name "ehoi_net"
 ````
@@ -95,11 +96,13 @@ python train.py \
  --test_dataset_names val \
  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
  --mask_gt \
+ --keypoints_gt \
  --no_wandb
 ```
 
 ```
-python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json  --test_dataset_names val  --weights_path ./weights/383__33_lf/model_final.pth  --mask_gt  --max_iter 20  --eval_period 10  --checkpoint_period 10 --warmup_iters 5 --no_wandb 
+python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json  --test_dataset_names val  --weights_path ./weights/383__33_lf/model_final.pth  --mask_gt 
+--keypoints_gt --max_iter 20  --eval_period 10  --checkpoint_period 10 --warmup_iters 5 --no_wandb 
 ```
 
 Check more about argparse parameters in `train.py`.
@@ -129,7 +132,7 @@ python inference.py  --images_path ./data/test_images --weights_path ./weights/3
 ```
 
 ```
-python inference.py  --images_path ./data/test_images --weights_path ./output_dir_kpt/last_training/model_0011999.pth
+python inference.py  --images_path ./data/test_images --weights_path ./output_dir_kpt/last_training/model_final.pth
 ```
 
 Check more about argparse parameters in `inference.py`.

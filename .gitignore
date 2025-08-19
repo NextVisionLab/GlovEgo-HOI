@@ -62,12 +62,6 @@ output_dir_kpt/
 output_dir_kpt_short/
 output_dir_kpt_glove/
 
-###wandb logs dir
-wandb/
-wandb_base/
-wandb_kpt/
-wandb_kpt_glove/
-
 ###visualization dir
 visualization_output/
 visualization_output_alfio/

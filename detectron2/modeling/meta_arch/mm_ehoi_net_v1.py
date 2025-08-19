@@ -282,7 +282,8 @@ class MMEhoiNetv1(EhoiNet):
                     roi_mask = torch.zeros(num_hands, 1, roi_rgb.shape[2], roi_rgb.shape[3], device=self.device)
                 channels_to_cat.append(roi_mask)
             
-            if self._use_kpts_in_contact_state:
+            if "kpts" in self._contact_state_modality:
+            #if self._use_kpts_in_contact_state:
                 gt_kpts_list = [p[p.gt_classes == self._id_hand].gt_keypoints.tensor for p in proposals_match if len(p[p.gt_classes == self._id_hand]) > 0]
                 hand_boxes_list = [p[p.gt_classes == self._id_hand].proposal_boxes.tensor for p in proposals_match if len(p[p.gt_classes == self._id_hand]) > 0]
                 
@@ -296,7 +297,7 @@ class MMEhoiNetv1(EhoiNet):
                 channels_to_cat.append(roi_kpts)
 
             self._c_hands_features_cnn = torch.cat(channels_to_cat, dim=1)
-            self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="train")
+            #self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="train")
         
     def _prepare_hands_features_inference(self, batched_inputs, instances_hands):
         image_width, image_height = batched_inputs[0]['width'], batched_inputs[0]['height']
@@ -334,7 +335,8 @@ class MMEhoiNetv1(EhoiNet):
                     roi_mask = torch.zeros(len(instances_hands), 1, roi_rgb.shape[2], roi_rgb.shape[3], device=self.device)
                 channels_to_cat.append(roi_mask)
 
-            if self._use_kpts_in_contact_state:
+            if "kpts" in self._contact_state_modality:
+                #if self._use_kpts_in_contact_state:
                 if instances_hands.has("pred_keypoints"):
                     pred_kpts = instances_hands.pred_keypoints
                     hand_boxes = instances_hands.pred_boxes.tensor
