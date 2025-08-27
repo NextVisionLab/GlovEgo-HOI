@@ -139,11 +139,12 @@ def load_cfg(args, num_classes):
     cfg.SOLVER.STEPS = tuple(args.solver_steps)
     cfg.SOLVER.MAX_ITER = args.max_iter
     cfg.SOLVER.CHECKPOINT_PERIOD = args.checkpoint_period
+    cfg.SOLVER.WARMUP_ITERS = args.warmup_iters
 
     cfg.TEST.EVAL_PERIOD = args.eval_period
-    cfg.WARMUP_ITERS = args.warmup_iters
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir_kpt/last_training/" 
+    cfg.OUTPUT_DIR = "./output_dir_kpts_gloves" \
+    "/last_training/" 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
@@ -153,7 +154,7 @@ def load_cfg(args, num_classes):
     cfg.freeze()
     return cfg
 
-@notify("Train HOIE w keypoints")
+@notify("Train HOIE w gloves")
 def main():
     args = parse_args()
     print("Command-line args:\n", args)

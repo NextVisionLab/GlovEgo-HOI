@@ -28,6 +28,34 @@ class SideLRClassificationModule(nn.Module):
     def device(self):
         return next(self.parameters()).device
 
+class GloveClassificationModule(nn.Module):
+    def __init__(self, cfg):
+        super(GloveClassificationModule, self).__init__()
+        self.layer_1 = nn.Linear(1024, 256)
+        self.layer_2 = nn.Linear(256, 1)
+        self.relu = torch.nn.ReLU()
+        self.dropout = torch.nn.Dropout(p = cfg.ADDITIONAL_MODULES.GLOVE_CLASSIFICATION_MODULE_DROPOUT)
+
+    def forward(self, x, gt = None):
+        output_1 = self.layer_1(x)
+        output_1 = self.relu(output_1)
+        output_1 = self.dropout(output_1)
+        output_2 = self.layer_2(output_1)
+        
+        if gt is None: return output_2
+        
+        if len(gt) == 0: return None, torch.tensor([0], dtype=torch.float32).to(self.device)
+        
+        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
+        loss = nn.functional.binary_cross_entropy_with_logits(output_2, gt_tensor)
+        loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
+        
+        return output_2, loss
+
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
 class AssociationVectorRegressor(nn.Module):
     def __init__(self, cfg):
         super(AssociationVectorRegressor, self).__init__()

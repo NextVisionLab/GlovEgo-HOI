@@ -47,6 +47,7 @@ class EhoiNet(GeneralizedRCNN):
 
         ###ADDITIONAL MODULES
         self.classification_hand_lr = SideLRClassificationModule(cfg)
+        self.classification_gloves = GloveClassificationModule(cfg)
         self.classification_contact_state = self.build_contact_state_head(cfg)
         if self._predict_mask:
             self.build_mask_module(cfg)

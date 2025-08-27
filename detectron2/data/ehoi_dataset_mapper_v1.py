@@ -54,6 +54,7 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
             tmp_sup_ann = sup_ann_dict.get(ann["id"])
             if tmp_sup_ann:
                 ann["hand_side"] = tmp_sup_ann.get("hand_side", -1)
+                ann["gloves"] = tmp_sup_ann.get("gloves", -1)
                 ann["contact_state"] = tmp_sup_ann.get("contact_state", -1)
                 if ann["contact_state"] == 1:
                     ann["dx"] = float(tmp_sup_ann.get("dx", 0.0))
@@ -114,16 +115,18 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
         ids = [x.get("id", -1) for x in annos]
         contact_states = [x.get("contact_state", -1) for x in annos]
         sides = [x.get("hand_side", -1) for x in annos]
+        gloves = [x.get("gloves", -1) for x in annos]
         dxdymagn_hands = [[x.get("dx", 0.0), x.get("dy", 0.0), x.get("magnitude", 0.0)] for x in annos]
 
         instances.set("gt_id", torch.tensor(ids, dtype=torch.int64))
         instances.set("gt_contact_states", torch.tensor(contact_states, dtype=torch.int64))
         instances.set("gt_sides", torch.tensor(sides, dtype=torch.int64))
+        instances.set("gt_gloves", torch.tensor(gloves, dtype=torch.int64))
         instances.set("gt_dxdymagn_hands", torch.tensor(dxdymagn_hands, dtype=torch.float32))
 
         dataset_dict["instances"] = utils.filter_empty_instances(instances)
         if not len(dataset_dict["instances"]):
-             return None
+            return None
 
         return dataset_dict
 

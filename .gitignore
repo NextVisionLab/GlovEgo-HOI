@@ -55,12 +55,8 @@ instant_test_output
 inference_test_output
 
 output_dir/
-output_dir_base/
-output_dir_base_alfio/
-output_dir_base_rosario/
-output_dir_kpt/
-output_dir_kpt_short/
-output_dir_kpt_glove/
+output_dir_kpts/
+output_dir_kpts_gloves/
 
 ###visualization dir
 visualization_output/

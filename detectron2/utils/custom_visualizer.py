@@ -63,35 +63,48 @@ class BaseEhoiVisualizer:
         pass
 
     def _draw_ehoi_f(self, image, predictions):
-        """Draws hand-object interaction visualizations (boxes, labels, contact lines)."""
-        predictions_hands, _ = self._converter.generate_predictions("", predictions)
-        if not len(predictions_hands): 
+        hand_instances = predictions[predictions.pred_classes == self._id_hand]
+        predictions_hands_coco, _ = self._converter.generate_predictions("", hand_instances)
+        
+        if not len(hand_instances): 
             return image 
         
-        annotations_active_objs = [x for x in copy.deepcopy(predictions_hands) if x["contact_state"] and x["category_id_obj"] != -1]
+        annotations_active_objs = [x for x in copy.deepcopy(predictions_hands_coco) if x["contact_state"] and x["category_id_obj"] != -1]
         for element in annotations_active_objs:
             x,y,w,h = np.array(element['bbox_obj'], int)
             cv2.rectangle(image, (x, y), ((x+w), (y+h)), (0, 255, 0), 2)
 
-        for element in predictions_hands:
-            x,y,w,h = np.array(element['bbox'], int)
-            hand_side = element["hand_side"]
-            hand_state = element["contact_state"]
+        for i in range(len(hand_instances)):
+            instance = hand_instances[i]
+            
+            x, y, x2, y2 = instance.pred_boxes.tensor[0].int().numpy()
+            w, h = x2 - x, y2 - y
+            
+            hand_side = instance.sides.item() if instance.has("sides") else -1
+            hand_state = instance.contact_states.item() if instance.has("contact_states") else -1
+            has_gloves = instance.gloves.item() if instance.has("gloves") else -1
+            score = instance.scores.item()
 
             color = (0, 255, 0) if hand_state == 1 else (0, 0, 255)
-            cv2.rectangle(image, (x, y), ((x+w), (y+h)), color, 2)
-            cv2.rectangle(image, (x, y), ((x+w), y+15), (255,255,255), -1)
+            cv2.rectangle(image, (x, y), (x+w, y+h), color, 2)
+            cv2.rectangle(image, (x, y), (x+w, y+15), (255,255,255), -1)
 
-            side_text = f'Right Hand {round(element["score"] * 100, 2)} %' if hand_side == 1 else f'Left Hand {round(element["score"] * 100, 2)} %'
-            cv2.putText(image, side_text, (x + 5, y + 11), 1,  1, (0, 0, 0), 1, cv2.LINE_AA)         
-
-            if hand_state and element["category_id_obj"] != -1:
-                obj_box = np.array(element['bbox_obj'], int)
-                hand_cc = (x + w//2, y + h//2)
-                point_cc = (obj_box[0] + obj_box[2]//2, obj_box[1] + obj_box[3]//2)
-                cv2.line(image, hand_cc, point_cc, (0, 255, 0), 4)
-                cv2.circle(image, hand_cc, 4, (0, 0, 255), -1)
-                cv2.circle(image, point_cc, 4, (0, 255, 0), -1)
+            side_text = "Right" if hand_side == 1 else "Left"
+            glove_text = "Glove" if has_gloves == 1 else "No Glove"
+            
+            label_text = f'{side_text} Hand ({glove_text}) {score:.1%}'
+            
+            cv2.putText(image, label_text, (x + 5, y + 11), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
+     
+            if i < len(predictions_hands_coco):
+                coco_hand = predictions_hands_coco[i]
+                if coco_hand["contact_state"] and coco_hand["category_id_obj"] != -1:
+                    obj_box = np.array(coco_hand['bbox_obj'], int)
+                    hand_cc = (x + w//2, y + h//2)
+                    point_cc = (obj_box[0] + obj_box[2]//2, obj_box[1] + obj_box[3]//2)
+                    cv2.line(image, hand_cc, point_cc, (0, 255, 0), 4)
+                    cv2.circle(image, hand_cc, 4, (0, 0, 255), -1)
+                    cv2.circle(image, point_cc, 4, (0, 255, 0), -1)
         return image
 
     def _draw_objs_f(self, image, predictions):
@@ -175,6 +188,24 @@ class EhoiVisualizerv1(BaseEhoiVisualizer):
         self._draw_keypoints = self.cfg.UTILS.VISUALIZER.get("DRAW_KEYPOINTS", False)
         self._draw_skeleton = self.cfg.UTILS.VISUALIZER.get("DRAW_SKELETON", False)
 
+        self.skeleton_connections = [
+            (0, 1), (1, 2), (2, 3), (3, 4),
+            (0, 5), (5, 6), (6, 7), (7, 8),
+            (0, 9), (9, 10), (10, 11), (11, 12),
+            (0, 13), (13, 14), (14, 15), (15, 16),
+            (0, 17), (17, 18), (18, 19), (19, 20),
+            (5, 9), (9, 13), (13, 17)
+        ]
+        
+        self.skeleton_colors = [
+            (255, 0, 0), (255, 60, 0), (255, 120, 0), (255, 180, 0), 
+            (0, 255, 0), (60, 255, 0), (120, 255, 0), (180, 255, 0), 
+            (0, 0, 255), (0, 60, 255), (0, 120, 255), (0, 180, 255), 
+            (255, 0, 255), (255, 0, 180), (255, 0, 120), (255, 0, 60), 
+            (0, 255, 255), (0, 180, 255), (0, 120, 255), (0, 60, 255), 
+            (255, 255, 255), (255, 255, 255), (255, 255, 255) 
+        ]
+
     def _mask_postprocess(self, results: Instances, size: tuple, mask_threshold: float = 0.5):
         results = Instances(size, **results.get_fields())
         if results.has("pred_masks"):
@@ -195,74 +226,35 @@ class EhoiVisualizerv1(BaseEhoiVisualizer):
         return image
 
     def _draw_keypoints_f(self, image, predictions):
-        """
-        Draws keypoints and a colored skeleton for hand instances.
-        """
         hand_instances = predictions[predictions.pred_classes == self._id_hand]
-        if not len(hand_instances):
+
+        if not hand_instances.has("pred_keypoints") or len(hand_instances) == 0:
             return image
 
-        # --- THIS IS THE CORRECTED AND COMPLETE SKELETON DEFINITION ---
-        skeleton_connections = [
-            # Thumb
-            (0, 1), (1, 2), (2, 3), (3, 4),
-            # Index Finger
-            (0, 5), (5, 6), (6, 7), (7, 8),
-            # Middle Finger
-            (0, 9), (9, 10), (10, 11), (11, 12),
-            # Ring Finger
-            (0, 13), (13, 14), (14, 15), (15, 16),
-            # Pinky Finger
-            (0, 17), (17, 18), (18, 19), (19, 20),
-            # Palm Connections
-            (5, 9), (9, 13), (13, 17)
-        ]
-
-        color_map = {
-            'thumb': (0, 0, 255),      # Red
-            'index': (0, 255, 0),      # Green
-            'middle': (255, 0, 0),     # Blue
-            'ring': (0, 255, 255),     # Yellow
-            'pinky': (255, 0, 255),    # Magenta
-            'wrist': (255, 255, 255),  # White
-            'palm': (255, 128, 0)      # Light Blue (for palm connections)
-        }
-
-        keypoint_to_part = {0: 'wrist'}
-        for i in range(1, 5): keypoint_to_part[i] = 'thumb'
-        for i in range(5, 9): keypoint_to_part[i] = 'index'
-        for i in range(9, 13): keypoint_to_part[i] = 'middle'
-        for i in range(13, 17): keypoint_to_part[i] = 'ring'
-        for i in range(17, 21): keypoint_to_part[i] = 'pinky'
-
         for i in range(len(hand_instances)):
-            keypoints = hand_instances.pred_keypoints[i].cpu().numpy()
-            num_kps = len(keypoints)
+            hand_instance = hand_instances[i] 
 
+            if not hand_instance.has("pred_keypoints"):
+                continue
+
+            keypoints = hand_instance.pred_keypoints[0].cpu().numpy()
+            
             if self._draw_skeleton:
-                for p1_idx, p2_idx in skeleton_connections:
-                    if p1_idx >= num_kps or p2_idx >= num_kps:
-                        continue
+                for j, connection in enumerate(self.skeleton_connections):
+                    p1_idx, p2_idx = connection
                     
-                    # Determine color: if connecting two fingers, use a palm color
-                    is_palm_connection = p1_idx in [5, 9, 13] and p2_idx in [9, 13, 17]
-                    part_name = 'palm' if is_palm_connection else keypoint_to_part.get(p2_idx, 'wrist')
-                    color = color_map.get(part_name, (255, 255, 255))
-                    
-                    visibility1 = keypoints[p1_idx, 2]
-                    visibility2 = keypoints[p2_idx, 2]
-                    
-                    if visibility1 > 0 and visibility2 > 0:
-                        pt1 = (int(keypoints[p1_idx, 0]), int(keypoints[p1_idx, 1]))
-                        pt2 = (int(keypoints[p2_idx, 0]), int(keypoints[p2_idx, 1]))
-                        cv2.line(image, pt1, pt2, color, 2, cv2.LINE_AA)
-
+                    if keypoints[p1_idx, 2] > 0 and keypoints[p2_idx, 2] > 0:
+                        p1 = tuple(keypoints[p1_idx, :2].astype(int))
+                        p2 = tuple(keypoints[p2_idx, :2].astype(int))
+                        color = self.skeleton_colors[j % len(self.skeleton_colors)]
+                        cv2.line(image, p1, p2, tuple(int(c) for c in color), 2, cv2.LINE_AA)
+            
             if self._draw_keypoints:
-                for kp_idx, (x, y, visibility) in enumerate(keypoints):
-                    if visibility > 0:
-                        part_name = keypoint_to_part.get(kp_idx, 'wrist')
-                        color = color_map.get(part_name, (255, 255, 255))
-                        cv2.circle(image, (int(x), int(y)), 4, color, -1, cv2.LINE_AA)
+                for kp_idx in range(keypoints.shape[0]):
+                    if keypoints[kp_idx, 2] > 0:
+                        x, y = int(keypoints[kp_idx, 0]), int(keypoints[kp_idx, 1])
+                        cv2.circle(image, (x, y), 3, (0, 0, 200), -1, cv2.LINE_AA)
+        
         return image
 
     def _draw_vector(self, image, annotations_hands):
@@ -318,6 +310,15 @@ class EhoiVisualizerv1(BaseEhoiVisualizer):
             sides_full = torch.full((num_predictions,), -1, device=device, dtype=sides_data.dtype)
             sides_full[hand_indices] = sides_data
             predictions.set("sides", sides_full)
+
+        if additional_outputs.has("gloves"):
+            gloves_data = additional_outputs.get("gloves").squeeze()
+            if gloves_data.dim() == 0:
+                gloves_data = gloves_data.unsqueeze(0)
+            
+            gloves_full = torch.full((num_predictions,), -1, device=device, dtype=gloves_data.dtype)
+            gloves_full[hand_indices] = gloves_data
+            predictions.set("gloves", gloves_full)
             
         if additional_outputs.has("pred_keypoints"):
             kp_data = additional_outputs.get("pred_keypoints")

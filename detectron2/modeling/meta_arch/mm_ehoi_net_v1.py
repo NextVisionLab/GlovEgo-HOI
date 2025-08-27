@@ -22,14 +22,13 @@ from detectron2.modeling.roi_heads.keypoint_head import keypoint_rcnn_loss, keyp
 __all__ = ["MMEhoiNetv1"]
 logger = logging.getLogger(__name__)
 @META_ARCH_REGISTRY.register()
+
 class MMEhoiNetv1(EhoiNet):
+    
     def __init__(self, cfg, metadata):
         super().__init__(cfg, metadata)
-
         self._expand_hand_box_ratio = cfg.ADDITIONAL_MODULES.EXPAND_HAND_BOX_RATIO
-
         self.association_vector_regressor = AssociationVectorRegressor(cfg)
-
         input_size_cnn_contact_state = cfg.ADDITIONAL_MODULES.CONTACT_STATE_CNN_INPUT_SIZE if "CONTACT_STATE_CNN_INPUT_SIZE" in cfg.ADDITIONAL_MODULES else 128
         self._roi_align_cnn_contact_state = torchvision.ops.RoIAlign((input_size_cnn_contact_state, input_size_cnn_contact_state), 1, -1)
 
@@ -89,6 +88,7 @@ class MMEhoiNetv1(EhoiNet):
         self._last_proposals_match = proposals_match
 
         _, loss_classification_hand_lr = self.classification_hand_lr(self._c_hands_features, self._c_gt_hands_lr) 
+        _, loss_classification_gloves = self.classification_gloves(self._c_hands_features, self._c_gt_hands_gloves)
 
         if self._contact_state_modality == "rgb":   
             _, loss_classification_contact_state = self.classification_contact_state(self._c_hands_features_padded, self._c_gt_hands_contact_state)
@@ -106,6 +106,7 @@ class MMEhoiNetv1(EhoiNet):
         if isinstance(loss_classification_contact_state, dict): total_loss.update(loss_classification_contact_state)
         else: total_loss['loss_classification_contact_state'] =  loss_classification_contact_state
         total_loss['loss_classification_hand_lr'] =  loss_classification_hand_lr
+        total_loss['loss_classification_gloves'] = loss_classification_gloves
         total_loss['loss_regression_dxdymagn'] =  loss_regression_vector
         if self._use_depth_module: total_loss['loss_depth'] = loss_depth_estimation
         if self._predict_mask and self._mask_gt: total_loss.update(mask_losses)
@@ -167,6 +168,10 @@ class MMEhoiNetv1(EhoiNet):
         tmp_time = time.time()
         output_classification_side = torch.round(torch.sigmoid(self.classification_hand_lr(self._c_hands_features))).int()
         self._last_inference_times["classification_hand_lr"] = time.time() - tmp_time
+
+        tmp_time = time.time()
+        output_classification_gloves = torch.round(torch.sigmoid(self.classification_gloves(self._c_hands_features))).int()
+        self._last_inference_times["classification_gloves"] = time.time() - tmp_time
         
         tmp_time = time.time()
         output_dxdymagn = self.association_vector_regressor(self._c_hands_features_padded)
@@ -190,13 +195,17 @@ class MMEhoiNetv1(EhoiNet):
             device = output_classification_side.device
             sides_full = torch.full((num_instances,), -1, dtype=torch.int32, device=device)
             contact_states_full = torch.full((num_instances,), -1, dtype=torch.int32, device=device)
+            gloves_full = torch.full((num_instances,), -1, dtype=torch.int32, device=device)
             dxdymagn_hand_full = torch.full((num_instances, 3), -1.0, dtype=torch.float32, device=device)
+
             hand_mask = (instances.pred_classes == self._id_hand)
             sides_full[hand_mask] = output_classification_side.squeeze()
             contact_states_full[hand_mask] = output_classification_contact.squeeze()
+            gloves_full[hand_mask] = output_classification_gloves.squeeze()
             dxdymagn_hand_full[hand_mask] = output_dxdymagn
             results[0]["instances"].set("sides", sides_full)
             results[0]["instances"].set("contact_states", contact_states_full)
+            results[0]["instances"].set("gloves", gloves_full)
             results[0]["instances"].set("dxdymagn_hand", dxdymagn_hand_full)
 
         else:
@@ -214,6 +223,8 @@ class MMEhoiNetv1(EhoiNet):
             if instances_hands.has("sides"):
                 additional_outputs.set("sides", instances_hands.sides)
                 additional_outputs.set("contact_states", instances_hands.contact_states)
+                if instances_hands.has("gloves"):
+                    additional_outputs.set("gloves", instances_hands.gloves)
                 additional_outputs.set("dxdymagn_hand", instances_hands.dxdymagn_hand)
             if instances_hands.has("pred_keypoints"):
                 additional_outputs.set("pred_keypoints", instances_hands.pred_keypoints)
@@ -229,13 +240,14 @@ class MMEhoiNetv1(EhoiNet):
         return results
 
     def _prepare_gt_labels(self, proposals_match):
-        self._c_gt_hands_lr, self._c_gt_hands_contact_state, self._c_gt_hands_dxdymagnitude = [], [], []
+        self._c_gt_hands_lr, self._c_gt_hands_contact_state, self._c_gt_hands_dxdymagnitude, self._c_gt_hands_gloves = [], [], [], []
         for batch_proposal in proposals_match:
             batch_proposal_hands = batch_proposal[batch_proposal.gt_classes == self._id_hand]
             for idx_proposal in range(len(batch_proposal_hands)): 
                 self._c_gt_hands_lr.append(batch_proposal_hands[idx_proposal].gt_sides.item())
                 self._c_gt_hands_contact_state.append(batch_proposal_hands[idx_proposal].gt_contact_states.item())
                 self._c_gt_hands_dxdymagnitude.append(batch_proposal_hands[idx_proposal].gt_dxdymagn_hands.detach().cpu().numpy()[0])
+                self._c_gt_hands_gloves.append(batch_proposal_hands[idx_proposal].gt_gloves.item())
 
     def _prepare_hands_features(self, batched_inputs, proposals_match):
         image_width, image_height = batched_inputs[0]['width'], batched_inputs[0]['height']
@@ -283,7 +295,6 @@ class MMEhoiNetv1(EhoiNet):
                 channels_to_cat.append(roi_mask)
             
             if "kpts" in self._contact_state_modality:
-            #if self._use_kpts_in_contact_state:
                 gt_kpts_list = [p[p.gt_classes == self._id_hand].gt_keypoints.tensor for p in proposals_match if len(p[p.gt_classes == self._id_hand]) > 0]
                 hand_boxes_list = [p[p.gt_classes == self._id_hand].proposal_boxes.tensor for p in proposals_match if len(p[p.gt_classes == self._id_hand]) > 0]
                 
@@ -336,7 +347,6 @@ class MMEhoiNetv1(EhoiNet):
                 channels_to_cat.append(roi_mask)
 
             if "kpts" in self._contact_state_modality:
-                #if self._use_kpts_in_contact_state:
                 if instances_hands.has("pred_keypoints"):
                     pred_kpts = instances_hands.pred_keypoints
                     hand_boxes = instances_hands.pred_boxes.tensor

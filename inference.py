@@ -32,13 +32,15 @@ parser.add_argument('--seed', type=int, default=0, metavar='S', help='random see
 parser.add_argument('--cuda_device', default=0, help='CUDA device id', type=int)
 parser.add_argument('--images_path', type=str, help='directory/file to load images')
 parser.add_argument('--video_path', type=str, help='video to process')
-parser.add_argument('--save_dir', type=str, help='directory to save results', default = "./output_dir/inference/")
+parser.add_argument('--save_dir', type=str, help='directory to save results', default = "./output_dir_kpts_gloves/inference/")
 parser.add_argument('--skip_the_fist_frames', type=int, help='skip the first n frames of the video.', default = 0)
 parser.add_argument('--duration_of_record_sec', type=int, help='time (seconds) of the video to process', default = 10000000)
 parser.add_argument('--hide_depth', action='store_true', default=False)
 parser.add_argument('--hide_ehois', action='store_true', default=False)
 parser.add_argument('--hide_bbs', action='store_true', default=False)
 parser.add_argument('--hide_masks', action='store_true', default=False)
+parser.add_argument('--hide_kpts', action='store_true', default=False)
+parser.add_argument('--hide_skeleton', action='store_true', default=False)
 parser.add_argument('--save_masks', action='store_true', help='save masks of the image (only supported for images)', default=False)
 parser.add_argument('--save_depth_map', action='store_true', help='save depth of the image (only supported for images)', default=False)
 parser.add_argument('--thresh', help='thresh of the score', default=0.5, type = float)
@@ -55,6 +57,7 @@ def format_times(times_dict):
 def setup_cfg(args, metadata):
     """Loads model configuration from the YAML file associated with the weights."""
     cfg_path = args.cfg_path or os.path.join(os.path.dirname(args.weights), "cfg.yaml")
+
     if not os.path.exists(cfg_path):
         raise FileNotFoundError(f"Config file not found. Expected at '{cfg_path}' or specify with --cfg_path.")
     
@@ -75,6 +78,8 @@ def setup_cfg(args, metadata):
     cfg.UTILS.VISUALIZER.DRAW_MASK = not args.hide_masks
     cfg.UTILS.VISUALIZER.DRAW_OBJS = not args.hide_bbs
     cfg.UTILS.VISUALIZER.DRAW_DEPTH = not args.hide_depth
+    cfg.UTILS.VISUALIZER.DRAW_KEYPOINTS = not args.hide_kpts
+    cfg.UTILS.VISUALIZER.DRAW_SKELETON = args.hide_skeleton
 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     cfg.freeze()
@@ -100,7 +105,6 @@ def process_images(args, model, mapper, visualizer):
         
         output_fname = os.path.basename(image_path)
         cv2.imwrite(os.path.join(save_dir_images, output_fname), vis_output)
-
     print(f'Inferred images saved in {save_dir_images}.')
 
 def process_video(args, model, mapper, visualizer):
