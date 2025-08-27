@@ -34,8 +34,24 @@ def print_row(metric_name, value):
     print(f"| {metric_name:<28} | {value:>9.2f} |")
 
 def get_evaluators(cfg, dataset_name, output_folder, converter):
-    cocoEvaluator = COCOEvaluator(dataset_name, output_dir=output_folder, tasks = ("bbox",)) 
-    return [cocoEvaluator, EHOIEvaluator(cfg, dataset_name, converter)]
+    tasks = ["bbox"]
+    if cfg.MODEL.KEYPOINT_ON:
+        tasks.append("keypoints")
+    
+    kpt_sigmas = ()
+    if cfg.MODEL.KEYPOINT_ON and cfg.TEST.KEYPOINT_OKS_SIGMAS:
+        kpt_sigmas = cfg.TEST.KEYPOINT_OKS_SIGMAS
+
+    coco_evaluator = COCOEvaluator(
+        dataset_name, 
+        tasks=tuple(tasks), 
+        output_dir=output_folder,
+        kpt_oks_sigmas=kpt_sigmas
+    )
+    
+    ehoi_evaluator = EHOIEvaluator(cfg, dataset_name, converter)
+    
+    return [coco_evaluator, ehoi_evaluator]
 
 def do_test(cfg, model, *, converter, mapper, data):
     results = OrderedDict()
@@ -59,9 +75,10 @@ def main():
 
     ###REGISTER COCO INSTANCES
     register_coco_instances("test", {}, args.dataset_json, args.dataset_images)
-    dataset_test_dicts = DatasetCatalog.get("test")
     test_metadata = MetadataCatalog.get("test")
-    test_metadata.set(coco_gt_hands = test_metadata.json_file.replace(".json", "_hands.json"))
+    test_metadata.set(coco_gt_hands=test_metadata.json_file)
+    DatasetCatalog.get("test") 
+
     with open(test_metadata.json_file) as json_file: 
         data_anns_test_sup = json.load(json_file)
 
@@ -92,42 +109,48 @@ def main():
     model.to(device)
     print("Modello caricato:", model.device)
     
-    results = do_test(cfg, model, converter = converter, mapper= mapper_test, data = data_anns_test_sup)
+    results = do_test(cfg, model, converter=converter, mapper=mapper_test, data=data_anns_test_sup)
 
     ###OUTPUT
     bbox_results = results.get('bbox', {})
     ehoi_results = results.get('ehoi', {})
     
     logger.info("\n\n")
-    logger.info(" EVALUATION RESULTS ".center(80, "="))
+    logger.info(" DETAILED EVALUATION RESULTS ".center(80, "="))
     
     logger.info("\n\n--- [ Task: Standard Object Detection (COCOEvaluator) ] ---")
     for key, value in bbox_results.items():
-        logger.info(f"{key:<35} : {value:.2f}")
+        if not key.startswith('AP-'):
+            logger.info(f"{key:<35} : {value:.2f}")
     
     logger.info("\n\n--- [ Task: Egocentric HOI Evaluation (EHOIEvaluator) ] ---")
     for key, value in ehoi_results.items():
         logger.info(f"{key:<35} : {value:.2f}")
     
-    ap_hand = bbox_results.get('AP-hand', 0.0)
-    map_objects = bbox_results.get('AP', 0.0)
+    # --- SUMMARY ---
+    map_objects = ehoi_results.get('mAP Objects', 0.0)
+    ap_hand = ehoi_results.get('AP Hand', 0.0)
     map_target_objects = ehoi_results.get('mAP Target Objects', 0.0)
     ap_hand_side = ehoi_results.get('AP Hand + Side', 0.0)
+    ap_hand_glove = ehoi_results.get('AP Hand + Glove', 0.0)
     ap_hand_state = ehoi_results.get('AP Hand + State', 0.0)
     map_all_hoi = ehoi_results.get('mAP All', 0.0)
     
     summary_string = "\n"
     summary_string += "="*80 + "\n"
-    summary_string += "MMEhoiNetv1 PERFORMANCE SUMMARY\n"
+    summary_string += "MMEhoiNetv1 PERFORMANCE SUMMARY (Metrics @ IoU=0.5)\n"
     summary_string += "="*80 + "\n"
     summary_string += separator + "\n"
     summary_string += header + "\n"
     summary_string += separator + "\n"
-    summary_string += f"| {'Object Detection (mAP)':<28} | {map_objects:>9.2f} |\n"
-    summary_string += f"| {'Hand Detection (AP)':<28} | {ap_hand:>9.2f} |\n"
-    summary_string += f"| {'Target Object (mAP)':<28} | {map_target_objects:>9.2f} |\n"
-    summary_string += f"| {'Hand Side (AP)':<28} | {ap_hand_side:>9.2f} |\n"
-    summary_string += f"| {'Contact State (AP)':<28} | {ap_hand_state:>9.2f} |\n"
+    summary_string += f"| {'Object Detection (mAP50)':<28} | {map_objects:>9.2f} |\n"
+    summary_string += f"| {'Hand Detection (AP50)':<28} | {ap_hand:>9.2f} |\n"
+    summary_string += f"| {'Target Object (mAP50)':<28} | {map_target_objects:>9.2f} |\n"
+    summary_string += separator + "\n"
+    summary_string += f"| {'Hand Side (AP50)':<28} | {ap_hand_side:>9.2f} |\n"
+    summary_string += f"| {'Hand Glove (AP50)':<28} | {ap_hand_glove:>9.2f} |\n"
+    summary_string += f"| {'Contact State (AP50)':<28} | {ap_hand_state:>9.2f} |\n"
+    summary_string += separator + "\n"
     summary_string += f"| {f'Overall HOI (mAP All)':<28} | {map_all_hoi:>9.2f} |\n"
     summary_string += separator
     

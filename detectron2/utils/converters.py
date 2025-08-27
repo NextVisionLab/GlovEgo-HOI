@@ -100,17 +100,7 @@ class MMEhoiNetConverterv1(Converter):
         super().__init__(cfg, metadata)
         self._diag = math.sqrt((math.pow(int(cfg.UTILS.TARGET_SHAPE_W), 2) + math.pow(int(cfg.UTILS.TARGET_SHAPE_H), 2)))
         self._scale_factor = cfg.ADDITIONAL_MODULES.ASSOCIATION_VECTOR_SCALE_FACTOR
-        self.HAND_ID_FOR_EHOI_EVALUATOR = 1
-
-    def match_object(self, obj_dets_xyxy, hand_bb_xyxy, hand_dxdymag):
-        object_cc_list = np.array([calculate_center(bbox) for bbox in obj_dets_xyxy])
-        magn = hand_dxdymag[2] * self._diag 
-        hand_cc = np.array(calculate_center(hand_bb_xyxy))
-        point_cc = np.array([(hand_cc[0] + hand_dxdymag[0] * magn), (hand_cc[1] + hand_dxdymag[1] * magn)])
-        dist = np.sum((object_cc_list - point_cc)**2, axis=1)
-        dist_min = np.argmin(dist)
-        return dist_min
-
+        self.HAND_ID_FOR_EHOI_EVALUATOR = 1 
 
     def generate_predictions(self, image_id, confident_instances, **kwargs):
         results = []
@@ -132,6 +122,10 @@ class MMEhoiNetConverterv1(Converter):
         scores_tensor = instances_hands.scores.cpu()
         sides_tensor = instances_hands.get("sides").cpu()
         
+        has_gloves = instances_hands.has("gloves")
+        if has_gloves:
+            gloves_tensor = instances_hands.get("gloves").cpu()
+        
         for i in range(len(instances_hands)):
             bbox_hand_xyxy = hand_boxes_tensor[i].tolist()
             bbox_hand_xywh = BoxMode.convert(np.array(bbox_hand_xyxy).reshape(1,4), BoxMode.XYXY_ABS, BoxMode.XYWH_ABS).flatten().tolist()
@@ -142,7 +136,7 @@ class MMEhoiNetConverterv1(Converter):
             element = {
                 "id": len(results),
                 "image_id": image_id, 
-                "category_id": self.HAND_ID_FOR_EHOI_EVALUATOR, 
+                "category_id": self._metadata.thing_classes.index("hand"), 
                 "bbox": bbox_hand_xywh, 
                 "score": float(scores_tensor[i].item()), 
                 "hand_side": int(sides_tensor[i].item()), 
@@ -153,7 +147,10 @@ class MMEhoiNetConverterv1(Converter):
                 "dy": float(dxdymag_v[1]),
                 "magnitude": float(dxdymag_v[2])
             }
-            
+
+            if has_gloves:
+                element["gloves"] = int(gloves_tensor[i].item())
+
             if contact_state == 1 and len(instances_objs) > 0:
                 hand_cc = np.array(calculate_center(bbox_hand_xyxy))
                 magn_in_pixels = dxdymag_v[2] * self._diag 

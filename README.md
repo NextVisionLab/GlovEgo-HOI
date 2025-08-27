@@ -134,7 +134,7 @@ python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.js
 ```
 
 ```
-python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/val_coco_reduced.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/383__33_lf/model_final.pth 
+python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/val_reduced_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/383__33_lf/model_final.pth 
 ```
 
 

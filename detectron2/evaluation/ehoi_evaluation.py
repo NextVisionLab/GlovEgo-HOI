@@ -8,6 +8,7 @@ import logging
 from _pycocotools.coco import COCO
 from _pycocotools.cocoeval import COCOeval
 from _pycocotools.custom_handside_cocoeval import CustomHandSideCOCOeval
+from _pycocotools.custom_handglove_cocoeval import CustomHandGloveCOCOeval
 from _pycocotools.custom_handstate_cocoeval import CustomHandContactStateCOCOeval
 from _pycocotools.custom_hand_target_object_w_classification import CustomHandTargetCOCOeval
 from _pycocotools.custom_hand_all_cocoeval_w_classification import CustomHandAllCOCOeval
@@ -103,7 +104,7 @@ class EHOIEvaluator(DatasetEvaluator):
         filtered_hoi_predictions = [p for p in self._predictions if p['image_id'] in valid_hand_gt_img_ids]
         filtered_target_predictions = [p for p in self._predictions_targets if p['image_id'] in valid_target_gt_img_ids]
 
-        if len(filtered_hoi_predictions) == 0:
+        if not filtered_hoi_predictions:
             self._logger.warning("No HOI predictions found after confidence filtering. Skipping EHOI evaluation.")
             return {"ehoi": {}}
         
@@ -111,11 +112,13 @@ class EHOIEvaluator(DatasetEvaluator):
         coco_dt_all = self._coco_gt_all.loadRes(self._predictions_all)
         
         cocoPreds_target = None
+        # CORREZIONE: Controlla sia le predizioni che le annotazioni GT prima di creare l'oggetto
         if filtered_target_predictions and self._coco_gt_targets.dataset.get('annotations'):
             cocoPreds_target = self._coco_gt_targets.loadRes(filtered_target_predictions)
 
         if self._output_dir:
             PathManager.mkdirs(self._output_dir)
+            # ... (salvataggio dei file .pth)
             with PathManager.open(os.path.join(self._output_dir, "ehoi_predictions.pth"), "wb") as f:
                 torch.save(self._predictions, f)
             with PathManager.open(os.path.join(self._output_dir, "ehoi_predictions_all.pth"), "wb") as f:
@@ -126,108 +129,123 @@ class EHOIEvaluator(DatasetEvaluator):
         annType = 'bbox'
         coco_results = {}
         
-        cat_name_to_id = {cat['name']: cat['id'] for cat in self._coco_gt_all.cats.values()}
+        # MIGLIORAMENTO: Modo più robusto per trovare hand_id
         hand_id = -1
         for cat in self._coco_gt_all.dataset['categories']:
-            if cat['name'] in ['hand', 'mano']:
+            if cat['name'].lower() in ['hand', 'mano']:
                 hand_id = cat['id']
                 break
+        if hand_id == -1:
+            raise ValueError("Category 'hand' or 'mano' not found in the dataset.")
 
         with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
-            ##### HAND
+            ##### HAND DETECTION @ IoU=0.5
             eval_hand = COCOeval(self._coco_gt_all, coco_dt_all, annType)
-            eval_hand.params.iouThrs = np.array([0.5]); eval_hand.params.catIds = [hand_id]
+            eval_hand.params.iouThrs = np.array([0.5])
+            eval_hand.params.catIds = [hand_id]
             eval_hand.evaluate(); eval_hand.accumulate(); eval_hand.summarize()
-            coco_results["AP Hand"] = round(eval_hand.stats[0] * 100, 2)
+            # CORREZIONE: L'indice per AP@0.5 è 1, non 0. stats[0] è la mAP su diverse soglie IoU.
+            ap_hand_score = eval_hand.stats[1] 
+            coco_results["AP Hand"] = round(ap_hand_score * 100, 2) if ap_hand_score > -1 else 0.0
 
-            ##### OBJECTS
+            ##### OBJECT DETECTION @ IoU=0.5
             eval_obj = COCOeval(self._coco_gt_all, coco_dt_all, annType)
-            eval_obj.params.iouThrs = np.array([0.5]); eval_obj.params.catIds = [c['id'] for c in self._coco_gt_all.cats.values() if c['id'] != hand_id]
+            eval_obj.params.iouThrs = np.array([0.5])
+            eval_obj.params.catIds = [c['id'] for c in self._coco_gt_all.cats.values() if c['id'] != hand_id]
             eval_obj.evaluate(); eval_obj.accumulate(); eval_obj.summarize()
-            coco_results["mAP Objects"] = round(eval_obj.stats[0] * 100, 2)
+            # CORREZIONE: Anche qui, l'indice corretto per mAP@0.5 è 1.
+            mAP_obj_score = eval_obj.stats[1]
+            coco_results["mAP Objects"] = round(mAP_obj_score * 100, 2) if mAP_obj_score > -1 else 0.0
             
-            ##### TARGET OBJECTS
+            ##### TARGET OBJECTS @ IoU=0.5
+            # CORREZIONE: Logica allineata alla versione corretta, più robusta.
             if cocoPreds_target:
                 eval_target = COCOeval(self._coco_gt_targets, cocoPreds_target, annType)
                 eval_target.params.iouThrs = np.array([0.5])
                 eval_target.evaluate(); eval_target.accumulate(); eval_target.summarize()
-                coco_results["mAP Target Objects"] = round(eval_target.stats[0] * 100, 2) if eval_target.stats[0] > -1 else 0.0
+                # CORREZIONE: Usiamo l'indice 1 anche qui per coerenza, se è un COCOeval standard.
+                mAP_target_score = eval_target.stats[1]
+                coco_results["mAP Target Objects"] = round(mAP_target_score * 100, 2) if mAP_target_score > -1 else 0.0
             else:
-                coco_results["mAP Target Objects"] = -1
+                coco_results["mAP Target Objects"] = 0.0 # Imposta a 0 se non ci sono target GT o predizioni
 
-            ##### HAND + SIDE
+            ##### HAND + SIDE @ IoU=0.5
             eval_side = CustomHandSideCOCOeval(self._coco_gt, cocoPreds, annType)
-            eval_side.params.iouThrs = np.array([0.5]); eval_side.evaluate(); eval_side.accumulate(); eval_side.summarize()
-            coco_results["AP Hand + Side"] = round(eval_side.stats[0] * 100, 2)
+            eval_side.params.iouThrs = np.array([0.5])
+            eval_side.evaluate(); eval_side.accumulate(); eval_side.summarize()
+            # Assumiamo che le classi custom ritornino il valore corretto in stats[0]
+            coco_results["AP Hand + Side"] = round(eval_side.stats[0] * 100, 2) if eval_side.stats[0] > -1 else 0.0
 
-            ##### HAND + CONTACT_STATE
+            ##### HAND + GLOVE @ IoU=0.5 (AGGIUNTO)
+            # CORREZIONE: Questa valutazione mancava nel tuo metodo.
+            eval_glove = CustomHandGloveCOCOeval(self._coco_gt, cocoPreds, annType)
+            eval_glove.params.iouThrs = np.array([0.5])
+            eval_glove.evaluate(); eval_glove.accumulate(); eval_glove.summarize()
+            coco_results["AP Hand + Glove"] = round(eval_glove.stats[0] * 100, 2) if eval_glove.stats[0] > -1 else 0.0
+
+            ##### HAND + CONTACT_STATE @ IoU=0.5
             eval_state = CustomHandContactStateCOCOeval(self._coco_gt, cocoPreds, annType)
-            eval_state.params.iouThrs = np.array([0.5]); eval_state.evaluate(); eval_state.accumulate(); eval_state.summarize()
-            coco_results["AP Hand + State"] = round(eval_state.stats[0] * 100, 2)
+            eval_state.params.iouThrs = np.array([0.5])
+            eval_state.evaluate(); eval_state.accumulate(); eval_state.summarize()
+            coco_results["AP Hand + State"] = round(eval_state.stats[0] * 100, 2) if eval_state.stats[0] > -1 else 0.0
             
-            ##### mAP HAND + CONTACT_STATE
-            tmp_results = {}
-            for class_name in self._class_names_objs:
-                original_cat_id = cat_name_to_id.get(class_name, -1)
-                gt_filtred = copy.deepcopy(self._coco_gt)
-                pred_filtred = copy.deepcopy(cocoPreds)
-                gt_filtred.dataset["annotations"] = [ann for ann in self._coco_gt.dataset["annotations"] if ann.get("category_id_obj") == original_cat_id]
-                gt_filtred.createIndex()
-                pred_filtred.dataset["annotations"] = [ann for ann in cocoPreds.dataset["annotations"] if ann.get("category_id_obj") == original_cat_id]
-                pred_filtred.createIndex()
-                eval_contact_cls = CustomHandContactStateCOCOeval(gt_filtred, pred_filtred, annType)
-                eval_contact_cls.params.iouThrs = np.array([0.5]); eval_contact_cls.evaluate(); eval_contact_cls.accumulate(); eval_contact_cls.summarize()
-                tmp_results[class_name] = round(eval_contact_cls.stats[0] * 100, 2) if eval_contact_cls.stats[0] > -1 else 0.0
-            coco_results["mAP Hand + State"] = round(np.array(list(tmp_results.values())).mean(), 2)
+            # --- MIGLIORAMENTO: Loop unico per tutte le metriche per-classe ---
+            # Questo evita di copiare e filtrare i dati più volte, migliorando drasticamente le performance.
+            cat_name_to_id = {cat['name']: cat['id'] for cat in self._coco_gt_all.cats.values()}
+            state_scores, target_scores, all_scores = {}, {}, {}
 
-            tmp_results = {}
             for class_name in self._class_names_objs:
                 original_cat_id = cat_name_to_id.get(class_name, -1)
                 
-                gt_filtred = copy.deepcopy(self._coco_gt)
-                pred_filtred = copy.deepcopy(cocoPreds)
+                # Filtra annotazioni GT e predizioni una sola volta per classe
+                gt_anns_filtered = [ann for ann in self._coco_gt.dataset["annotations"] if ann.get("category_id_obj") == original_cat_id]
+                pred_anns_filtered = [ann for ann in cocoPreds.dataset["annotations"] if ann.get("category_id_obj") == original_cat_id]
+
+                # Se non ci sono annotazioni GT per questa classe, la metrica non è definita.
+                # In questo caso, potremmo saltarla per il calcolo della media.
+                if not gt_anns_filtered:
+                    continue
+
+                gt_filtered = copy.deepcopy(self._coco_gt)
+                gt_filtered.dataset["annotations"] = gt_anns_filtered
+                gt_filtered.createIndex()
+
+                pred_filtered = copy.deepcopy(cocoPreds)
+                pred_filtered.dataset["annotations"] = pred_anns_filtered
+                pred_filtered.createIndex()
+
+                # 1. Calcola "Hand + State" per la classe
+                eval_contact_cls = CustomHandContactStateCOCOeval(gt_filtered, pred_filtered, annType)
+                eval_contact_cls.params.iouThrs = np.array([0.5])
+                eval_contact_cls.evaluate(); eval_contact_cls.accumulate(); eval_contact_cls.summarize()
+                state_scores[class_name] = round(eval_contact_cls.stats[0] * 100, 2) if eval_contact_cls.stats[0] > -1 else 0.0
                 
-                gt_anns = [ann for ann in self._coco_gt.dataset["annotations"] if ann.get("category_id_obj") == original_cat_id]
-                pred_anns = [ann for ann in cocoPreds.dataset["annotations"] if ann.get("category_id_obj") == original_cat_id]
-                
-                gt_filtred.dataset["annotations"] = gt_anns
-                pred_filtred.dataset["annotations"] = pred_anns
-                gt_filtred.createIndex()
-                pred_filtred.createIndex()
+                # 2. Calcola "Hand + Target" per la classe
+                eval_target_cls = CustomHandTargetCOCOeval(gt_filtered, pred_filtered, annType)
+                eval_target_cls.params.iouThrs = np.array([0.5])
+                eval_target_cls.evaluate(); eval_target_cls.accumulate(); eval_target_cls.summarize()
+                target_scores[class_name] = round(eval_target_cls.stats[0] * 100, 2) if eval_target_cls.stats[0] > -1 else 0.0
 
-                cocoEval = CustomHandTargetCOCOeval(gt_filtred, pred_filtred, annType)
-                cocoEval.params.iouThrs = np.array([0.5]); cocoEval.evaluate(); cocoEval.accumulate(); cocoEval.summarize()
-                score = 0.0
-                if cocoEval.stats[0] > -1: score = round(cocoEval.stats[0] * 100, 2)
-                if len(gt_filtred.anns) == 0: score = 100.0 if len(pred_filtred.anns) == 0 else 0.0
-                tmp_results[class_name] = score
+                # 3. Calcola "Hand + All" per la classe e salva il risultato individuale
+                eval_all_cls = CustomHandAllCOCOeval(gt_filtered, pred_filtered, annType)
+                eval_all_cls.params.iouThrs = np.array([0.5])
+                eval_all_cls.evaluate(); eval_all_cls.accumulate(); eval_all_cls.summarize()
+                score = round(eval_all_cls.stats[0] * 100, 2) if eval_all_cls.stats[0] > -1 else 0.0
+                all_scores[class_name] = score
+                coco_results[class_name] = score # Aggiunge la metrica per-classe direttamente ai risultati
 
-            coco_results["mAP Hand + Target Objects"] = round(np.array(list(tmp_results.values())).mean(), 2)
-            
-            ##### HAND + ALL
-            all_class_results = {}
-            for class_name in self._class_names_objs:
-                original_cat_id = cat_name_to_id.get(class_name, -1)
-                gt_filtred = copy.deepcopy(self._coco_gt)
-                pred_filtred = copy.deepcopy(cocoPreds)
-                gt_filtred.dataset["annotations"] = [ann for ann in self._coco_gt.dataset["annotations"] if ann.get("category_id_obj") == original_cat_id]
-                gt_filtred.createIndex()
-                pred_filtred.dataset["annotations"] = [ann for ann in cocoPreds.dataset["annotations"] if ann.get("category_id_obj") == original_cat_id]
-                pred_filtred.createIndex()
-                eval_all_cls = CustomHandAllCOCOeval(gt_filtred, pred_filtred, annType)
-                eval_all_cls.params.iouThrs = np.array([0.5]); eval_all_cls.evaluate(); eval_all_cls.accumulate(); eval_all_cls.summarize()
-                score = 0.0
-                if eval_all_cls.stats[0] > -1: score = round(eval_all_cls.stats[0] * 100, 2)
-                if len(gt_filtred.anns) == 0: score = 100.0 if len(pred_filtred.anns) == 0 else 0.0
-                all_class_results[class_name] = score
-            coco_results.update(all_class_results)
-            
-            ### AP HAND + ALL
-            eval_all = CustomHandAllCOCOeval(self._coco_gt, cocoPreds, annType, agn = True)
-            eval_all.params.iouThrs = np.array([0.5]); eval_all.evaluate(); eval_all.accumulate(); eval_all.summarize()
-            coco_results["AP All"] = round(eval_all.stats[0] * 100, 2)
-        
-        list_results = np.array([coco_results.get(class_name, 0) for class_name in self._class_names_objs])
-        coco_results["mAP All"] = round(list_results.mean(), 2)
+            # Calcola le mAP solo se ci sono score validi
+            if state_scores:
+                coco_results["mAP Hand + State"] = round(np.mean(list(state_scores.values())), 2)
+            if target_scores:
+                coco_results["mAP Hand + Target Objects"] = round(np.mean(list(target_scores.values())), 2)
+            if all_scores:
+                coco_results["mAP All"] = round(np.mean(list(all_scores.values())), 2)
 
-        return {"ehoi" : coco_results}
+            ### AP HAND + ALL (agnostico rispetto alla classe)
+            eval_all = CustomHandAllCOCOeval(self._coco_gt, cocoPreds, annType, agn=True)
+            eval_all.params.iouThrs = np.array([0.5])
+            eval_all.evaluate(); eval_all.accumulate(); eval_all.summarize()
+            coco_results["AP All"] = round(eval_all.stats[0] * 100, 2) if eval_all.stats[0] > -1 else 0.0
+
+        return {"ehoi": coco_results}
