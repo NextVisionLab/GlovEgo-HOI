@@ -36,6 +36,7 @@ class EhoiNet(GeneralizedRCNN):
         self._num_classes = cfg.MODEL.ROI_HEADS.NUM_CLASSES
         self._contact_state_modality = cfg.ADDITIONAL_MODULES.CONTACT_STATE_MODALITY
         self._predict_mask = cfg.ADDITIONAL_MODULES.USE_MASK
+        self._predict_gloves = cfg.ADDITIONAL_MODULES.get("PREDICT_GLOVES", True)
         self._mask_gt = cfg.ADDITIONAL_MODULES.USE_MASK_GT
         self._use_depth_module = cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE
         self._predict_keypoints = cfg.MODEL.KEYPOINT_ON
@@ -47,7 +48,9 @@ class EhoiNet(GeneralizedRCNN):
 
         ###ADDITIONAL MODULES
         self.classification_hand_lr = SideLRClassificationModule(cfg)
-        self.classification_gloves = GloveClassificationModule(cfg)
+        self.classification_gloves = None
+        if self._predict_gloves:
+            self.classification_gloves = GloveClassificationModule(cfg)
         self.classification_contact_state = self.build_contact_state_head(cfg)
         if self._predict_mask:
             self.build_mask_module(cfg)

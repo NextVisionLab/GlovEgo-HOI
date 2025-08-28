@@ -82,16 +82,17 @@ python train.py \
  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json \
  --test_dataset_names val \
- --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
- #--weights_path ./output_dir_kpts/last_training/model_final.pth \
+ #--weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
+ --weights_path ./output_dir_kpts/last_training/model_final.pth \
  --mask_gt \
  --keypoints_gt \
+ --gloves_gt \
  --wandb_project "ehoi-exp-$(date +%s)" \
  --wandb_run_name "ehoi_net"
 ````
 
 ```bash
-python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json  --test_dataset_names val  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth  --mask_gt  --wandb_project "ehoi-exp-$(date +%s)"  --wandb_run_name "ehoi_net" --contact_state_modality mask+rgb+depth+fusion --cuda_device 1
+python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json  --test_dataset_names val  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth  --mask_gt --wandb_project "ehoi-exp-$(date +%s)"  --wandb_run_name "ehoi_net" --contact_state_modality mask+rgb+depth+fusion --cuda_device 1
 ````
 
 ```bash
@@ -110,9 +111,10 @@ python train.py \
   --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
   --test_json ./data/egoism-hoi-dataset/annotations/test_coco.json \
   --test_dataset_names val \
-  --weights_path ./weights/383__33_lf/model_final.pth \
+  --weights_path ./output_dir_kpts/last_training/model_final.pth \
   --mask_gt \
   --keypoints_gt \
+  --gloves_gt \
   --max_iter 20 \
   --eval_period 10 \
   --checkpoint_period 10 \
@@ -143,11 +145,15 @@ Check more about argparse parameters in `test.py`.
 ### Inference
 Run the command below for an example of inference. A new folder **output_detection** will be created with the visualization:
 ```bash
-python inference.py  --images_path ./data/test_images --weights_path ./weights/383__33_lf/model_final.pth --save_dir ./weights/383__33_lf/inference
+python inference.py  --images_path ./data/test_images --weights_path ./output_dir/last_training/model_final.pth --save_dir ./output_dir/inference
 ```
 
+```bash
+python inference.py  --images_path ./data/test_images --weights_path ./output_dir_kpts/last_training/model_final.pth --save_dir ./output_dir_kpts/inference
 ```
-python inference.py  --images_path ./data/test_images --weights_path ./output_dir_kpts_gloves/last_training/model_final.pth  --save_dir ./output_dir_kpts_gloves/inference
+
+```bash
+python inference.py  --images_path ./data/test_images --weights_path ./output_dir_kpts_gloves/last_training/model_final.pth --save_dir ./output_dir_kpts_gloves/inference
 ```
 
 Check more about argparse parameters in `inference.py`.

@@ -87,8 +87,12 @@ class MMEhoiNetv1(EhoiNet):
         self._prepare_hands_features(batched_inputs, proposals_match)
         self._last_proposals_match = proposals_match
 
+        loss_classification_hand_lr = torch.tensor(0.0, device=self.device) 
+        loss_classification_gloves = torch.tensor(0.0, device=self.device) 
+
         _, loss_classification_hand_lr = self.classification_hand_lr(self._c_hands_features, self._c_gt_hands_lr) 
-        _, loss_classification_gloves = self.classification_gloves(self._c_hands_features, self._c_gt_hands_gloves)
+        if self.classification_gloves is not None:
+            _, loss_classification_gloves = self.classification_gloves(self._c_hands_features, self._c_gt_hands_gloves)
 
         if self._contact_state_modality == "rgb":   
             _, loss_classification_contact_state = self.classification_contact_state(self._c_hands_features_padded, self._c_gt_hands_contact_state)
@@ -106,7 +110,8 @@ class MMEhoiNetv1(EhoiNet):
         if isinstance(loss_classification_contact_state, dict): total_loss.update(loss_classification_contact_state)
         else: total_loss['loss_classification_contact_state'] =  loss_classification_contact_state
         total_loss['loss_classification_hand_lr'] =  loss_classification_hand_lr
-        total_loss['loss_classification_gloves'] = loss_classification_gloves
+        if self.classification_gloves is not None:
+            total_loss['loss_classification_gloves'] = loss_classification_gloves
         total_loss['loss_regression_dxdymagn'] =  loss_regression_vector
         if self._use_depth_module: total_loss['loss_depth'] = loss_depth_estimation
         if self._predict_mask and self._mask_gt: total_loss.update(mask_losses)
@@ -169,9 +174,11 @@ class MMEhoiNetv1(EhoiNet):
         output_classification_side = torch.round(torch.sigmoid(self.classification_hand_lr(self._c_hands_features))).int()
         self._last_inference_times["classification_hand_lr"] = time.time() - tmp_time
 
-        tmp_time = time.time()
-        output_classification_gloves = torch.round(torch.sigmoid(self.classification_gloves(self._c_hands_features))).int()
-        self._last_inference_times["classification_gloves"] = time.time() - tmp_time
+        output_classification_gloves = None
+        if self.classification_gloves is not None:
+            tmp_time = time.time()
+            output_classification_gloves = torch.round(torch.sigmoid(self.classification_gloves(self._c_hands_features))).int()
+            self._last_inference_times["classification_gloves"] = time.time() - tmp_time
         
         tmp_time = time.time()
         output_dxdymagn = self.association_vector_regressor(self._c_hands_features_padded)
@@ -201,7 +208,8 @@ class MMEhoiNetv1(EhoiNet):
             hand_mask = (instances.pred_classes == self._id_hand)
             sides_full[hand_mask] = output_classification_side.squeeze()
             contact_states_full[hand_mask] = output_classification_contact.squeeze()
-            gloves_full[hand_mask] = output_classification_gloves.squeeze()
+            if output_classification_gloves is not None:
+                gloves_full[hand_mask] = output_classification_gloves.squeeze()
             dxdymagn_hand_full[hand_mask] = output_dxdymagn
             results[0]["instances"].set("sides", sides_full)
             results[0]["instances"].set("contact_states", contact_states_full)
@@ -357,7 +365,7 @@ class MMEhoiNetv1(EhoiNet):
             
             if len(channels_to_cat) > 0:
                 self._c_hands_features_cnn = torch.cat(channels_to_cat, dim=1)
-                self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="inference", img_to_save=3)
+                #self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="inference", img_to_save=3)
 
     def debug_roi(self, c_roi, batched_inputs, phase, img_to_save=5):
         if not hasattr(self, f"_debug_save_count_{phase}"):

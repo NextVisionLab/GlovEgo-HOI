@@ -45,6 +45,10 @@ class BaseEhoiVisualizer:
         self._draw_objs = self.cfg.UTILS.VISUALIZER.DRAW_OBJS
         self._draw_depth = self.cfg.UTILS.VISUALIZER.DRAW_DEPTH and cfg.ADDITIONAL_MODULES.DEPTH_MODULE.USE_DEPTH_MODULE
         
+        # --- MODIFICA CHIAVE: Leggiamo il flag per i guanti dalla config ---
+        self._predict_gloves = self.cfg.ADDITIONAL_MODULES.get("PREDICT_GLOVES", True)
+        # -----------------------------------------------------------------
+        
         self.create_colors()
 
     def create_colors(self):
@@ -80,19 +84,33 @@ class BaseEhoiVisualizer:
             x, y, x2, y2 = instance.pred_boxes.tensor[0].int().numpy()
             w, h = x2 - x, y2 - y
             
-            hand_side = instance.sides.item() if instance.has("sides") else -1
-            hand_state = instance.contact_states.item() if instance.has("contact_states") else -1
-            has_gloves = instance.gloves.item() if instance.has("gloves") else -1
             score = instance.scores.item()
+            hand_state = instance.contact_states.item() if instance.has("contact_states") else -1
 
             color = (0, 255, 0) if hand_state == 1 else (0, 0, 255)
             cv2.rectangle(image, (x, y), (x+w, y+h), color, 2)
             cv2.rectangle(image, (x, y), (x+w, y+15), (255,255,255), -1)
 
-            side_text = "Right" if hand_side == 1 else "Left"
-            glove_text = "Glove" if has_gloves == 1 else "No Glove"
+            # --- MODIFICA CHIAVE: Costruzione dinamica e controllata della label ---
+            label_parts = ["Hand"] # Partiamo con "Hand"
             
-            label_text = f'{side_text} Hand ({glove_text}) {score:.1%}'
+            # Aggiungiamo il lato solo se presente e valido
+            if instance.has("sides"):
+                hand_side = instance.sides.item()
+                if hand_side != -1: # Controlla che non sia il valore di default
+                    side_text = "Right" if hand_side == 1 else "Left"
+                    label_parts[0] = f'{side_text} Hand' # Sostituisce "Hand" con "Right/Left Hand"
+
+            # Aggiungiamo i guanti solo se il modello li predice (flag in cfg) E se il valore è valido
+            if self._predict_gloves and instance.has("gloves"):
+                has_gloves = instance.gloves.item()
+                if has_gloves != -1: # Controlla che non sia il valore di default
+                    glove_text = "Glove" if has_gloves == 1 else "No Glove"
+                    label_parts.append(f"({glove_text})")
+            
+            label_parts.append(f'{score:.1%}')
+            label_text = " ".join(label_parts)
+            # ----------------------------------------------------------------------
             
             cv2.putText(image, label_text, (x + 5, y + 11), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
      
@@ -141,11 +159,9 @@ class BaseEhoiVisualizer:
         num_predictions = len(predictions)
         hand_indices = (predictions.pred_classes == self._id_hand).nonzero(as_tuple=True)[0]
         
-        if len(hand_indices) > 0:
-            num_hands_in_head = len(additional_outputs) if hasattr(additional_outputs, "__len__") else 0
-            if num_hands_in_head > 0:
-                 assert len(hand_indices) == num_hands_in_head, \
-                    f"Mismatch: Found {len(hand_indices)} hands in predictions, but EHOI head produced {num_hands_in_head} outputs."
+        if len(hand_indices) > 0 and len(additional_outputs) > 0:
+            assert len(hand_indices) == len(additional_outputs), \
+                f"Mismatch: Found {len(hand_indices)} hands in predictions, but EHOI head produced {len(additional_outputs)} outputs."
         
         device = predictions.pred_boxes.tensor.device
         
@@ -157,15 +173,27 @@ class BaseEhoiVisualizer:
 
         if additional_outputs.has("contact_states"):
             contact_data = additional_outputs.get("contact_states").squeeze()
+            if contact_data.dim() == 0: contact_data = contact_data.unsqueeze(0)
             contact_full = torch.full((num_predictions,), -1, device=device, dtype=contact_data.dtype)
             contact_full[hand_indices] = contact_data
             predictions.set("contact_states", contact_full)
 
         if additional_outputs.has("sides"):
             sides_data = additional_outputs.get("sides").squeeze()
+            if sides_data.dim() == 0: sides_data = sides_data.unsqueeze(0)
             sides_full = torch.full((num_predictions,), -1, device=device, dtype=sides_data.dtype)
             sides_full[hand_indices] = sides_data
             predictions.set("sides", sides_full)
+        
+        # Allineiamo i guanti solo se il modello li predice (controllato dal flag)
+        if self._predict_gloves and additional_outputs.has("gloves"):
+            gloves_data = additional_outputs.get("gloves").squeeze()
+            if gloves_data.dim() == 0:
+                gloves_data = gloves_data.unsqueeze(0)
+            
+            gloves_full = torch.full((num_predictions,), -1, device=device, dtype=gloves_data.dtype)
+            gloves_full[hand_indices] = gloves_data
+            predictions.set("gloves", gloves_full)
         
         confident_instances = self._converter.generate_confident_instances(predictions)
 
@@ -285,12 +313,10 @@ class EhoiVisualizerv1(BaseEhoiVisualizer):
         num_predictions = len(predictions)
         hand_indices = (predictions.pred_classes == self._id_hand).nonzero(as_tuple=True)[0]
         
-        if len(hand_indices) > 0:
-            num_hands_in_head = len(additional_outputs) if hasattr(additional_outputs, "__len__") else 0
-            if num_hands_in_head > 0:
-                 assert len(hand_indices) == num_hands_in_head, \
-                    f"Mismatch: Found {len(hand_indices)} hands in predictions, but EHOI head produced {num_hands_in_head} outputs."
-
+        if len(hand_indices) > 0 and len(additional_outputs) > 0:
+            assert len(hand_indices) == len(additional_outputs), \
+                f"Mismatch: Found {len(hand_indices)} hands in predictions, but EHOI head produced {len(additional_outputs)} outputs."
+        
         device = predictions.pred_boxes.tensor.device
         
         if additional_outputs.has("dxdymagn_hand"):
@@ -301,17 +327,20 @@ class EhoiVisualizerv1(BaseEhoiVisualizer):
 
         if additional_outputs.has("contact_states"):
             contact_data = additional_outputs.get("contact_states").squeeze()
+            if contact_data.dim() == 0: contact_data = contact_data.unsqueeze(0)
             contact_full = torch.full((num_predictions,), -1, device=device, dtype=contact_data.dtype)
             contact_full[hand_indices] = contact_data
             predictions.set("contact_states", contact_full)
 
         if additional_outputs.has("sides"):
             sides_data = additional_outputs.get("sides").squeeze()
+            if sides_data.dim() == 0: sides_data = sides_data.unsqueeze(0)
             sides_full = torch.full((num_predictions,), -1, device=device, dtype=sides_data.dtype)
             sides_full[hand_indices] = sides_data
             predictions.set("sides", sides_full)
 
-        if additional_outputs.has("gloves"):
+        # Allineiamo i guanti solo se il modello li predice (controllato dal flag)
+        if self._predict_gloves and additional_outputs.has("gloves"):
             gloves_data = additional_outputs.get("gloves").squeeze()
             if gloves_data.dim() == 0:
                 gloves_data = gloves_data.unsqueeze(0)
@@ -344,5 +373,5 @@ class EhoiVisualizerv1(BaseEhoiVisualizer):
         
         if self._draw_depth and "depth_map" in outputs:
             image = self._draw_depth_f(image, outputs, **kwargs)
-
-            return image
+        
+        return image

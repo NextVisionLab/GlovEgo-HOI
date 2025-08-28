@@ -32,7 +32,7 @@ parser.add_argument('--seed', type=int, default=0, metavar='S', help='random see
 parser.add_argument('--cuda_device', default=0, help='CUDA device id', type=int)
 parser.add_argument('--images_path', type=str, help='directory/file to load images')
 parser.add_argument('--video_path', type=str, help='video to process')
-parser.add_argument('--save_dir', type=str, help='directory to save results', default = "./output_dir_kpts_gloves/inference/")
+parser.add_argument('--save_dir', type=str, help='directory to save results', required=True)
 parser.add_argument('--skip_the_fist_frames', type=int, help='skip the first n frames of the video.', default = 0)
 parser.add_argument('--duration_of_record_sec', type=int, help='time (seconds) of the video to process', default = 10000000)
 parser.add_argument('--hide_depth', action='store_true', default=False)

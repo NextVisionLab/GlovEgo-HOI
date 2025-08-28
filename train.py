@@ -34,6 +34,7 @@ parser.add_argument('--test_json', dest='test_json', nargs='*', help='test json 
 parser.add_argument('--test_dataset_names', dest='test_dataset_names', nargs='*', help='test dataset names', type=str)
 parser.add_argument('--mask_gt', action='store_true', default=False)
 parser.add_argument('--keypoints_gt', action='store_true', default=False)
+parser.add_argument('--gloves_gt', action='store_true', default=False)
 parser.add_argument(
     '--contact_state_modality', 
     default="mask+rgb+depth+kpts+fusion",  
@@ -128,6 +129,9 @@ def load_cfg(args, num_classes):
     cfg.ADDITIONAL_MODULES.CONTACT_STATE_CNN_INPUT_SIZE = args.contact_state_cnn_input_size
     cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS = 21 
 
+    # Gloves
+    cfg.ADDITIONAL_MODULES.gloves_gt = args.gloves_gt
+
     # Visualizer
     cfg.UTILS.VISUALIZER.DRAW_DEPTH = "depth" in args.contact_state_modality
     cfg.UTILS.VISUALIZER.DRAW_MASK = "mask" in args.contact_state_modality
@@ -143,8 +147,7 @@ def load_cfg(args, num_classes):
 
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir_kpts_gloves" \
-    "/last_training/" 
+    cfg.OUTPUT_DIR = "./output_dir_kpts_gloves2/last_training/" 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
