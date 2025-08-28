@@ -249,6 +249,7 @@ class COCOEvaluator(DatasetEvaluator):
             return
 
         self._logger.info("Evaluating predictions with official COCO API...")
+
         for task in sorted(self._tasks):
             self._logger.info(f"Evaluating a_ehoi_core for task: {task}")
             

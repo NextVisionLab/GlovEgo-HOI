@@ -80,6 +80,7 @@ class CustomHandSideCOCOeval:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
 
+
     def _prepare(self):
         '''
         Prepare ._gts and ._dts for evaluation based on params
@@ -92,11 +93,13 @@ class CustomHandSideCOCOeval:
                 ann['segmentation'] = rle
         p = self.params
         if p.useCats:
-            gts=self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
+            gts_all=self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
             dts=self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
         else:
-            gts=self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds))
+            gts_all=self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds))
             dts=self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds))
+
+        gts = [gt for gt in gts_all if gt.get('hand_side', -1) != -1]
 
         # convert ground truth to mask if iouType == 'segm'
         if p.iouType == 'segm':

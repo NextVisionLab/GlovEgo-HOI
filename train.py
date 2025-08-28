@@ -147,7 +147,7 @@ def load_cfg(args, num_classes):
 
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir_kpts_gloves2/last_training/" 
+    cfg.OUTPUT_DIR = "./output_dir_kpts_gloves/last_training/" 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
@@ -157,7 +157,7 @@ def load_cfg(args, num_classes):
     cfg.freeze()
     return cfg
 
-@notify("Train HOIE w gloves")
+@notify("Train HOIE w gloves", traceback_file=True)
 def main():
     args = parse_args()
     print("Command-line args:\n", args)

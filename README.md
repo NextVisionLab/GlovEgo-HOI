@@ -82,8 +82,8 @@ python train.py \
  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json \
  --test_dataset_names val \
- #--weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
- --weights_path ./output_dir_kpts/last_training/model_final.pth \
+ --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
+ #--weights_path "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x/138205316/model_final_a3ec72.pkl" \
  --mask_gt \
  --keypoints_gt \
  --gloves_gt \

@@ -66,7 +66,6 @@ def do_test(cfg, model, *, converter, mapper, data):
 header = f"| {'Metric':<28} | {'Score (%)':>10} |"
 separator = "+" + "-"*30 + "+" + "-"*12 + "+"
 
-@notify("Test Keypoints")
 def main():
     ###SET SEED
     torch.manual_seed(args.seed)
@@ -128,9 +127,11 @@ def main():
         logger.info(f"{key:<35} : {value:.2f}")
     
     # --- SUMMARY ---
-    map_objects = ehoi_results.get('mAP Objects', 0.0)
     ap_hand = ehoi_results.get('AP Hand', 0.0)
-    map_target_objects = ehoi_results.get('mAP Target Objects', 0.0)
+    map_objects = ehoi_results.get('mAP Objects', 0.0)
+    map_target_detection = ehoi_results.get('mAP Target Objects', 0.0)
+    map_hand_target_association = ehoi_results.get('mAP Hand + Target Objects', 0.0)
+
     ap_hand_side = ehoi_results.get('AP Hand + Side', 0.0)
     ap_hand_glove = ehoi_results.get('AP Hand + Glove', 0.0)
     ap_hand_state = ehoi_results.get('AP Hand + State', 0.0)
@@ -143,15 +144,16 @@ def main():
     summary_string += separator + "\n"
     summary_string += header + "\n"
     summary_string += separator + "\n"
-    summary_string += f"| {'Object Detection (mAP50)':<28} | {map_objects:>9.2f} |\n"
     summary_string += f"| {'Hand Detection (AP50)':<28} | {ap_hand:>9.2f} |\n"
-    summary_string += f"| {'Target Object (mAP50)':<28} | {map_target_objects:>9.2f} |\n"
+    summary_string += f"| {'Object Detection (mAP50)':<28} | {map_objects:>9.2f} |\n"
+    summary_string += f"| {'Target Obj. Detect (mAP50)':<28} | {map_target_detection:>9.2f} |\n"
     summary_string += separator + "\n"
     summary_string += f"| {'Hand Side (AP50)':<28} | {ap_hand_side:>9.2f} |\n"
     summary_string += f"| {'Hand Glove (AP50)':<28} | {ap_hand_glove:>9.2f} |\n"
     summary_string += f"| {'Contact State (AP50)':<28} | {ap_hand_state:>9.2f} |\n"
     summary_string += separator + "\n"
-    summary_string += f"| {f'Overall HOI (mAP All)':<28} | {map_all_hoi:>9.2f} |\n"
+    summary_string += f"| {'Hand+Target Obj. (mAP50)':<28} | {map_hand_target_association:>9.2f} |\n"
+    summary_string += f"| {'Overall HOI (mAP All)':<28} | {map_all_hoi:>9.2f} |\n"
     summary_string += separator
     
     logger.info(summary_string)
