@@ -136,7 +136,6 @@ def load_cfg(args, num_classes):
     cfg.UTILS.VISUALIZER.DRAW_DEPTH = "depth" in args.contact_state_modality
     cfg.UTILS.VISUALIZER.DRAW_MASK = "mask" in args.contact_state_modality
     cfg.UTILS.VISUALIZER.DRAW_KEYPOINTS = "kpts" in args.contact_state_modality
-    cfg.UTILS.VISUALIZER.DRAW_SKELETON = "kpts" in args.contact_state_modality
 
     cfg.SOLVER.BASE_LR = args.base_lr
     cfg.SOLVER.IMS_PER_BATCH = args.ims_per_batch
