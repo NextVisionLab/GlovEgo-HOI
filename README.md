@@ -83,12 +83,12 @@ python train.py \
  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json \
  --test_dataset_names val \
  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
- #--weights_path "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x/138205316/model_final_a3ec72.pkl" \
  --mask_gt \
  --keypoints_gt \
  --gloves_gt \
  --wandb_project "ehoi-exp-$(date +%s)" \
  --wandb_run_name "ehoi_net"
+ #--weights_path "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x/138205316/model_final_a3ec72.pkl" \
 ````
 
 ```bash
@@ -132,11 +132,15 @@ wandb sync wandb/latest-run/
 ### Test
 To test the models run the command below:
 ```bash
-python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/383__33_lf/model_final.pth 
+python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./output_dir/last_training/model_final.pth
 ```
 
+```bash
+python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./output_dir_kpts/last_training/model_final.pth
 ```
-python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/val_reduced_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./weights/383__33_lf/model_final.pth 
+
+```bash
+python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./output_dir_kpts_gloves/last_training/model_final.pth
 ```
 
 

@@ -130,7 +130,7 @@ def load_cfg(args, num_classes):
     cfg.MODEL.ROI_KEYPOINT_HEAD.NUM_KEYPOINTS = 21 
 
     # Gloves
-    cfg.ADDITIONAL_MODULES.gloves_gt = args.gloves_gt
+    cfg.ADDITIONAL_MODULES.PREDICT_GLOVES = args.gloves_gt
 
     # Visualizer
     cfg.UTILS.VISUALIZER.DRAW_DEPTH = "depth" in args.contact_state_modality

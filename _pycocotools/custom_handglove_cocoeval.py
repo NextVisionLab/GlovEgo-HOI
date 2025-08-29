@@ -26,11 +26,13 @@ class CustomHandGloveCOCOeval:
     def _prepare(self):
         p = self.params
         if p.useCats:
-            gts=self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
-            dts=self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
+            gts_all = self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
+            dts = self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds, catIds=p.catIds))
         else:
-            gts=self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds))
-            dts=self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds))
+            gts_all = self.cocoGt.loadAnns(self.cocoGt.getAnnIds(imgIds=p.imgIds))
+            dts = self.cocoDt.loadAnns(self.cocoDt.getAnnIds(imgIds=p.imgIds))
+
+        gts = [gt for gt in gts_all if gt.get('gloves', -1) != -1] 
 
         for gt in gts:
             gt['ignore'] = gt.get('ignore', 0)
@@ -90,7 +92,7 @@ class CustomHandGloveCOCOeval:
             return None
 
         for g in gt:
-            if g['ignore'] or (g['area']<aRng[0] or g['area']>aRng[1]):
+            if g.get('ignore') or (g.get('area', 0)<aRng[0] or g.get('area', 0)>aRng[1]):
                 g['_ignore'] = 1
             else:
                 g['_ignore'] = 0
@@ -100,7 +102,9 @@ class CustomHandGloveCOCOeval:
         dtind = np.argsort([-d['score'] for d in dt], kind='mergesort')
         dt = [dt[i] for i in dtind[0:maxDet]]
         iscrowd = [int(o.get('iscrowd', 0)) for o in gt]
-        ious = self.ious[imgId, catId][:, gtind] if len(self.ious.get((imgId, catId), [])) > 0 else self.ious.get((imgId, catId), [])
+        ious = self.ious.get((imgId, catId), [])
+        if len(ious) > 0:
+            ious = ious[:, gtind]
 
         T = len(p.iouThrs)
         G = len(gt)
@@ -116,42 +120,30 @@ class CustomHandGloveCOCOeval:
                     iou = min([t,1-1e-10])
                     m   = -1
                     for gind, g in enumerate(gt):
-                        if gtm[tind,gind]>0 and not iscrowd[gind]:
-                            continue
-                        if m>-1 and gtIg[m]==0 and gtIg[gind]==1:
-                            break
-                        if ious[dind,gind] < iou:
-                            continue
+                        if gtm[tind,gind]>0 and not iscrowd[gind]: continue
+                        if m>-1 and gtIg[m]==0 and gtIg[gind]==1: break
+                        if ious[dind,gind] < iou: continue
                         iou=ious[dind,gind]
                         m=gind
-                    if m ==-1:
-                        continue
                     
-                    # --- MODIFICA CHIAVE ---
-                    # Confronta l'attributo 'gloves'
-                    if g.get('gloves', -1) != d.get('gloves', -1):
+                    if m == -1: continue
+                    
+                    matched_gt = gt[m]
+                    if matched_gt.get('gloves', -1) != d.get('gloves', -1):
                         continue
-                    # -----------------------
 
                     dtIg[tind,dind] = gtIg[m]
-                    dtm[tind,dind]  = gt[m]['id']
+                    dtm[tind,dind]  = matched_gt['id']
                     gtm[tind,m]     = d['id']
 
         a = np.array([d.get('area', 0)<aRng[0] or d.get('area', 0)>aRng[1] for d in dt]).reshape((1, len(dt)))
         dtIg = np.logical_or(dtIg, np.logical_and(dtm==0, np.repeat(a,T,0)))
         return {
-                'image_id':     imgId,
-                'category_id':  catId,
-                'aRng':         aRng,
-                'maxDet':       maxDet,
-                'dtIds':        [d['id'] for d in dt],
-                'gtIds':        [g['id'] for g in gt],
-                'dtMatches':    dtm,
-                'gtMatches':    gtm,
-                'dtScores':     [d['score'] for d in dt],
-                'gtIgnore':     gtIg,
-                'dtIgnore':     dtIg,
-            }
+            'image_id':     imgId, 'category_id':  catId, 'aRng': aRng, 'maxDet': maxDet,
+            'dtIds':        [d['id'] for d in dt], 'gtIds': [g['id'] for g in gt],
+            'dtMatches':    dtm, 'gtMatches': gtm, 'dtScores': [d['score'] for d in dt],
+            'gtIgnore':     gtIg, 'dtIgnore': dtIg,
+        }
 
     def accumulate(self, p=None):
         print('Accumulating evaluation results...')
@@ -289,7 +281,6 @@ class CustomHandGloveCOCOeval:
         summarize = _summarizeDets
         self.stats = summarize()
 
-# Questa classe Params è necessaria per il funzionamento degli evaluator custom
 class Params:
     def __init__(self, iouType='segm'):
         if iouType == 'segm' or iouType == 'bbox':
