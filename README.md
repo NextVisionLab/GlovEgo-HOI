@@ -88,11 +88,6 @@ python train.py \
  --gloves_gt \
  --wandb_project "ehoi-exp-$(date +%s)" \
  --wandb_run_name "ehoi_net"
- #--weights_path "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x/138205316/model_final_a3ec72.pkl" \
-````
-
-```bash
-python train.py  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json  --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json  --test_dataset_names val  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth  --mask_gt --wandb_project "ehoi-exp-$(date +%s)"  --wandb_run_name "ehoi_net" --contact_state_modality mask+rgb+depth+fusion --cuda_device 1
 ````
 
 ```bash
@@ -106,7 +101,9 @@ python train.py \
  --no_wandb
 ```
 
-```
+#### Training breve per verifica di funzionamento
+
+```bash
 python train.py \
   --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
   --test_json ./data/egoism-hoi-dataset/annotations/test_coco.json \
