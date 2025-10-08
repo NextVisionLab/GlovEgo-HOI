@@ -66,6 +66,7 @@ def do_test(cfg, model, *, converter, mapper, data):
 header = f"| {'Metric':<28} | {'Score (%)':>10} |"
 separator = "+" + "-"*30 + "+" + "-"*12 + "+"
 
+@notify("Test on real data", traceback_file=True)
 def main():
     ###SET SEED
     torch.manual_seed(args.seed)

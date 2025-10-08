@@ -37,25 +37,44 @@ class BaseEhoiVisualizer:
 
     def _draw_ehoi_f(self, image, predictions):
         hand_instances = predictions[predictions.pred_classes == self._id_hand]
-        if not len(hand_instances): return image
+        obj_instances = predictions[predictions.pred_classes != self._id_hand]
+
+        if not len(hand_instances):
+            return image, set()
+
+        active_object_indices = set()
         
-        predictions_hands_coco, _ = self._converter.generate_predictions("", hand_instances)
+        if len(obj_instances) > 0:
+            object_boxes_xyxy = obj_instances.pred_boxes.tensor.cpu()
+            all_obj_centers = np.array([((box[0] + box[2]) / 2, (box[1] + box[3]) / 2) for box in object_boxes_xyxy])
         
-        annotations_active_objs = [x for x in predictions_hands_coco if x.get("contact_state") == 1 and x.get("category_id_obj", -1) != -1]
-        for element in annotations_active_objs:
-            if 'bbox_obj' in element and element['bbox_obj']:
-                x,y,w,h = np.array(element['bbox_obj'], int)
-                cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 3)
-        
+            for i in range(len(hand_instances)):
+                instance_hand = hand_instances[i]
+                if instance_hand.has("contact_states") and instance_hand.contact_states.item() == 1:
+                    if not instance_hand.has("dxdymagn_hand"): continue
+                    
+                    dxdymagn_vector = instance_hand.dxdymagn_hand[0].cpu().numpy()
+                    dx, dy, magn = dxdymagn_vector
+
+                    x1, y1, x2, y2 = instance_hand.pred_boxes.tensor[0].int().numpy()
+                    hand_center = np.array([(x1 + x2) / 2, (y1 + y2) / 2])
+                    
+                    magn_in_pixels = magn * self._diag
+                    target_point = np.array([hand_center[0] + dx * magn_in_pixels, hand_center[1] + dy * magn_in_pixels])
+
+                    distances = np.sum((all_obj_centers - target_point)**2, axis=1)
+                    idx_closest_obj = np.argmin(distances)
+                    
+                    active_object_indices.add(idx_closest_obj)
+
         for i in range(len(hand_instances)):
             instance = hand_instances[i]
             x1, y1, x2, y2 = instance.pred_boxes.tensor[0].int().numpy()
-            
-            score = instance.scores.item()
             hand_state = instance.contact_states.item() if instance.has("contact_states") else -1
             color = (0, 255, 0) if hand_state == 1 else (0, 0, 255)
             cv2.rectangle(image, (x1, y1), (x2, y2), color, 3)
             
+            score = instance.scores.item()
             label_parts = ["Hand"]
             if instance.has("sides"):
                 side = instance.sides.item()
@@ -70,29 +89,45 @@ class BaseEhoiVisualizer:
             cv2.rectangle(image, (x1, y1 - th - 5), (x1 + tw + 5, y1), (255,255,255), -1)
             cv2.putText(image, label_text, (x1 + 5, y1 - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
 
-            if i < len(predictions_hands_coco):
-                coco_hand = predictions_hands_coco[i]
-                if coco_hand.get("contact_state") == 1 and all(k in coco_hand for k in ['dx', 'dy', 'magnitude']):
-                    dx, dy, magn = coco_hand['dx'], coco_hand['dy'], coco_hand['magnitude']
-                    magn_in_pixels = magn * self._diag
-                    hand_center = np.array([(x1 + x2) // 2, (y1 + y2) // 2])
-                    target_point = np.array([hand_center[0] + dx * magn_in_pixels, hand_center[1] + dy * magn_in_pixels])
-                    cv2.arrowedLine(image, tuple(hand_center.astype(int)), tuple(target_point.astype(int)), (255, 0, 0), 3, tipLength=0.03)
-                    cv2.circle(image, tuple(hand_center.astype(int)), 5, (0, 0, 255), -1)
-        return image
+            if instance.has("contact_states") and instance.contact_states.item() == 1 and instance.has("dxdymagn_hand"):
+                dxdymagn_vector = instance.dxdymagn_hand[0].cpu().numpy()
+                dx, dy, magn = dxdymagn_vector
+                
+                magn_in_pixels = magn * self._diag
+                hand_center = np.array([(x1 + x2) // 2, (y1 + y2) // 2])
+                target_point = np.array([hand_center[0] + dx * magn_in_pixels, hand_center[1] + dy * magn_in_pixels])
+                cv2.arrowedLine(image, tuple(hand_center.astype(int)), tuple(target_point.astype(int)), (255, 0, 0), 3, tipLength=0.03)
+                cv2.circle(image, tuple(hand_center.astype(int)), 5, (0, 0, 255), -1)
 
-    def _draw_objs_f(self, image, predictions):
-        predictions_obj = predictions[predictions.pred_classes != self._id_hand]
-        if not len(predictions_obj): return image
+        return image, active_object_indices
+
+    def _draw_objs_f(self, image, predictions, active_object_indices=None):
+        if active_object_indices is None:
+            active_object_indices = set()
+
+        obj_instances = predictions[predictions.pred_classes != self._id_hand]
+        if not len(obj_instances): 
+            return image
         
-        predictions_objs_coco = self._converter.convert_instances_to_coco(predictions_obj, "", convert_boxes_xywh_abs=True)
-        for element in predictions_objs_coco:
-            x,y,w,h = np.array(element['bbox'], int)
-            label = f"{self.class_names[element['category_id']]} {element['score']:.1%}"
-            cv2.rectangle(image, (x, y), (x+w, y+h), (128,128,128), 2)
+        for i in range(len(obj_instances)):
+            instance_obj = obj_instances[i]
+            
+            x1, y1, x2, y2 = instance_obj.pred_boxes.tensor[0].int().numpy()
+            
+            if i in active_object_indices:
+                color = (0, 255, 0) 
+                thickness = 3
+            else:
+                color = (128, 128, 128) 
+                thickness = 2
+                
+            label = f"{self.class_names[instance_obj.pred_classes.item()]} {instance_obj.scores.item():.1%}"
+            cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness)
+            
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-            cv2.rectangle(image, (x, y - th - 5), (x + tw + 5, y), (255,255,255), -1) 
-            cv2.putText(image, label, (x + 5, y - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+            cv2.rectangle(image, (x1, y1 - th - 5), (x1 + tw + 5, y1), (255,255,255), -1) 
+            cv2.putText(image, label, (x1 + 5, y1 - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+                
         return image
 
     def _draw_depth_f(self, image, outputs, **kwargs):
@@ -111,6 +146,9 @@ class BaseEhoiVisualizer:
             return image, predictions
 
         additional_outputs = outputs.get("additional_outputs")
+        if additional_outputs is not None:
+            additional_outputs = additional_outputs.to("cpu")  
+            
         hand_indices = (predictions.pred_classes == self._id_hand).nonzero(as_tuple=True)[0]
         
         if len(hand_indices) > 0 and additional_outputs and len(additional_outputs) > 0:
@@ -122,11 +160,10 @@ class BaseEhoiVisualizer:
                     data = additional_outputs.get(key)
                     if key == "dxdymagn_hand":
                         full_tensor = torch.zeros((num_predictions, 3), device=device, dtype=data.dtype)
+                        full_tensor[hand_indices] = data
                     else:
-                        data = data.squeeze()
-                        if data.dim() == 0: data = data.unsqueeze(0)
                         full_tensor = torch.full((num_predictions,), -1, device=device, dtype=data.dtype)
-                    full_tensor[hand_indices] = data
+                        full_tensor[hand_indices] = data.view(-1)
                     predictions.set(key, full_tensor)
         
         confident_instances = self._converter.generate_confident_instances(predictions)
@@ -135,16 +172,21 @@ class BaseEhoiVisualizer:
             if self._draw_depth: image = self._draw_depth_f(image, outputs, **kwargs)
             return image, confident_instances
 
+        active_object_indices = set()
         if self._draw_masks and confident_instances.has("pred_masks"): 
             image = self._draw_masks_f(image, confident_instances, **kwargs)
+        
         if self._draw_ehoi: 
-            image = self._draw_ehoi_f(image, confident_instances)
+            image, active_object_indices = self._draw_ehoi_f(image, confident_instances)
+        
         if self._draw_objs: 
-            image = self._draw_objs_f(image, confident_instances)
+            image = self._draw_objs_f(image, confident_instances, active_object_indices=active_object_indices)
+        
         if self._draw_depth:
             image = self._draw_depth_f(image, outputs, **kwargs)
 
         return image, confident_instances
+
 
 class EhoiVisualizerv1(BaseEhoiVisualizer):
     def __init__(self, cfg, metadata, converter: Converter, **kwargs):
