@@ -8,8 +8,6 @@ import logging
 
 logger = logging.getLogger()
 
-mismatched_image_ids = set()
-
 class CustomHandGloveCOCOeval:
     def __init__(self, cocoGt=None, cocoDt=None, iouType='segm'):
         if not iouType:
@@ -131,27 +129,9 @@ class CustomHandGloveCOCOeval:
                         iou=ious[dind,gind]
                         m=gind
                     
-                    if m == -1: continue
-                    
-                    matched_gt = gt[m]
-                    
-                    # Usiamo .get() con un valore di default per essere sicuri e non crashare
-                    gt_gloves = matched_gt.get('gloves', 'GT_MANCANTE')
-                    dt_gloves = d.get('gloves', 'PRED_MANCANTE')
-
-                    if gt_gloves != dt_gloves:
-                        # Se i valori non corrispondono, registriamo l'ID dell'immagine e stampiamo
-                        mismatched_image_ids.add(imgId)
-                        logger.warning(f"\n\n[DEBUG GLOVE MISMATCH] ImageID: {imgId} | GT: {gt_gloves} | PRED: {dt_gloves} | IoU: {ious[dind, m]:.2f}\n\n")
-                        
-                        # Questa è la riga che causa la bassa performance. La lasciamo attiva
-                        # perché vogliamo misurare il comportamento attuale.
-                        continue
-                    # -------------
-                    
+                    if m == -1: continue                    
                     matched_gt = gt[m]
                     if matched_gt.get('gloves', -1) != d.get('gloves', -1):
-                        
                         continue
 
                     dtIg[tind,dind] = gtIg[m]
