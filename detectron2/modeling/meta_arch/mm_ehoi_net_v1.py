@@ -166,10 +166,8 @@ class MMEhoiNetv1(EhoiNet):
         tmp_time = time.time()
         instances_hands = instances[instances.pred_classes == self._id_hand]
         
-        # Se non vengono rilevate mani, non c'è nulla da fare per i moduli aggiuntivi.
         if len(instances_hands) == 0:
             if self._use_depth_module: results[0]['depth_map'] = self._depth_maps_predicted
-            # Aggiungiamo i campi vuoti a 'instances' per coerenza con l'output
             results[0]["instances"].set("sides", torch.tensor([], dtype=torch.int32, device=instances.pred_boxes.tensor.device))
             results[0]["instances"].set("contact_states", torch.tensor([], dtype=torch.int32, device=instances.pred_boxes.tensor.device))
             results[0]["instances"].set("gloves", torch.tensor([], dtype=torch.int32, device=instances.pred_boxes.tensor.device))
@@ -179,7 +177,6 @@ class MMEhoiNetv1(EhoiNet):
         self._prepare_hands_features_inference(batched_inputs, instances_hands)
         self._last_inference_times["data.prep.additional_modules"] = time.time() - tmp_time
 
-        # --- Calcolo delle predizioni per gli attributi ---
         tmp_time = time.time()
         output_classification_side = torch.round(torch.sigmoid(self.classification_hand_lr(self._c_hands_features))).int()
         self._last_inference_times["classification_hand_lr"] = time.time() - tmp_time
@@ -205,51 +202,36 @@ class MMEhoiNetv1(EhoiNet):
             self.scores_contact = torch.sigmoid(self.classification_contact_state(self._c_hands_features_cnn))
             output_classification_contact = torch.round(self.scores_contact).int()
         self._last_inference_times["classification_contact_state"] = time.time() - tmp_time
-        
-        # --- BLOCCO DI ASSEGNAZIONE DEGLI ATTRIBUTI (ROBUSTO E CORRETTO) ---
-        # Controlliamo che il numero di predizioni corrisponda al numero di mani rilevate
+
         if len(instances_hands) == output_classification_side.shape[0]:
             num_instances = len(instances)
             device = instances.pred_boxes.tensor.device
             
-            # Inizializza i tensori completi che conterranno gli attributi per TUTTE le istanze
             sides_full = torch.full((num_instances,), -1, dtype=torch.int32, device=device)
             contact_states_full = torch.full((num_instances,), -1, dtype=torch.int32, device=device)
             gloves_full = torch.full((num_instances,), -1, dtype=torch.int32, device=device)
             dxdymagn_hand_full = torch.full((num_instances, 3), -1.0, dtype=torch.float32, device=device)
 
-            # Maschera per selezionare solo le mani dal tensore completo delle istanze
             hand_mask = (instances.pred_classes == self._id_hand)
             
-            # Assegna i valori usando .view(-1) per garantire una forma 1D [N]
-            # Questo previene errori di broadcasting dovuti a forme inconsistenti come [N, 1] o [1]
             sides_full[hand_mask] = output_classification_side.view(-1)
             contact_states_full[hand_mask] = output_classification_contact.view(-1)
             if output_classification_gloves is not None:
                 gloves_full[hand_mask] = output_classification_gloves.view(-1)
             
-            # output_dxdymagn ha già la forma corretta [N, 3], non serve .view()
             dxdymagn_hand_full[hand_mask] = output_dxdymagn
             
-            # Aggiunge i campi completi all'oggetto 'instances' principale
             results[0]["instances"].set("sides", sides_full)
             results[0]["instances"].set("contact_states", contact_states_full)
             results[0]["instances"].set("gloves", gloves_full)
             results[0]["instances"].set("dxdymagn_hand", dxdymagn_hand_full)
 
         else:
-            # Questo warning è importante: se appare, c'è un problema a monte nel processing delle features
             logger.warning(
                 f"Mismatch between number of detected hands ({len(instances_hands)}) "
                 f"and number of attribute predictions ({output_classification_side.shape[0]}). "
                 "Skipping attachment of additional outputs."
             )
-
-        # --- Blocco per popolare 'additional_outputs' (usato da alcuni visualizzatori/evaluator) ---
-        # Questo blocco ora leggerà gli attributi dall'oggetto `instances` appena aggiornato,
-        # garantendo la coerenza.
-        
-        # Ricarica instances_hands per assicurarsi che abbia i nuovi campi
         instances_hands_updated = results[0]["instances"][results[0]["instances"].pred_classes == self._id_hand]
 
         if len(instances_hands_updated) > 0:
@@ -258,7 +240,6 @@ class MMEhoiNetv1(EhoiNet):
             additional_outputs.set("scores", instances_hands_updated.scores)
             additional_outputs.set("pred_classes", instances_hands_updated.pred_classes)
             
-            # Controlla l'esistenza dei campi prima di accedervi
             if instances_hands_updated.has("sides"):
                 additional_outputs.set("sides", instances_hands_updated.sides)
             if instances_hands_updated.has("contact_states"):
@@ -278,7 +259,7 @@ class MMEhoiNetv1(EhoiNet):
         _total = round(sum(self._last_inference_times.values()) * 1000, 2)
         self._last_inference_times = {k: round(v * 1000, 2) for k, v in self._last_inference_times.items()}
         self._last_inference_times["total"] = _total
-        self._last_instances_hands = instances_hands_updated # Salva le istanze aggiornate
+        self._last_instances_hands = instances_hands_updated 
         
         return results
 

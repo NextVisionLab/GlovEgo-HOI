@@ -5,7 +5,6 @@ import numpy as np
 import copy
 import logging
 
-# Assicurati che gli import siano corretti per la tua struttura
 from _pycocotools.coco import COCO
 from _pycocotools.cocoeval import COCOeval
 from _pycocotools.custom_handside_cocoeval import CustomHandSideCOCOeval
