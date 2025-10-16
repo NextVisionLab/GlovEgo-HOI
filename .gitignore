@@ -53,10 +53,10 @@ output
 output_detection
 instant_test_output
 inference_test_output
-
-output_dir/
-output_dir_kpts/
-output_dir_kpts_gloves/
+output_dir*/
+*.wandb
+*.json
+*.log
 
 ###visualization dir
 visualization_output/
@@ -67,4 +67,4 @@ visualization_output_kpt_glove/
 
 ###telegram notifier
 telegram_notifier/
-weights/383__33_lf/
+kpt_debug.py
