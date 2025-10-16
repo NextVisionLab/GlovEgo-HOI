@@ -119,6 +119,24 @@ python train.py \
   --no_wandb 
 ```
 
+### Finetuning on real data
+```bash
+python train.py \
+ --train_json ../egoism-hoi-dataset-rosario/annotations/r_train_coco_fixed.json \
+ --test_json ../egoism-hoi-dataset-rosario/annotations/r_val_coco_fixed.json \
+ --test_dataset_names rosario_val_real \
+ --weights_path ./output_dir_kpts_gloves/last_training/model_final.pth \
+ --freeze_modules keypoint_head depth_module mask_head glove_head \
+ --base_lr 0.0001 \
+ --max_iter 10000 \
+ --checkpoint_period 2000 \
+ --eval_period 1000 \
+ --contact_state_modality "rgb+depth+kpts+fusion" \
+ --gloves_gt \
+ --wandb_project "finetune-real-data" \
+ --wandb_run_name "finetune_on_real_data_100"
+```
+
 Check more about argparse parameters in `train.py`.
 
 ### Wandb
@@ -139,7 +157,6 @@ python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.js
 ```bash
 python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./output_dir_kpts_gloves/last_training/model_final.pth
 ```
-
 
 Check more about argparse parameters in `test.py`.
 

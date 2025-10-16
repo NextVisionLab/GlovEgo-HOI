@@ -3,7 +3,8 @@ import os
 import numpy as np
 import torch
 import math
-import cv2
+import cv2    
+from pathlib import Path
 
 from . import detection_utils as utils
 from . import transforms as T
@@ -131,51 +132,80 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
         return dataset_dict
 
 class EhoiDatasetMapperDepthv1(EhoiDatasetMapperv1):
-	def __init__(self, cfg, data_anns_sup = None, is_train = True, _gt = True,  **kwargs):
-		super().__init__(cfg, data_anns_sup, is_train, **kwargs)
-		self.net_w = cfg.ADDITIONAL_MODULES.DEPTH_MODULE.NET_W
-		self.net_h = cfg.ADDITIONAL_MODULES.DEPTH_MODULE.NET_H
-		self.resize_mode = cfg.ADDITIONAL_MODULES.DEPTH_MODULE.RESIZE_MODE
-		self._gt = _gt
-		#self.normalization = NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])    
-		self.transform = Compose([
-		        Resize(
-		            self.net_w,
-		            self.net_h,
-		            resize_target=True,
-		            keep_aspect_ratio=True,
-		            ensure_multiple_of=32,
-		            resize_method=self.resize_mode,
-		            image_interpolation_method=cv2.INTER_CUBIC,
-		        ),
-		        #self.normalization,
-		        PrepareForNet()])
-		self.transform_depth = Compose([
-			Resize(
-				self.net_w,
-				self.net_h,
-				resize_target=True,
-				keep_aspect_ratio=True,
-				ensure_multiple_of=32,
-				resize_method=self.resize_mode,
-				image_interpolation_method=cv2.INTER_NEAREST)])
+    def __init__(self, cfg, data_anns_sup = None, is_train = True, _gt = True,  **kwargs):
+        super().__init__(cfg, data_anns_sup, is_train, **kwargs)
+        self.net_w = cfg.ADDITIONAL_MODULES.DEPTH_MODULE.NET_W
+        self.net_h = cfg.ADDITIONAL_MODULES.DEPTH_MODULE.NET_H
+        self.resize_mode = cfg.ADDITIONAL_MODULES.DEPTH_MODULE.RESIZE_MODE
+        self._gt = _gt
+        #self.normalization = NormalizeImage(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])    
+        self.transform = Compose([
+                Resize(
+                    self.net_w,
+                    self.net_h,
+                    resize_target=True,
+                    keep_aspect_ratio=True,
+                    ensure_multiple_of=32,
+                    resize_method=self.resize_mode,
+                    image_interpolation_method=cv2.INTER_CUBIC,
+                ),
+                #self.normalization,
+                PrepareForNet()])
+        self.transform_depth = Compose([
+            Resize(
+                self.net_w,
+                self.net_h,
+                resize_target=True,
+                keep_aspect_ratio=True,
+                ensure_multiple_of=32,
+                resize_method=self.resize_mode,
+                image_interpolation_method=cv2.INTER_NEAREST)])
 
-	def __call__(self, dataset_dict):
-		if not self.is_train: return self.inference(dataset_dict)
-		element = super().__call__(dataset_dict)
-		img = midas_utils.read_image(dataset_dict["file_name"])
-		element["image_for_depth_module"] = self.transform({"image": img})["image"]
-		if self._gt: 
-			depth_path = dataset_dict["file_name"].replace("images", "depth_maps").replace("camera", "map").replace("jpg", "png")
-			if os.path.exists(depth_path):
-				depth = cv2.imread(depth_path, cv2.IMREAD_GRAYSCALE) if self._gt else []
-				depth = np.ascontiguousarray((self.transform_depth({"image": depth})["image"].astype(np.float32)))
-				element["depth_gt"] = np.subtract(255, depth) 
-		return element
 
-	def inference(self, dataset_dict):
-		element = super().inference(dataset_dict)
-		img = midas_utils.read_image(dataset_dict["file_name"])
-		img_input = self.transform({"image": img})["image"]
-		element["image_for_depth_module"] = img_input
-		return element
+    def __call__(self, dataset_dict):
+        if not self.is_train: 
+            return self.inference(dataset_dict)
+        element = super().__call__(dataset_dict)
+        
+        if element is None:
+            return None
+            
+        try:
+            img_for_depth = midas_utils.read_image(dataset_dict["file_name"])
+            
+            if img_for_depth is None:
+                print(f"WARNING [Mapper]: midas_utils.read_image failed for {dataset_dict['file_name']}. Skipping this data sample.")
+                return None 
+
+            element["image_for_depth_module"] = self.transform({"image": img_for_depth})["image"]
+
+            file_name = os.path.basename(dataset_dict["file_name"])
+            
+            if file_name.startswith("camera_"):
+                base_id = Path(file_name).stem.replace("camera_", "")
+                
+                depth_filename = f"map_{base_id}.png"
+                
+                rgb_path = Path(dataset_dict["file_name"])
+                depth_path_str = str(rgb_path.parent.parent / "depth_maps" / depth_filename)
+
+                if os.path.exists(depth_path_str):
+                    depth = cv2.imread(depth_path_str, cv2.IMREAD_GRAYSCALE)
+                    if depth is not None:
+                        depth_transformed = self.transform_depth({"image": depth})["image"].astype(np.float32)
+                        element["depth_gt"] = np.subtract(255, depth_transformed)
+                    else:
+                        print(f"WARNING [Mapper]: Found depth file but cv2 failed to read: {depth_path_str}")
+
+        except Exception as e:
+            print(f"WARNING [Mapper]: Failed to process depth data for {dataset_dict['file_name']}. Error: {e}. Skipping this data sample.")
+            return None
+        
+        return element
+
+    def inference(self, dataset_dict):
+        element = super().inference(dataset_dict)
+        img = midas_utils.read_image(dataset_dict["file_name"])
+        img_input = self.transform({"image": img})["image"]
+        element["image_for_depth_module"] = img_input
+        return element

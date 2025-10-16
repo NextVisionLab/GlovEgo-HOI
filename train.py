@@ -44,7 +44,7 @@ parser.add_argument(
         "rgb", "cnn_rgb", "depth", "mask", "kpts",
         "rgb+depth", "mask+rgb", "mask+depth", "rgb+kpts", "mask+kpts", "depth+kpts",
         "mask+rgb+depth", "mask+rgb+kpts", "mask+depth+kpts", "rgb+depth+kpts",
-        "mask+rgb+depth+kpts",
+        "mask+rgb+depth+kpts", "rgb+depth+kpts+fusion",
         "rgb+fusion", "rgb+depth+fusion", "mask+rgb+fusion", "mask+rgb+depth+fusion",
         "mask+rgb+depth+kpts+fusion" 
     ]
@@ -61,6 +61,13 @@ parser.add_argument('--warmup_iters', default=1000, help='warmup_iters', type=in
 parser.add_argument('--wandb_project', type=str, default="ehoi-project", help='Weights & Biases project name.')
 parser.add_argument('--wandb_run_name', type=str, default=None, help='A specific name for the Wandb run.')
 parser.add_argument('--no_wandb', action='store_true', default=False, help='Disable all Weights & Biases logging.')
+parser.add_argument(
+    '--freeze_modules', 
+    nargs='*', 
+    default=[], 
+    help='List of module names to freeze during training (e.g., backbone keypoint_head)',
+    type=str
+)
 
 def parse_args():
     args = parser.parse_args()
@@ -138,7 +145,7 @@ def load_cfg(args, num_classes):
     cfg.UTILS.VISUALIZER.DRAW_KEYPOINTS = "kpts" in args.contact_state_modality
 
     cfg.SOLVER.BASE_LR = args.base_lr
-    cfg.SOLVER.IMS_PER_BATCH = args.ims_per_batch
+    cfg.SOLVER.IMS_PER_BATCH = 1#args.ims_per_batch
     cfg.SOLVER.STEPS = tuple(args.solver_steps)
     cfg.SOLVER.MAX_ITER = args.max_iter
     cfg.SOLVER.CHECKPOINT_PERIOD = args.checkpoint_period
@@ -146,7 +153,7 @@ def load_cfg(args, num_classes):
 
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir_kpts_gloves/last_training/" 
+    cfg.OUTPUT_DIR = "./output_dir_kpts_gloves_only/last_training/" 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
@@ -156,7 +163,7 @@ def load_cfg(args, num_classes):
     cfg.freeze()
     return cfg
 
-@notify("Train HOIE w gloves", traceback_file=True)
+@notify("Training only gloves", traceback_file=True)
 def main():
     args = parse_args()
     print("Command-line args:\n", args)
@@ -215,20 +222,41 @@ def main():
     checkpointer = DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR)
     checkpointer.load(cfg.MODEL.WEIGHTS)
 
+    if args.freeze_modules:
+        model.freeze_modules(args.freeze_modules)
+
     ###MODEL TO DEVICE
     device = "cuda:" + str(args.cuda_device)
     model.to(device)
     print("Model loaded on:", model.device)
 
     ###OPTIMIZER AND SCHEDULER INIT
-    base_parameters = [param for name, param in model.named_parameters() if 'depth_module' not in name]
-    depth_parameters = [param for name, param in model.named_parameters() if 'depth_module' in name]
-    optimizer = torch.optim.SGD([
-            {'params': base_parameters},
-            {'params': depth_parameters, "lr": float(cfg.ADDITIONAL_MODULES.DEPTH_MODULE.LR)}],
-            lr = cfg.SOLVER.BASE_LR, 
-            momentum = cfg.SOLVER.MOMENTUM, 
-            weight_decay = cfg.SOLVER.WEIGHT_DECAY)
+    params_to_optimize = [p for p in model.parameters() if p.requires_grad]
+    depth_parameters_to_optimize = [p for p in params_to_optimize if any(p is dp for dp in model.depth_module.parameters())]
+    base_parameters_to_optimize = [p for p in params_to_optimize if not any(p is dp for dp in model.depth_module.parameters())]
+    optimizer_param_groups = [{'params': base_parameters_to_optimize}]
+    if depth_parameters_to_optimize:
+        optimizer_param_groups.append({'params': depth_parameters_to_optimize, "lr": float(cfg.ADDITIONAL_MODULES.DEPTH_MODULE.LR)})
+    
+    print("\n--- Optimizer will train the following parameter groups: ---")
+    total_params = 0
+    for i, group in enumerate(optimizer_param_groups):
+        num_params = sum(p.numel() for p in group['params'])
+        total_params += num_params
+        print(f"Group {i}: {num_params:,} parameters.")
+    print(f"Total trainable parameters: {total_params:,}")
+    print("---------------------------------------------------------------------\n")
+    
+    if not params_to_optimize:
+        logger.error("No parameters to optimize. Check --freeze_modules arguments.")
+        sys.exit(1)
+
+    optimizer = torch.optim.SGD(
+        optimizer_param_groups,
+        lr=cfg.SOLVER.BASE_LR, 
+        momentum=cfg.SOLVER.MOMENTUM, 
+        weight_decay=cfg.SOLVER.WEIGHT_DECAY
+    )
     scheduler = build_lr_scheduler(cfg, optimizer)
     
     ###PARAMS

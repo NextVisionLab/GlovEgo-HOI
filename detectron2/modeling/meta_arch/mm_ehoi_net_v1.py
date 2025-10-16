@@ -168,10 +168,20 @@ class MMEhoiNetv1(EhoiNet):
         
         if len(instances_hands) == 0:
             if self._use_depth_module: results[0]['depth_map'] = self._depth_maps_predicted
-            results[0]["instances"].set("sides", torch.tensor([], dtype=torch.int32, device=instances.pred_boxes.tensor.device))
-            results[0]["instances"].set("contact_states", torch.tensor([], dtype=torch.int32, device=instances.pred_boxes.tensor.device))
-            results[0]["instances"].set("gloves", torch.tensor([], dtype=torch.int32, device=instances.pred_boxes.tensor.device))
-            results[0]["instances"].set("dxdymagn_hand", torch.tensor([], dtype=torch.float32, device=instances.pred_boxes.tensor.device).view(0, 3))
+            
+            num_instances = len(instances)
+            device = instances.pred_boxes.tensor.device
+            
+            sides_full = torch.full((num_instances,), -1, dtype=torch.int32, device=device)
+            contact_states_full = torch.full((num_instances,), -1, dtype=torch.int32, device=device)
+            gloves_full = torch.full((num_instances,), -1, dtype=torch.int32, device=device)
+            dxdymagn_hand_full = torch.full((num_instances, 3), -1.0, dtype=torch.float32, device=device)
+            
+            results[0]["instances"].set("sides", sides_full)
+            results[0]["instances"].set("contact_states", contact_states_full)
+            results[0]["instances"].set("gloves", gloves_full)
+            results[0]["instances"].set("dxdymagn_hand", dxdymagn_hand_full)
+            
             return results
 
         self._prepare_hands_features_inference(batched_inputs, instances_hands)
