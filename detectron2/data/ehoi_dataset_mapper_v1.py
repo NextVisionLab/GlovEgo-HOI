@@ -144,7 +144,7 @@ class EhoiDatasetMapperDepthv1(EhoiDatasetMapperv1):
                     self.net_w,
                     self.net_h,
                     resize_target=True,
-                    keep_aspect_ratio=True,
+                    keep_aspect_ratio=False,
                     ensure_multiple_of=32,
                     resize_method=self.resize_mode,
                     image_interpolation_method=cv2.INTER_CUBIC,
@@ -156,7 +156,7 @@ class EhoiDatasetMapperDepthv1(EhoiDatasetMapperv1):
                 self.net_w,
                 self.net_h,
                 resize_target=True,
-                keep_aspect_ratio=True,
+                keep_aspect_ratio=False,
                 ensure_multiple_of=32,
                 resize_method=self.resize_mode,
                 image_interpolation_method=cv2.INTER_NEAREST)])
