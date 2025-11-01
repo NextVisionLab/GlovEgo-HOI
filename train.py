@@ -145,7 +145,7 @@ def load_cfg(args, num_classes):
     cfg.UTILS.VISUALIZER.DRAW_KEYPOINTS = "kpts" in args.contact_state_modality
 
     cfg.SOLVER.BASE_LR = args.base_lr
-    cfg.SOLVER.IMS_PER_BATCH = 1#args.ims_per_batch
+    cfg.SOLVER.IMS_PER_BATCH = args.ims_per_batch
     cfg.SOLVER.STEPS = tuple(args.solver_steps)
     cfg.SOLVER.MAX_ITER = args.max_iter
     cfg.SOLVER.CHECKPOINT_PERIOD = args.checkpoint_period
@@ -153,7 +153,7 @@ def load_cfg(args, num_classes):
 
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir_kpts_gloves_only/last_training/" 
+    cfg.OUTPUT_DIR = "./output_dir_gloves/last_training/" 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
@@ -163,7 +163,7 @@ def load_cfg(args, num_classes):
     cfg.freeze()
     return cfg
 
-@notify("Training only gloves", traceback_file=True)
+@notify("Training gloves", traceback_file=True)
 def main():
     args = parse_args()
     print("Command-line args:\n", args)
@@ -286,6 +286,7 @@ def main():
 
             optimizer.zero_grad()
             losses.backward()
+
             optimizer.step()
             scheduler.step()
             storage.put_scalar("lr", optimizer.param_groups[0]["lr"], smoothing_hint=False)

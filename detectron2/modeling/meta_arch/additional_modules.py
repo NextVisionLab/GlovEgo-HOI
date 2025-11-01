@@ -59,21 +59,27 @@ class GloveClassificationModule(nn.Module):
 class AssociationVectorRegressor(nn.Module):
     def __init__(self, cfg):
         super(AssociationVectorRegressor, self).__init__()
-        self.layer_1 = nn.Linear(1024, 256)
-        self.layer_2 = nn.Linear(256, 3)
+        self.layer_1 = nn.Linear(1024, 512) 
+        self.layer_2 = nn.Linear(512, 256)  
+        self.layer_3 = nn.Linear(256, 3)    
         self.relu = torch.nn.ReLU()
         self.dropout = torch.nn.Dropout(p = cfg.ADDITIONAL_MODULES.ASSOCIATION_VECTOR_REGRESSOR_MODULE_DROPOUT)
+
     def forward(self, x, gt = None):
-        output_1 = self.layer_1(x)
-        output_1 = self.relu(output_1)
-        output_1 = self.dropout(output_1)
-        output_2 = self.layer_2(output_1).float()
-        if gt is None: return output_2
+        x = self.layer_1(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        x = self.layer_2(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        output = self.layer_3(x).float()
+        if gt is None: return output
         if len(gt) == 0: return None, torch.tensor([0], dtype=torch.float32).to(self.device)
         gt_tensor = torch.from_numpy(np.array(gt)).float().to(self.device)
-        loss = nn.functional.mse_loss(output_2, gt_tensor)
+        loss = nn.functional.mse_loss(output, gt_tensor)
         loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
-        return output_2, loss
+        return output, loss
+    
     @property
     def device(self):
         return next(self.parameters()).device

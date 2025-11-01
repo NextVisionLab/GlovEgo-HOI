@@ -112,7 +112,7 @@ class MMEhoiNetv1(EhoiNet):
         total_loss['loss_classification_hand_lr'] =  loss_classification_hand_lr
         if self.classification_gloves is not None:
             total_loss['loss_classification_gloves'] = loss_classification_gloves
-        total_loss['loss_regression_dxdymagn'] =  loss_regression_vector
+        total_loss['loss_regression_dxdymagn'] =  loss_regression_vector * 10.0 # Increase regression vector loss contribute to total loss
         if self._use_depth_module: total_loss['loss_depth'] = loss_depth_estimation
         if self._predict_mask and self._mask_gt: total_loss.update(mask_losses)
         if self._predict_keypoints: total_loss.update(keypoint_losses)
