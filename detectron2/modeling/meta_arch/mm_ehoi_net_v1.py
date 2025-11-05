@@ -112,7 +112,7 @@ class MMEhoiNetv1(EhoiNet):
         total_loss['loss_classification_hand_lr'] =  loss_classification_hand_lr
         if self.classification_gloves is not None:
             total_loss['loss_classification_gloves'] = loss_classification_gloves
-        total_loss['loss_regression_dxdymagn'] =  loss_regression_vector * 10.0 # Increase regression vector loss contribute to total loss
+        total_loss['loss_regression_dxdymagn'] =  loss_regression_vector 
         if self._use_depth_module: total_loss['loss_depth'] = loss_depth_estimation
         if self._predict_mask and self._mask_gt: total_loss.update(mask_losses)
         if self._predict_keypoints: total_loss.update(keypoint_losses)
@@ -391,7 +391,47 @@ class MMEhoiNetv1(EhoiNet):
             
             if len(channels_to_cat) > 0:
                 self._c_hands_features_cnn = torch.cat(channels_to_cat, dim=1)
-                #self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="inference", img_to_save=3)
+                self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="inference", img_to_save=3)
+    
+    def freeze_modules(self, module_names: List[str]):
+        """
+        Congela i parametri dei moduli specificati (imposta requires_grad = False)
+        in modo che non vengano aggiornati durante il training.
+        """
+        if not module_names:
+            return
+
+        logger = logging.getLogger("detectron2")
+        logger.info(f"--- CONGELAMENTO MODULI RICHIESTO: {module_names} ---")
+        
+        for name in module_names:
+            if hasattr(self, name):
+                # Controlla sia i moduli diretti (es. self.depth_module)
+                # sia quelli dentro 'roi_heads' (es. self.roi_heads.mask_head)
+                if "." in name:
+                    parts = name.split(".")
+                    try:
+                        module_to_freeze = getattr(getattr(self, parts[0]), parts[1])
+                    except AttributeError:
+                        logger.error(f"[FALLITO] Modulo '{name}' non trovato. Impossibile congelare.")
+                        continue
+                else:
+                    module_to_freeze = getattr(self, name)
+
+                if isinstance(module_to_freeze, torch.nn.Module):
+                    for param in module_to_freeze.parameters():
+                        param.requires_grad = False
+                    logger.info(f"[OK] Modulo congelato con successo: {name}")
+                else:
+                    logger.warning(f"[ATTENZIONE] Attributo '{name}' non è un torch.nn.Module, impossibile congelare.")
+            else:
+                # Gestisce i casi in cui il modulo non esiste (es. 'mask_head' quando mask_gt=False)
+                if name == 'mask_head' and not self.cfg.MODEL.MASK_ON:
+                    logger.info(f"[INFO] 'mask_head' non presente (MASK_ON=False), congelamento saltato.")
+                else:
+                    logger.error(f"[FALLITO] Modulo '{name}' non trovato in MMEhoiNetv1. Impossibile congelare.")
+        
+        print("---------------------------------------------------------------------")
 
     def debug_roi(self, c_roi, batched_inputs, phase, img_to_save=5):
         if not hasattr(self, f"_debug_save_count_{phase}"):
