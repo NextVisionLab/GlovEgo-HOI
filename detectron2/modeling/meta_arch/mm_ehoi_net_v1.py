@@ -33,8 +33,10 @@ class MMEhoiNetv1(EhoiNet):
         self._roi_align_cnn_contact_state = torchvision.ops.RoIAlign((input_size_cnn_contact_state, input_size_cnn_contact_state), 1, -1)
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
-        if not self.training: return self.inference(batched_inputs)
+        if not self.training:
+            return self.inference(batched_inputs)
 
+        # 1. Basic R-CNN Forward (Backbone + RPN + ROI Heads)
         images = self.preprocess_image(batched_inputs)
         gt_instances = [x["instances"].to(self.device) for x in batched_inputs] if "instances" in batched_inputs[0] else None
         
@@ -44,16 +46,18 @@ class MMEhoiNetv1(EhoiNet):
         proposals, proposal_losses = self.proposal_generator(images, features, gt_instances)
         proposals_match, detector_losses = self.roi_heads(images, features, proposals, gt_instances)
         
+        # Extract ground truth labels for custom modules from matched proposals
         self._prepare_gt_labels(proposals_match)
 
+        # 2. Depth Estimation Branch
+        loss_depth_estimation = torch.tensor(0.0, device=self.device)
         if self._use_depth_module: 
             self._last_extracted_features["depth"], self._depth_maps_predicted = self.depth_module.extract_features_maps(batched_inputs)
             if "depth_gt" in batched_inputs[0]:
-                gt_depth_maps =  torch.tensor(np.array([e["depth_gt"] for e in batched_inputs])).to(self.device)
+                gt_depth_maps = torch.as_tensor(np.array([e["depth_gt"] for e in batched_inputs]), device=self.device)
                 loss_depth_estimation = self._loss_depth_f(self._depth_maps_predicted, gt_depth_maps)
-            else:
-                loss_depth_estimation = torch.tensor([0], dtype=torch.float32).to(self.device)
 
+        # 3. Standard Heads (Mask & Keypoints) with Foreground Selection
         mask_losses = {}
         keypoint_losses = {}
 
@@ -69,53 +73,81 @@ class MMEhoiNetv1(EhoiNet):
             
             if self._predict_keypoints:
                 proposals_hands_kpts = [p[p.gt_classes == self._id_hand] for p in proposals_fg]
-                
-                features_kpts = self._keypoint_pooler(
-                    [features[f] for f in self._keypoint_in_features], 
-                    [x.proposal_boxes for x in proposals_hands_kpts]
-                )
+                features_kpts = self._keypoint_pooler([features[f] for f in self._keypoint_in_features], [x.proposal_boxes for x in proposals_hands_kpts])
                 
                 if features_kpts.shape[0] > 0:
                     keypoint_losses = self._keypoint_head(features_kpts, proposals_hands_kpts)
-                    
                     weight = self.cfg.MODEL.ROI_KEYPOINT_HEAD.LOSS_WEIGHT
-                    for k in keypoint_losses.keys():
-                        keypoint_losses[k] *= weight
+                    keypoint_losses = {k: v * weight for k, v in keypoint_losses.items()}
                 else:
-                    keypoint_losses = {"loss_keypoint": torch.tensor(0.0, device=features['p2'].device)}
+                    keypoint_losses = {"loss_keypoint": torch.tensor(0.0, device=self.device)}
 
+        # 4. Preparation for Additional Hand Attribute Modules
         self._prepare_hands_features(batched_inputs, proposals_match)
         self._last_proposals_match = proposals_match
 
-        loss_classification_hand_lr = torch.tensor(0.0, device=self.device) 
-        loss_classification_gloves = torch.tensor(0.0, device=self.device) 
+        # Convert GT lists to tensors for efficient indexing/masking
+        gt_lr = torch.as_tensor(self._c_gt_hands_lr, device=self.device)
+        gt_contact = torch.as_tensor(self._c_gt_hands_contact_state, device=self.device)
+        gt_gloves = torch.as_tensor(self._c_gt_hands_gloves, device=self.device)
 
-        _, loss_classification_hand_lr = self.classification_hand_lr(self._c_hands_features, self._c_gt_hands_lr) 
-        if self.classification_gloves is not None:
-            _, loss_classification_gloves = self.classification_gloves(self._c_hands_features, self._c_gt_hands_gloves)
+        # Initialize additional losses
+        loss_hand_lr = torch.tensor(0.0, device=self.device)
+        loss_gloves = torch.tensor(0.0, device=self.device)
+        loss_contact = torch.tensor(0.0, device=self.device)
+        loss_reg_vector = torch.tensor(0.0, device=self.device)
 
-        if self._contact_state_modality == "rgb":   
-            _, loss_classification_contact_state = self.classification_contact_state(self._c_hands_features_padded, self._c_gt_hands_contact_state)
-        elif "fusion" in self._contact_state_modality:
-            _, loss_classification_contact_state = self.classification_contact_state(self._c_hands_features_cnn, self._c_hands_features_padded, self._c_gt_hands_contact_state)
-        else:
-            _, loss_classification_contact_state = self.classification_contact_state(self._c_hands_features_cnn, self._c_gt_hands_contact_state)
+        # --- TASK: Hand Side (Left/Right) ---
+        valid_lr_mask = torch.where(gt_lr != -1)[0]
+        if len(valid_lr_mask) > 0:
+            _, loss_hand_lr = self.classification_hand_lr(self._c_hands_features[valid_lr_mask], gt_lr[valid_lr_mask])
 
-        indexes_contact = [i for i, x in enumerate(self._c_gt_hands_contact_state) if x == 1]
-        _, loss_regression_vector = self.association_vector_regressor(self._c_hands_features_padded[indexes_contact], np.array(self._c_gt_hands_dxdymagnitude)[indexes_contact])            
+        # --- TASK: Gloves Classification ---
+        valid_gloves_mask = torch.where(gt_gloves != -1)[0]
+        if self.classification_gloves is not None and len(valid_gloves_mask) > 0:
+            _, loss_gloves = self.classification_gloves(self._c_hands_features[valid_gloves_mask], gt_gloves[valid_gloves_mask])
 
+        # --- TASK: Contact State Classification ---
+        valid_contact_mask = torch.where(gt_contact != -1)[0]
+        if len(valid_contact_mask) > 0:
+            if self._contact_state_modality == "rgb":   
+                _, loss_contact = self.classification_contact_state(self._c_hands_features_padded[valid_contact_mask], gt_contact[valid_contact_mask])
+            elif "fusion" in self._contact_state_modality:
+                _, loss_contact = self.classification_contact_state(self._c_hands_features_cnn[valid_contact_mask], self._c_hands_features_padded[valid_contact_mask], gt_contact[valid_contact_mask])
+            else:
+                _, loss_contact = self.classification_contact_state(self._c_hands_features_cnn[valid_contact_mask], gt_contact[valid_contact_mask])
+
+        # --- TASK: Association Vector Regression ---
+        valid_reg_mask = torch.where(gt_contact == 1)[0]
+        if len(valid_reg_mask) > 0:
+            gt_vectors = np.array(self._c_gt_hands_dxdymagnitude)[valid_reg_mask.cpu().numpy()]
+            _, loss_reg_vector = self.association_vector_regressor(self._c_hands_features_padded[valid_reg_mask], gt_vectors)
+
+        # 5. Aggregate All Losses
         total_loss = {}
         total_loss.update(detector_losses)
         total_loss.update(proposal_losses)
-        if isinstance(loss_classification_contact_state, dict): total_loss.update(loss_classification_contact_state)
-        else: total_loss['loss_classification_contact_state'] =  loss_classification_contact_state
-        total_loss['loss_classification_hand_lr'] =  loss_classification_hand_lr
+        
+        # Handle multitask dictionary or single tensor from contact state module
+        if isinstance(loss_contact, dict): 
+            total_loss.update(loss_contact)
+        else: 
+            total_loss['loss_classification_contact_state'] = loss_contact
+            
+        total_loss.update({
+            'loss_classification_hand_lr': loss_hand_lr,
+            'loss_regression_dxdymagn': loss_reg_vector,
+            'loss_depth': loss_depth_estimation
+        })
+        
         if self.classification_gloves is not None:
-            total_loss['loss_classification_gloves'] = loss_classification_gloves
-        total_loss['loss_regression_dxdymagn'] =  loss_regression_vector 
-        if self._use_depth_module: total_loss['loss_depth'] = loss_depth_estimation
-        if self._predict_mask and self._mask_gt: total_loss.update(mask_losses)
-        if self._predict_keypoints: total_loss.update(keypoint_losses)
+            total_loss['loss_classification_gloves'] = loss_gloves
+            
+        if self._predict_mask and self._mask_gt: 
+            total_loss.update(mask_losses)
+            
+        if self._predict_keypoints: 
+            total_loss.update(keypoint_losses)
 
         return total_loss
 
@@ -391,48 +423,45 @@ class MMEhoiNetv1(EhoiNet):
             
             if len(channels_to_cat) > 0:
                 self._c_hands_features_cnn = torch.cat(channels_to_cat, dim=1)
-                self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="inference", img_to_save=3)
+                #self.debug_roi(self._c_hands_features_cnn, batched_inputs, phase="inference")
     
     def freeze_modules(self, module_names: List[str]):
-        """
-        Congela i parametri dei moduli specificati (imposta requires_grad = False)
-        in modo che non vengano aggiornati durante il training.
-        """
-        if not module_names:
-            return
-
         logger = logging.getLogger("detectron2")
-        logger.info(f"--- CONGELAMENTO MODULI RICHIESTO: {module_names} ---")
-        
-        for name in module_names:
-            if hasattr(self, name):
-                # Controlla sia i moduli diretti (es. self.depth_module)
-                # sia quelli dentro 'roi_heads' (es. self.roi_heads.mask_head)
-                if "." in name:
-                    parts = name.split(".")
-                    try:
-                        module_to_freeze = getattr(getattr(self, parts[0]), parts[1])
-                    except AttributeError:
-                        logger.error(f"[FALLITO] Modulo '{name}' non trovato. Impossibile congelare.")
-                        continue
-                else:
-                    module_to_freeze = getattr(self, name)
-
-                if isinstance(module_to_freeze, torch.nn.Module):
-                    for param in module_to_freeze.parameters():
-                        param.requires_grad = False
-                    logger.info(f"[OK] Modulo congelato con successo: {name}")
-                else:
-                    logger.warning(f"[ATTENZIONE] Attributo '{name}' non è un torch.nn.Module, impossibile congelare.")
+        logger.info("--- [ARCHITECTURAL INTROSPECTION] Available Modules in MMEhoiNetv1 ---")
+        for name, module in self.named_children():
+            if name == "roi_heads":
+                logger.info(f"  > {name} (Sub-modules available:)")
+                for sub_name, _ in module.named_children():
+                    logger.info(f"      - roi_heads.{sub_name}")
             else:
-                # Gestisce i casi in cui il modulo non esiste (es. 'mask_head' quando mask_gt=False)
-                if name == 'mask_head' and not self.cfg.MODEL.MASK_ON:
-                    logger.info(f"[INFO] 'mask_head' non presente (MASK_ON=False), congelamento saltato.")
-                else:
-                    logger.error(f"[FALLITO] Modulo '{name}' non trovato in MMEhoiNetv1. Impossibile congelare.")
-        
-        print("---------------------------------------------------------------------")
+                logger.info(f"  > {name}")
+        logger.info("---------------------------------------------------------------------")
 
+        logger.info(f"--- [FREEZE ACTION] Targeting modules: {module_names} ---")
+        for name in module_names:
+            target_module = None
+            if "." in name:
+                parts = name.split(".")
+                try:
+                    parent = getattr(self, parts[0])
+                    target_module = getattr(parent, parts[1])
+                except AttributeError:
+                    pass
+            elif hasattr(self, name):
+                target_module = getattr(self, name)
+
+            if target_module and isinstance(target_module, torch.nn.Module):
+                for param in target_module.parameters():
+                    param.requires_grad = False
+                logger.info(f"[SUCCESS] Parameters frozen for: '{name}'")
+            else:
+                if name == 'mask_head' and not self.cfg.MODEL.MASK_ON:
+                    logger.info(f"[SKIP] '{name}' is inactive (MODEL.MASK_ON is False).")
+                elif name == 'keypoint_head' and not self.cfg.MODEL.KEYPOINT_ON:
+                    logger.info(f"[SKIP] '{name}' is inactive (MODEL.KEYPOINT_ON is False).")
+                else:
+                    logger.error(f"[FAILURE] Module '{name}' not found or is not a valid torch.nn.Module.")
+                
     def debug_roi(self, c_roi, batched_inputs, phase, img_to_save=5):
         if not hasattr(self, f"_debug_save_count_{phase}"):
             setattr(self, f"_debug_save_count_{phase}", 0)

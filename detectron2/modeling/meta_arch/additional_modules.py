@@ -20,7 +20,10 @@ class SideLRClassificationModule(nn.Module):
         output_2 = self.layer_2(output_1)
         if gt is None: return output_2
         if len(gt) == 0: return None, torch.tensor([0], dtype=torch.float32).to(self.device)
-        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
+        if isinstance(gt, torch.Tensor):
+            gt_tensor = gt.float().unsqueeze(1).to(self.device)
+        else:
+            gt_tensor = torch.as_tensor(gt, dtype=torch.float32, device=self.device).unsqueeze(1)
         loss = nn.functional.binary_cross_entropy_with_logits(output_2, gt_tensor)
         loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
         return output_2, loss
@@ -41,12 +44,12 @@ class GloveClassificationModule(nn.Module):
         output_1 = self.relu(output_1)
         output_1 = self.dropout(output_1)
         output_2 = self.layer_2(output_1)
-        
         if gt is None: return output_2
-        
         if len(gt) == 0: return None, torch.tensor([0], dtype=torch.float32).to(self.device)
-        
-        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
+        if isinstance(gt, torch.Tensor):
+            gt_tensor = gt.float().unsqueeze(1).to(self.device)
+        else:
+            gt_tensor = torch.as_tensor(gt, dtype=torch.float32, device=self.device).unsqueeze(1)
         loss = nn.functional.binary_cross_entropy_with_logits(output_2, gt_tensor)
         loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
         
@@ -59,25 +62,17 @@ class GloveClassificationModule(nn.Module):
 class AssociationVectorRegressor(nn.Module):
     def __init__(self, cfg):
         super(AssociationVectorRegressor, self).__init__()
-        self.layer_1 = nn.Linear(1024, 512) 
-        self.layer_2 = nn.Linear(512, 256)  
-        self.layer_3 = nn.Linear(256, 3)    
-        self.relu = torch.nn.ReLU()
-        self.dropout = torch.nn.Dropout(p = cfg.ADDITIONAL_MODULES.ASSOCIATION_VECTOR_REGRESSOR_MODULE_DROPOUT)
+        self.layer_1 = nn.Linear(1024, 256)
+        self.layer_2 = nn.Linear(256, 3) # Output: [vx, vy, m_norm]
+        self.relu = nn.ReLU()
 
     def forward(self, x, gt = None):
-        x = self.layer_1(x)
-        x = self.relu(x)
-        x = self.dropout(x)
-        x = self.layer_2(x)
-        x = self.relu(x)
-        x = self.dropout(x)
-        output = self.layer_3(x).float()
+        x = self.relu(self.layer_1(x))
+        output = self.layer_2(x) 
         if gt is None: return output
-        if len(gt) == 0: return None, torch.tensor([0], dtype=torch.float32).to(self.device)
-        gt_tensor = torch.from_numpy(np.array(gt)).float().to(self.device)
-        loss = nn.functional.mse_loss(output, gt_tensor)
-        loss = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss) else loss
+        if len(gt) == 0: return None, torch.tensor([0.0], device=self.device)
+        gt_tensor = torch.as_tensor(gt, dtype=torch.float32, device=self.device)
+        loss = nn.functional.smooth_l1_loss(output, gt_tensor)
         return output, loss
     
     @property
@@ -273,8 +268,10 @@ class ContactStateFusionClassificationModule(nn.Module):
         output = torch.mean(torch.stack( (torch.sigmoid(output_1), torch.sigmoid(output_2.reshape(-1, 1))) ), dim = 0)
         if gt is None: return output
         if len(gt) == 0: return None, torch.tensor([0], dtype=torch.float32).to(self.device)
-        gt_tensor = torch.from_numpy(np.array(gt, np.float32)).unsqueeze(1).to(self.device)
-
+        if isinstance(gt, torch.Tensor):
+            gt_tensor = gt.float().unsqueeze(1).to(self.device)
+        else:
+            gt_tensor = torch.as_tensor(gt, dtype=torch.float32, device=self.device).unsqueeze(1)
         loss_1 = nn.functional.binary_cross_entropy_with_logits(output_1, gt_tensor)
         loss_1 = torch.tensor([0], dtype=torch.float32).to(self.device) if torch.isnan(loss_1) else loss_1
 

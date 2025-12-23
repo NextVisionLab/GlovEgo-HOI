@@ -52,7 +52,7 @@ parser.add_argument(
 parser.add_argument('--contact_state_cnn_input_size', default="128", help="input size for the CNN contact state classification module", type=int)
 parser.add_argument('--cuda_device', default=0, help='CUDA device id', type=int)
 parser.add_argument('--base_lr', default=0.001, help='base learning rate.', type=float)
-parser.add_argument('--ims_per_batch', default=1, help='ims per batch', type=int)
+parser.add_argument('--ims_per_batch', default=4, help='ims per batch', type=int)
 parser.add_argument('--solver_steps', default=[40000, 60000], help='solver_steps', nargs='+', type=int)
 parser.add_argument('--max_iter', default=80000, help='max_iter', type=int)
 parser.add_argument('--checkpoint_period', default=5000, help='checkpoint_period', type=int)
@@ -154,7 +154,7 @@ def load_cfg(args, num_classes):
 
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./output_dir_real_only/last_training/" 
+    cfg.OUTPUT_DIR = "./GlovEgo-Net_ronly/last_training/" 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
@@ -164,7 +164,7 @@ def load_cfg(args, num_classes):
     cfg.freeze()
     return cfg
 
-@notify("Training real_only", traceback_file=True)
+@notify("Training ronly", traceback_file=True)
 def main():
     args = parse_args()
     print("Command-line args:\n", args)

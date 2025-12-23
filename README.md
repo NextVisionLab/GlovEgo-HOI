@@ -92,23 +92,27 @@ python train.py \
 
 ```bash
 python train.py \
- --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
- --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json \
- --test_dataset_names val \
- --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
- --mask_gt \
- --keypoints_gt \
- --no_wandb
+  --train_json ../real-split/annotations/train_coco.json \
+  --test_json ../real-split/annotations/train_coco.json \
+  --test_dataset_names val \
+  --contact_state_modality "mask+rgb+depth+fusion" \
+  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
+  --gloves_gt \
+  --wandb_project "ehoi-exp-$(date +%s)" \
+  --wandb_run_name "ehoi_net" \
+  --no_wandb \
+  --freeze_modules backbone depth_module _mask_rcnn_head \
+  --cuda_device 3
 ```
 
 #### Training breve per verifica di funzionamento
 
 ```bash
 python train.py \
-  --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
-  --test_json ./data/egoism-hoi-dataset/annotations/test_coco.json \
+  --train_json ../synth-split/annotations/train_coco.json \
+  --test_json ../synth-split/annotations/val_coco.json \
   --test_dataset_names val \
-  --weights_path ./output_dir_kpts/last_training/model_final.pth \
+  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
   --mask_gt \
   --keypoints_gt \
   --gloves_gt \
@@ -117,6 +121,22 @@ python train.py \
   --checkpoint_period 10 \
   --warmup_iters 5 \
   --no_wandb 
+```
+
+```bash
+python train.py \
+  --train_json ../real-split/annotations/train_coco_10.json \
+  --test_json ../real-split/annotations/train_coco_10.json \
+  --test_dataset_names val \
+  --contact_state_modality "mask+rgb+depth+fusion" \
+  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
+  --gloves_gt \
+  --max_iter 100 \
+  --eval_period 50 \
+  --checkpoint_period 50 \
+  --warmup_iters 20 \
+  --no_wandb \
+  --freeze_modules "backbone depth mask"
 ```
 
 ### Finetuning on real data
@@ -147,7 +167,10 @@ wandb sync wandb/latest-run/
 ### Test
 To test the models run the command below:
 ```bash
-python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./output_dir/last_training/model_final.pth
+python test.py \
+--dataset_json ../real-split/annotations/test_coco.json \
+--dataset_images ../real-split/images/ \
+--weights_path ./GlovEgo-Net_ronly
 ```
 
 ```bash
@@ -171,7 +194,11 @@ python inference.py  --images_path ./data/test_images --weights_path ./output_di
 ```
 
 ```bash
-python inference.py  --images_path ./data/test_images --weights_path ./output_dir_kpts_gloves/last_training/model_final.pth --save_dir ./output_dir_kpts_gloves/inference
+python inference.py  \
+--images_path ./data/test_images \
+--weights_path ./383__33_lf/model_final.pth \
+--cfg_path ./383__33_lf/cfg.yaml \
+--save_dir ./383__33_lf/inference
 ```
 
 Check more about argparse parameters in `inference.py`.

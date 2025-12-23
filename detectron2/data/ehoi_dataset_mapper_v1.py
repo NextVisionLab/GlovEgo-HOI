@@ -49,8 +49,6 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
                 ann["contact_state"] = -1
                 ann["magnitude"] = 0.0
 
-        diag = math.sqrt(image.shape[0]**2 + image.shape[1]**2)
-        
         for ann in dataset_dict["annotations"]:
             tmp_sup_ann = sup_ann_dict.get(ann["id"])
             if tmp_sup_ann:
@@ -63,7 +61,10 @@ class EhoiDatasetMapperv1(BaseEhoiDatasetMapper):
                     ann["magnitude"] = float(tmp_sup_ann.get("magnitude", 0.0))
                 else:
                     ann["dx"], ann["dy"], ann["magnitude"] = 0.0, 0.0, 0.0
-        
+            else:
+                ann["hand_side"], ann["gloves"], ann["contact_state"] = -1, -1, -1
+                ann["dx"], ann["dy"], ann["magnitude"] = 0.0, 0.0, 0.0
+                
         transform_list = [
             T.RandomContrast(self._cfg.AUG.RANDOM_CONTRAST_MIN, self._cfg.AUG.RANDOM_CONTRAST_MAX),
             T.RandomBrightness(self._cfg.AUG.RANDOM_BRIGHTNESS_MIN, self._cfg.AUG.RANDOM_BRIGHTNESS_MAX),
