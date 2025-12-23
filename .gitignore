@@ -55,16 +55,11 @@ instant_test_output
 inference_test_output
 output_dir*/
 _output_dir*/
+GlovEgo-Net*/
 *.wandb
 *.json
 *.log
-
-###visualization dir
-visualization_output/
-visualization_output_alfio/
-visualization_output_rosario/
-visualization_output_kpt/
-visualization_output_kpt_glove/
+*.pth
 
 ###telegram notifier
 telegram_notifier/
