@@ -54,7 +54,7 @@ pip install -r requirements.txt
 *EgoISM-HOI* (Egocentric Industrial Synthetic Multimodal dataset for Human-Object Interaction detection) is a new photo-realistic dataset of EHOIs in an industrial scenario with rich 
 annotations of hands, objects, and active objects, including class labels, depth maps, and instance segmentation masks. Download the [*EgoISM-HOI*](https://iplab.dmi.unict.it/sharing/egoism-hoi/datasets/egoism-hoi-dataset.zip) dataset and place it in the `data` folder.
 
-<img src="assets/images/fig_ehoi_example_w_anns.jpg"/>
+<img src="assets/images/sample_synth.png"/>
 
 ## Model Zoo
 Download our pre-trained models and put them in the `weights` folder:
@@ -72,7 +72,7 @@ To replicate the results of the paper, train your model using these pre-trained 
 
 ## Proposed Approach
 
-![](assets/images/schema-rete-loop.gif)
+![](assets/images/Schema.png)
 
 ### Train
 To train the system enter the following command:
