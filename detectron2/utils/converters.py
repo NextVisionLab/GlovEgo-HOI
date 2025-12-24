@@ -5,10 +5,10 @@ from pycocotools.coco import COCO
 import math
 from abc import abstractmethod
 import cv2
-import pprint
 
 from detectron2.structures import BoxMode
 from detectron2.structures.instances import Instances
+from detectron2.structures.boxes import pairwise_iou, Boxes
 from detectron2.structures.masks import ROIMasks
 from detectron2.utils.custom_utils import calculate_center, get_iou
 
@@ -106,8 +106,8 @@ class MMEhoiNetConverterv1(Converter):
         results = []
         results_target = []
         
-        obj_indices = (confident_instances.pred_classes != self._id_hand)
-        hand_indices = (confident_instances.pred_classes == self._id_hand)
+        obj_indices = confident_instances.pred_classes != self._id_hand
+        hand_indices = confident_instances.pred_classes == self._id_hand
         
         instances_objs = confident_instances[obj_indices]
         instances_hands = confident_instances[hand_indices]
@@ -123,57 +123,72 @@ class MMEhoiNetConverterv1(Converter):
         sides_tensor = instances_hands.get("sides").cpu()
         
         has_gloves = instances_hands.has("gloves")
-        if has_gloves:
-            gloves_tensor = instances_hands.get("gloves").cpu()
-        
+        gloves_tensor = instances_hands.get("gloves").cpu() if has_gloves else None
+
         for i in range(len(instances_hands)):
-            bbox_hand_xyxy = hand_boxes_tensor[i].tolist()
-            bbox_hand_xywh = BoxMode.convert(np.array(bbox_hand_xyxy).reshape(1,4), BoxMode.XYXY_ABS, BoxMode.XYWH_ABS).flatten().tolist()
+            bbox_hand_xyxy = hand_boxes_tensor[i]
+            bbox_hand_xywh = BoxMode.convert(bbox_hand_xyxy.numpy().reshape(1, 4), BoxMode.XYXY_ABS, BoxMode.XYWH_ABS).flatten().tolist()
             
             dxdymag_v = dxdymagn_tensor[i].numpy()
             contact_state = int(contact_states_tensor[i].item())
 
             element = {
                 "id": len(results),
-                "image_id": image_id, 
-                "category_id": self._metadata.thing_classes.index("hand"), 
-                "bbox": bbox_hand_xywh, 
-                "score": float(scores_tensor[i].item()), 
-                "hand_side": int(sides_tensor[i].item()), 
-                "contact_state": contact_state, 
-                "bbox_obj": [], 
-                "category_id_obj": -1, 
+                "image_id": image_id,
+                "category_id": self._id_hand,
+                "bbox": bbox_hand_xywh,
+                "score": float(scores_tensor[i].item()),
+                "hand_side": int(sides_tensor[i].item()),
+                "contact_state": contact_state,
+                "bbox_obj": [],
+                "category_id_obj": -1,
                 "dx": float(dxdymag_v[0]),
                 "dy": float(dxdymag_v[1]),
                 "magnitude": float(dxdymag_v[2])
             }
-
+            
             if has_gloves:
-                element["gloves"] = int(gloves_tensor[i].item())
+                element["gloves"] = 1 if gloves_tensor[i].item() >= 0.5 else 0
 
             if contact_state == 1 and len(instances_objs) > 0:
                 hand_cc = np.array(calculate_center(bbox_hand_xyxy))
+                hand_dim = np.sqrt((bbox_hand_xyxy[2] - bbox_hand_xyxy[0])**2 + (bbox_hand_xyxy[3] - bbox_hand_xyxy[1])**2)
+                
                 magn_in_pixels = dxdymag_v[2] * self._diag 
                 target_point = np.array([
                     (hand_cc[0] + dxdymag_v[0] * magn_in_pixels), 
                     (hand_cc[1] + dxdymag_v[1] * magn_in_pixels)
                 ])
 
-                all_obj_centers = [calculate_center(box) for box in object_boxes_xyxy]
-                distances = np.sum((all_obj_centers - target_point)**2, axis=1)
-                idx_closest_obj = np.argmin(distances)
-
-                matched_obj_box_xyxy = object_boxes_xyxy[idx_closest_obj].tolist()
-                matched_obj_box_xywh = BoxMode.convert(np.array(matched_obj_box_xyxy).reshape(1,4), BoxMode.XYXY_ABS, BoxMode.XYWH_ABS).flatten().tolist()
-
-                element["bbox_obj"] = matched_obj_box_xywh
-                element["category_id_obj"] = int(object_categories[idx_closest_obj])
-                element["score_obj"] = float(object_scores[idx_closest_obj])
+                hand_boxes_obj = Boxes(bbox_hand_xyxy.view(1, 4))
+                obj_boxes_obj = Boxes(object_boxes_xyxy)
+                ious = pairwise_iou(hand_boxes_obj, obj_boxes_obj).flatten().cpu().numpy()
                 
-                results_target.append({
-                    "id": len(results_target), "image_id": image_id, "category_id": element["category_id_obj"], 
-                    "bbox": element["bbox_obj"], "score": element["score_obj"]
-                })
+                all_obj_centers = np.array([calculate_center(box) for box in object_boxes_xyxy])
+                distances = np.linalg.norm(all_obj_centers - target_point, axis=1)
+                
+                dist_penalty = np.exp(-distances / (hand_dim + 1e-6))
+                combined_score = (dist_penalty * 0.35) + (ious * 0.45) + (np.array(object_scores) * 0.2)
+                
+                idx_best_obj = np.argmax(combined_score)
+
+                if distances[idx_best_obj] < (hand_dim * 2.5):
+                    matched_obj_box_xyxy = object_boxes_xyxy[idx_best_obj].tolist()
+                    matched_obj_box_xywh = BoxMode.convert(np.array(matched_obj_box_xyxy).reshape(1, 4), BoxMode.XYXY_ABS, BoxMode.XYWH_ABS).flatten().tolist()
+
+                    element["bbox_obj"] = matched_obj_box_xywh
+                    element["category_id_obj"] = int(object_categories[idx_best_obj])
+                    element["score_obj"] = float(object_scores[idx_best_obj])
+                    
+                    results_target.append({
+                        "id": len(results_target), 
+                        "image_id": image_id, 
+                        "category_id": element["category_id_obj"], 
+                        "bbox": element["bbox_obj"], 
+                        "score": element["score_obj"]
+                    })
+                else:
+                    element["contact_state"] = 0
 
             results.append(element)
 

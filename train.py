@@ -154,7 +154,7 @@ def load_cfg(args, num_classes):
 
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./GlovEgo-Net_kpts/last_training/" 
+    cfg.OUTPUT_DIR = "./GlovEgo-Net_real/last_training/" 
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
@@ -164,7 +164,7 @@ def load_cfg(args, num_classes):
     cfg.freeze()
     return cfg
 
-@notify("Training kpts", traceback_file=True)
+@notify("Training ronly", traceback_file=True)
 def main():
     args = parse_args()
     print("Command-line args:\n", args)

@@ -38,23 +38,17 @@ def expand_box(bb_tensor, max_width, max_height, ratio = 0.3):
         bb[3] = y1 + (height * ratio) if y1 + (height * ratio) < max_height else max_height
     return bb_tensor
 
-def get_iou(a, b, type="xyxy", epsilon=1e-5):
-    if type == "xyxy":
-        x1, y1, x2, y2 = max(a[0], b[0]), max(a[1], b[1]), min(a[2], b[2]), min(a[3], b[3])
-    elif type == "xywh":
-        x1, y1, x2, y2 = max(a[0], b[0]), max(a[1], b[1]), min(a[2] + a[0], b[2] + b[0]), min(a[3] + a[1], b[3] + b[1])
-    width, height = (x2 - x1), (y2 - y1)
-    if (width<0) or (height <0): return 0.0
-    area_overlap = width * height
-    if type == "xyxy":
-        area_a = (a[2] - a[0]) * (a[3] - a[1])
-        area_b = (b[2] - b[0]) * (b[3] - b[1])
-    elif type == "xywh":
-        area_a = a[2] * a[3]
-        area_b = b[2] * b[3]
-
-    area_combined = area_a + area_b - area_overlap
-    iou = area_overlap / (area_combined+epsilon)
+def get_iou(boxA, boxB):
+    if not isinstance(boxA, torch.Tensor): boxA = torch.tensor(boxA)
+    if not isinstance(boxB, torch.Tensor): boxB = torch.tensor(boxB)
+    xA = torch.max(boxA[:, 0], boxB[:, 0])
+    yA = torch.max(boxA[:, 1], boxB[:, 1])
+    xB = torch.min(boxA[:, 2], boxB[:, 2])
+    yB = torch.min(boxA[:, 3], boxB[:, 3])
+    interArea = torch.clamp(xB - xA, min=0) * torch.clamp(yB - yA, min=0)
+    boxAArea = (boxA[:, 2] - boxA[:, 0]) * (boxA[:, 3] - boxA[:, 1])
+    boxBArea = (boxB[:, 2] - boxB[:, 0]) * (boxB[:, 3] - boxB[:, 1])
+    iou = interArea / (boxAArea + boxBArea - interArea + 1e-6)
     return iou
 
 def calculate_center(bb, xyxy = True):

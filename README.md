@@ -93,14 +93,13 @@ python train.py \
 ```bash
 python train.py \
   --train_json ../real-split/annotations/train_coco.json \
-  --test_json ../real-split/annotations/train_coco.json \
+  --test_json ../real-split/annotations/test_coco.json \
   --test_dataset_names val \
   --contact_state_modality "mask+rgb+depth+fusion" \
   --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
   --gloves_gt \
   --wandb_project "ehoi-exp-$(date +%s)" \
   --wandb_run_name "ehoi_net" \
-  --no_wandb \
   --freeze_modules backbone depth_module _mask_rcnn_head \
   --cuda_device 3
 ```
@@ -196,9 +195,9 @@ python inference.py  --images_path ./data/test_images --weights_path ./output_di
 ```bash
 python inference.py  \
 --images_path ./data/test_images \
---weights_path ./383__33_lf/model_final.pth \
---cfg_path ./383__33_lf/cfg.yaml \
---save_dir ./383__33_lf/inference
+--cfg_path ./GlovEgo-Net_ronly/last_training/cfg.yaml \
+--save_dir ./GlovEgo-Net_ronly/inference \
+--weights_path ./GlovEgo-Net_ronly/last_training/
 ```
 
 Check more about argparse parameters in `inference.py`.

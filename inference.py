@@ -82,11 +82,11 @@ def setup_cfg() -> CfgNode:
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = args.thresh
     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = args.nms
     cfg.OUTPUT_DIR = args.save_dir
-    cfg.UTILS.VISUALIZER.DRAW_EHOI = not args.hide_ehois
-    cfg.UTILS.VISUALIZER.DRAW_MASK = not args.hide_masks
-    cfg.UTILS.VISUALIZER.DRAW_OBJS = not args.hide_bbs
-    cfg.UTILS.VISUALIZER.DRAW_DEPTH = not args.hide_depth
-    cfg.UTILS.VISUALIZER.DRAW_KEYPOINTS = not args.hide_kpts
+    #cfg.UTILS.VISUALIZER.DRAW_EHOI = not args.hide_ehois
+    #cfg.UTILS.VISUALIZER.DRAW_MASK = not args.hide_masks
+    #cfg.UTILS.VISUALIZER.DRAW_OBJS = not args.hide_bbs
+    #cfg.UTILS.VISUALIZER.DRAW_DEPTH = not args.hide_depth
+    #cfg.UTILS.VISUALIZER.DRAW_KEYPOINTS = not args.hide_kpts
     
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     cfg.freeze()
@@ -114,15 +114,10 @@ def process_images(model: torch.nn.Module, mapper, visualizer):
             print(f"Warning: Could not read image {image_path}, skipping.")
             continue
 
-        # Ottieni il nome base del file per salvare gli output
         base_fname = os.path.splitext(os.path.basename(image_path))[0]
 
-        # --- INIZIO MODIFICA: Salvataggio Output Grezzi ---
-
-        # 1. Salva la Depth Map (se richiesto)
         if args.save_depth_map and "depth_map" in predictions:
             try:
-                # Estrai la mappa di profondità, normalizzala (0-255) e applica colormap
                 depth_map_tensor = predictions["depth_map"].squeeze().detach().cpu().numpy()
                 depth_normalized = cv2.normalize(depth_map_tensor, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
                 depth_colormap = cv2.applyColorMap(depth_normalized, cv2.COLORMAP_JET)
@@ -132,39 +127,28 @@ def process_images(model: torch.nn.Module, mapper, visualizer):
             except Exception as e:
                 print(f"Error saving depth map: {e}")
 
-        # 2. Salva le Maschere di Segmentazione (se richiesto)
         if args.save_masks and "instances" in predictions:
             try:
                 instances = predictions["instances"].to("cpu")
-                # Filtra le istanze in base alla confidenza (come fa il visualizzatore)
                 confident_instances = visualizer._converter.generate_confident_instances(instances)
                 
                 if confident_instances.has("pred_masks"):
-                    # Crea un'immagine nera delle stesse dimensioni dell'originale
                     mask_image = np.zeros_like(original_image, dtype=np.uint8)
-                    
-                    # Usa la logica del visualizzatore per ottenere le maschere binarie
-                    masks = visualizer._mask_postprocess(confident_instances, original_image.shape[:2]) # Passa (H, W)
+                    masks = visualizer._mask_postprocess(confident_instances, original_image.shape[:2]) 
                     
                     if masks is not None:
                         for idx, mask in enumerate(masks):
-                            # Colora ogni istanza con il suo colore di classe
                             color = visualizer._colors_classes[confident_instances[idx].pred_classes.item() % len(visualizer._colors_classes)]
-                            mask_image[mask] = tuple(int(c) for c in color) # Converte da numpy.uint8 a tuple
+                            mask_image[mask] = tuple(int(c) for c in color) 
                         
                         mask_fname = f"{base_fname}_masks.png"
                         cv2.imwrite(os.path.join(save_dir_images, mask_fname), mask_image)
             except Exception as e:
                 print(f"Error saving masks: {e}")
         
-        # --- FINE MODIFICA ---
-
-        # 3. Salva l'immagine annotata standard (come da script originale)
         vis_output = visualizer.draw_results(original_image, predictions)
-        # Aggiungo un suffisso per evitare conflitti di nomi
-        output_fname = f"{base_fname}_annotated.png" 
+        output_fname = f"{base_fname}.png" 
         cv2.imwrite(os.path.join(save_dir_images, output_fname), vis_output)
-
     print(f"\n\033[1;32mSuccess!\033[0m Processed images saved to: {save_dir_images}")
 
 def process_video(model: torch.nn.Module, mapper, visualizer):
