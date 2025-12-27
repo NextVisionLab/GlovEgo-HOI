@@ -9,6 +9,7 @@ import wandb
 from collections import OrderedDict
 from telegram_notifier import notify
 import sys
+from pathlib import Path
 
 # import some common detectron2 utilities
 from detectron2.config import get_cfg 
@@ -32,6 +33,7 @@ parser.add_argument('--weights_path', dest='weights', help='weights path', type=
 parser.add_argument('--seed', type=int, default=0, metavar='S', help='random seed (default: 0)')
 parser.add_argument('--test_json', dest='test_json', nargs='*', help='test json paths', type=str)
 parser.add_argument('--test_dataset_names', dest='test_dataset_names', nargs='*', help='test dataset names', type=str)
+parser.add_argument('--output_dir', help='name of the output directory', type=str, default="GlovEgo-Net")
 parser.add_argument('--mask_gt', action='store_true', default=False)
 parser.add_argument('--keypoints_gt', action='store_true', default=False)
 parser.add_argument('--gloves_gt', action='store_true', default=False)
@@ -154,7 +156,7 @@ def load_cfg(args, num_classes):
 
     cfg.TEST.EVAL_PERIOD = args.eval_period
     cfg.MODEL.WEIGHTS = args.weights
-    cfg.OUTPUT_DIR = "./GlovEgo-Net_real/last_training/" 
+    cfg.OUTPUT_DIR = str(Path(args.output_dir) / "last_training")
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     
     with open(os.path.join(cfg.OUTPUT_DIR, "cfg.yaml"), "w") as f:
@@ -164,7 +166,7 @@ def load_cfg(args, num_classes):
     cfg.freeze()
     return cfg
 
-@notify("Training ronly", traceback_file=True)
+@notify("Training GlovEgo-Net", traceback_file=True)
 def main():
     args = parse_args()
     print("Command-line args:\n", args)

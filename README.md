@@ -92,16 +92,15 @@ python train.py \
 
 ```bash
 python train.py \
-  --train_json ../real-split/annotations/train_coco.json \
-  --test_json ../real-split/annotations/test_coco.json \
+  --train_json ../real-split/annotations/train_coco_10.json \
+  --test_json ../real-split/annotations/val_coco.json \
   --test_dataset_names val \
-  --contact_state_modality "mask+rgb+depth+fusion" \
-  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
+  --contact_state_modality "mask+rgb+depth+kpts+fusion" \
+  --weights_path ./GlovEgo-Net_kpts/last_training/model_final.pth \
   --gloves_gt \
   --wandb_project "ehoi-exp-$(date +%s)" \
   --wandb_run_name "ehoi_net" \
-  --freeze_modules backbone depth_module _mask_rcnn_head \
-  --cuda_device 3
+  --cuda_device 0
 ```
 
 #### Training breve per verifica di funzionamento
@@ -141,19 +140,16 @@ python train.py \
 ### Finetuning on real data
 ```bash
 python train.py \
- --train_json ../egoism-hoi-dataset-rosario/annotations/r_train_coco_fixed.json \
- --test_json ../egoism-hoi-dataset-rosario/annotations/r_val_coco_fixed.json \
- --test_dataset_names rosario_val_real \
- --weights_path ./output_dir_kpts_gloves/last_training/model_final.pth \
- --freeze_modules keypoint_head depth_module mask_head glove_head \
- --base_lr 0.0001 \
- --max_iter 10000 \
- --checkpoint_period 2000 \
- --eval_period 1000 \
- --contact_state_modality "rgb+depth+kpts+fusion" \
- --gloves_gt \
- --wandb_project "finetune-real-data" \
- --wandb_run_name "finetune_on_real_data_100"
+  --train_json ../real-split/annotations/train_coco_10.json \
+  --test_json ../real-split/annotations/val_coco.json \
+  --test_dataset_names val \
+  --contact_state_modality "mask+rgb+depth+fusion" \
+  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
+  --gloves_gt \
+  --wandb_project "ehoi-exp-$(date +%s)" \
+  --wandb_run_name "real_only_10" \
+  --freeze_modules backbone depth_module _mask_rcnn_head \
+  --cuda_device 0
 ```
 
 Check more about argparse parameters in `train.py`.
@@ -169,7 +165,7 @@ To test the models run the command below:
 python test.py \
 --dataset_json ../real-split/annotations/test_coco.json \
 --dataset_images ../real-split/images/ \
---weights_path ./GlovEgo-Net_ronly
+--weights_path ./GlovEgo-Net_ronly_
 ```
 
 ```bash
@@ -197,7 +193,7 @@ python inference.py  \
 --images_path ./data/test_images \
 --cfg_path ./GlovEgo-Net_ronly/last_training/cfg.yaml \
 --save_dir ./GlovEgo-Net_ronly/inference \
---weights_path ./GlovEgo-Net_ronly/last_training/
+--weights_path ./GlovEgo-Net_ronly/last_training/model_final.pth
 ```
 
 Check more about argparse parameters in `inference.py`.
