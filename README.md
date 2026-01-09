@@ -1,202 +1,195 @@
-# HOIE-Algorithm
+# GlovEgo-Net
 
-![](assets/images/pipeline-loop.gif)
+This repository provides the official implementation of the paper:
 
-This repository contains the implementation of the following paper:
-* [Exploiting Multimodal Synthetic Data for Egocentric Human-Object Interaction Detection in an Industrial Scenario](https://arxiv.org/abs/2306.12152)
+**GlovEgo-HOI: Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human-Object Interaction Detection**  
+(*VISAPP @ VISIGRAPP 2026*)
 
-If you find the code, pre-trained models, or the *EgoISM-HOI* dataset useful for your research, please citing the following paper:
-```
-@article{LEONARDI2024103984,
-  title = {Exploiting multimodal synthetic data for egocentric human-object interaction detection in an industrial scenario},
-  journal = {Computer Vision and Image Understanding},
-  volume = {242},
-  pages = {103984},
-  year = {2024},
-  issn = {1077-3142},
-  doi = {https://doi.org/10.1016/j.cviu.2024.103984},
-  url = {https://www.sciencedirect.com/science/article/pii/S1077314224000651},
-  author = {Rosario Leonardi and Francesco Ragusa and Antonino Furnari and Giovanni Maria Farinella},
-  keywords = {Human-object interaction, Synthetic data generation, Egocentric vision, Multimodal data, Industrial scenario}
+Project page: [placeholder_link]  
+Paper: [placeholder_link]
+
+If you find **GlovEgo-Net** or the **GlovEgo-HOI** dataset useful for your research, please consider citing:
+
+```bibtex
+@inproceedings{spoto2026glovegonet,
+  author    = {Alfio Spoto and Rosario Leonardi and Francesco Ragusa and Giovanni Maria Farinella},
+  title     = {GlovEgo-Net: Leveraging Synthetic and Real-world Data for Industrial Egocentric Human-Object Interaction},
+  booktitle = {Proceedings of the 21st International Joint Conference on Computer Vision, Imaging and Computer Graphics Theory and Applications (VISIGRAPP) - Volume 4: VISAPP},
+  year      = {2026},
+  publisher = {SCITEPRESS}
 }
 ```
 
-Additionally, consider citing the original paper:
-* [Egocentric Human-Object Interaction Detection Exploiting Synthetic Data](https://arxiv.org/abs/2204.07061)
-```
-@inproceedings{leonardi2022egocentric,
-  title={Egocentric Human-Object Interaction Detection Exploiting Synthetic Data},
-  author={Leonardi, Rosario and Ragusa, Francesco and Furnari, Antonino and Farinella, Giovanni Maria},
-  booktitle={Image Analysis and Processing -- ICIAP 2022},
-  pages={237--248},
-  year={2022},
-}
-```
-Additional details can be found on our [project web page](http://iplab.dmi.unict.it/egoism-hoi).
+---
 
-## Installation
-### Prerequisites
-* Python==3.9
-* Pytorch>=1.9.0
+## Overview
 
-Create a new conda env:
-```
-conda create --name ego_hoi python=3.9
-conda activate ego_hoi
-```
+**GlovEgo-Net** is a multi-modal detection framework for **Egocentric Human-Object Interaction (EHOI)** in industrial environments.  
+The system is designed to effectively bridge the **synthetic-to-real domain gap** by combining large-scale photorealistic synthetic data with augmented real-world imagery.
 
-Install all the python dependencies using pip:
-```
-pip install -r requirements.txt
-```
-
-## EgoISM-HOI dataset
-*EgoISM-HOI* (Egocentric Industrial Synthetic Multimodal dataset for Human-Object Interaction detection) is a new photo-realistic dataset of EHOIs in an industrial scenario with rich 
-annotations of hands, objects, and active objects, including class labels, depth maps, and instance segmentation masks. Download the [*EgoISM-HOI*](https://iplab.dmi.unict.it/sharing/egoism-hoi/datasets/egoism-hoi-dataset.zip) dataset and place it in the `data` folder.
-
-<img src="assets/images/sample_synth.png"/>
-
-## Model Zoo
-Download our pre-trained models and put them in the `weights` folder:
-
-| id                                                                                        | contact state predictions |  mhs input modalities           | mAP Hand+ALL  |
-| :----------------                                                                         | :-----------------------: | :-----------------------------: | :-----------: |
-| [fancy-sun-301](https://iplab.dmi.unict.it/sharing/egoism-hoi/weights/fancy-sun-301.zip)  | HS (Base)                 |  -                              | 35.47         |
-| [383_31_lf](https://iplab.dmi.unict.it/sharing/egoism-hoi/weights/383__31_lf.zip)         | HS+MHS (Late Fusion)      |  RGB                            | 35.71         |
-| [383_37_lf](https://iplab.dmi.unict.it/sharing/egoism-hoi/weights/383__37_lf.zip)         | HS+MHS (Late Fusion)      |  RGB+DEPTH (Early Fusion)       | 35.92         |
-| [383_80_lf](https://iplab.dmi.unict.it/sharing/egoism-hoi/weights/383__80_lf.zip)         | HS+MHS (Late Fusion)      |  RGB+MASK (Early Fusion)        | 35.34         |
-| [383_33_lf](https://iplab.dmi.unict.it/sharing/egoism-hoi/weights/383__33_lf.zip)         | HS+MHS (Late Fusion)      |  RGB+DEPTH+MASK (Early Fusion)  | **36.51**     |
-| [383_33](https://iplab.dmi.unict.it/sharing/egoism-hoi/weights/383__33.zip)               | MHS                       |  RGB+DEPTH+MASK (Early Fusion)  | 35.81         |
-
-To replicate the results of the paper, train your model using these pre-trained [weights](https://iplab.dmi.unict.it/sharing/egoism-hoi/weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth). Additional details are reported in the paper.
-
-## Proposed Approach
+The approach explicitly models:
+- Hand-object interactions
+- Contact states
+- Hand pose (21 keypoints)
+- Personal Protective Equipment (PPE), with a focus on work gloves
 
 ![](assets/images/Schema.png)
 
-### Train
-To train the system enter the following command:
+---
+
+## GlovEgo-HOI Dataset
+
+**GlovEgo-HOI** is a benchmark dataset for industrial EHOI detection, composed of two complementary subsets that integrate synthetic and real data.
+
+### Dataset Composition
+
+| GlovEgo-HOI-Synth | GlovEgo-HOI-Real |
+| :---------------: | :--------------: |
+| <img src="assets/images/sample_synth.png" width="450" height="250"> | <img src="assets/images/sample_real.png" width="450" height="250"> |
+| Synthetic data generated via Unity Perception | Real images augmented via FLUX.1 Diffusion |
+
+### Key Features
+
+- **GlovEgo-HOI-Synth**
+  - Generated by extending the Unity pipeline proposed in *Leonardi et al.*
+  - Automatic annotations for:
+    - **21 hand keypoints** (MediaPipe format)
+    - **Depth maps**, **segmentation masks**, and **offset vectors**
+  - Automatic **PPE simulation** (yellow work gloves on 50% of instances)
+  - Native Unity SOLO annotations convertible to COCO format via  
+    [Unity SOLO → COCO Converter](git@github.com:NextVisionLab/HOIE-solo2coco.git)
+
+- **GlovEgo-HOI-Real**
+  - Based on the EgoISM-HOI dataset
+  - Augmented with realistic work gloves using **FLUX.1-Kontext-dev**
+  - Structural consistency enforced using **SSIM > 0.95**
+
+### Dataset Statistics
+
+| Subset            | #Images | #Hands | #EHOIs | % PPE (Gloves) |
+| ----------------- | ------: | -----: | -----: | -------------: |
+| GlovEgo-HOI-Synth | 12,790  | 20,314 | 10,386 | 50.32%        |
+| GlovEgo-HOI-Real  | 15,948  | 24,158 | 16,532 | 17.68%        |
+| **Total**         | 28,738  | 44,472 | 26,918 | 32.14%        |
+
+---
+
+## Installation
+
+### Prerequisites
+
+- Python 3.9
+- PyTorch ≥ 1.9.0
+
+### Environment Setup
 
 ```bash
-python train.py \
- --train_json ./data/egoism-hoi-dataset/annotations/train_coco.json \
- --test_json ./data/egoism-hoi-dataset/annotations/val_coco.json \
- --test_dataset_names val \
- --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
- --mask_gt \
- --keypoints_gt \
- --gloves_gt \
- --wandb_project "ehoi-exp-$(date +%s)" \
- --wandb_run_name "ehoi_net"
-````
-
-```bash
-python train.py \
-  --train_json ../real-split/annotations/train_coco_10.json \
-  --test_json ../real-split/annotations/val_coco.json \
-  --test_dataset_names val \
-  --contact_state_modality "mask+rgb+depth+kpts+fusion" \
-  --weights_path ./GlovEgo-Net_kpts/last_training/model_final.pth \
-  --gloves_gt \
-  --wandb_project "ehoi-exp-$(date +%s)" \
-  --wandb_run_name "ehoi_net" \
-  --cuda_device 0
+conda create --name glovego_hoi python=3.9
+conda activate glovego_hoi
+pip install -r requirements.txt
 ```
 
-#### Training breve per verifica di funzionamento
+---
 
-```bash
-python train.py \
-  --train_json ../synth-split/annotations/train_coco.json \
-  --test_json ../synth-split/annotations/val_coco.json \
-  --test_dataset_names val \
-  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
-  --mask_gt \
-  --keypoints_gt \
-  --gloves_gt \
-  --max_iter 20 \
-  --eval_period 10 \
-  --checkpoint_period 10 \
-  --warmup_iters 5 \
-  --no_wandb 
+## Model Zoo
+
+Pre-trained weights for all experiments reported in the paper are provided.  
+Download the desired files and place them in the `./weights/` directory.
+
+### 1. Sim-to-Real Scaling (Synth → Real)
+
+| Model ID        | Real Data % | Keypoint Head | mAP Hand+ALL | Weights |
+|-----------------|-------------|---------------|--------------|---------|
+| glovego_ft_10   | 10%         | ✓             | 12.34        | [Download](placeholder_link) |
+| glovego_ft_25   | 25%         | ✓             | 13.10        | [Download](placeholder_link) |
+| glovego_ft_50   | 50%         | ✓             | 14.45        | [Download](placeholder_link) |
+| glovego_net     | 100%        | ✓             | **19.06**    | [Download](placeholder_link) |
+
+> `ft`: fine-tuned on real data after synthetic pre-training
+
+### 2. Real-Only Baselines
+
+| Model ID        | Real Data % | Keypoint Head | mAP Hand+ALL | Weights |
+|-----------------|-------------|---------------|--------------|---------|
+| glovego_ro_10   | 10%         | ✗             | 12.07        | [Download](placeholder_link) |
+| glovego_ro_25   | 25%         | ✗             | 12.00        | [Download](placeholder_link) |
+| glovego_ro_50   | 50%         | ✗             | 11.84        | [Download](placeholder_link) |
+| glovego_ro_100  | 100%        | ✗             | **18.12**    | [Download](placeholder_link) |
+
+> `ro`: trained only on real data
+
+### 3. Synthetic-Only & Ablation
+
+| Model ID             | Architecture        | Modalities              | mAP (Real) | Weights |
+|----------------------|---------------------|--------------------------|------------|---------|
+| glovego_so_no_kpts   | GlovEgo-Net w/o Kpts| RGB                      | 5.44       | [Download](placeholder_link) |
+| glovego_so           | GlovEgo-Net         | RGB+Depth+Mask+Kpts      | **6.22**   | [Download](placeholder_link) |
+
+---
+
+## Usage
+
+### Training
+
+Ensure backbone weights are available at:
+
+```
+./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth
 ```
 
+#### Synthetic Pre-training
+
 ```bash
 python train.py \
-  --train_json ../real-split/annotations/train_coco_10.json \
-  --test_json ../real-split/annotations/train_coco_10.json \
-  --test_dataset_names val \
-  --contact_state_modality "mask+rgb+depth+fusion" \
+  --train_json ./data/annotations/synth_train.json \
+  --test_json ./data/annotations/synth_val.json \
   --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
-  --gloves_gt \
-  --max_iter 100 \
-  --eval_period 50 \
-  --checkpoint_period 50 \
-  --warmup_iters 20 \
-  --no_wandb \
-  --freeze_modules "backbone depth mask"
+  --mask_gt --keypoints_gt --gloves_gt
 ```
 
-### Finetuning on real data
+#### Sim-to-Real Fine-tuning
+
 ```bash
 python train.py \
-  --train_json ../real-split/annotations/train_coco_10.json \
-  --test_json ../real-split/annotations/val_coco.json \
-  --test_dataset_names val \
-  --contact_state_modality "mask+rgb+depth+fusion" \
-  --weights_path ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth \
-  --gloves_gt \
-  --wandb_project "ehoi-exp-$(date +%s)" \
-  --wandb_run_name "real_only_10" \
+  --train_json ./data/annotations/real_train_10.json \
+  --test_json ./data/annotations/real_val.json \
+  --weights_path ./checkpoints/synth_pretrained.pth \
   --freeze_modules backbone depth_module _mask_rcnn_head \
-  --cuda_device 0
+  --gloves_gt
 ```
 
-Check more about argparse parameters in `train.py`.
+### Evaluation
 
-### Wandb
+```bash
+python test.py \
+  --dataset_json ./data/annotations/real_test.json \
+  --dataset_images ./data/images/real_test/ \
+  --weights_path ./checkpoints/model_final.pth
+```
+
+### Inference
+
+```bash
+python inference.py \
+  --images_path ./data/sample_input \
+  --weights_path ./checkpoints/model_final.pth \
+  --cfg_path ./checkpoints/cfg.yaml \
+  --save_dir ./output/inference_results
+```
+
+---
+
+## Experiment Tracking
+
+The project integrates **Weights & Biases** for experiment tracking.
+
 ```bash
 wandb sync wandb/latest-run/
 ```
 
-### Test
-To test the models run the command below:
-```bash
-python test.py \
---dataset_json ../real-split/annotations/test_coco.json \
---dataset_images ../real-split/images/ \
---weights_path ./GlovEgo-Net_ronly_
-```
+---
 
-```bash
-python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./output_dir_kpts/last_training/model_final.pth
-```
+## Acknowledgements
 
-```bash
-python test.py --dataset_json ./data/egoism-hoi-dataset/annotations/test_coco.json --dataset_images ./data/egoism-hoi-dataset/images/ --weights_path ./output_dir_kpts_gloves/last_training/model_final.pth
-```
-
-Check more about argparse parameters in `test.py`.
-
-### Inference
-Run the command below for an example of inference. A new folder **output_detection** will be created with the visualization:
-```bash
-python inference.py  --images_path ./data/test_images --weights_path ./output_dir/last_training/model_final.pth --save_dir ./output_dir/inference
-```
-
-```bash
-python inference.py  --images_path ./data/test_images --weights_path ./output_dir_kpts/last_training/model_final.pth --save_dir ./output_dir_kpts/inference
-```
-
-```bash
-python inference.py  \
---images_path ./data/test_images \
---cfg_path ./GlovEgo-Net_ronly/last_training/cfg.yaml \
---save_dir ./GlovEgo-Net_ronly/inference \
---weights_path ./GlovEgo-Net_ronly/last_training/model_final.pth
-```
-
-Check more about argparse parameters in `inference.py`.
-
-## Ackowledgements
-This research is supported by [Next Vision](https://www.nextvisionlab.it/) s.r.l., by MISE - PON I\&C 2014-2020 - Progetto ENIGMA  - Prog n. F/190050/02/X44 – CUP: B61B19000520008, and by the project Future Artificial Intelligence Research (FAIR) – PNRR MUR Cod. PE0000013 - CUP: E63C22001940006.
+This research has been supported by **Next Vision s.r.l.** and by the project  
+**Future Artificial Intelligence Research (FAIR)** – PNRR MUR Cod. PE0000013 – CUP: E63C22001940006.
