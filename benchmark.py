@@ -2,20 +2,16 @@
 import argparse
 import numpy as np
 import cv2
-import random
 import os
 import torch
-import warnings
-import logging
-import time # Aggiunto per misurazioni temporali
+import time 
 import json
 from tqdm import tqdm
 
 # Detectron2 utilities
-from detectron2.config import get_cfg, CfgNode
+from detectron2.config import CfgNode
 from detectron2.checkpoint import DetectionCheckpointer
-from detectron2.data import MetadataCatalog, Metadata
-from detectron2.utils.logger import setup_logger
+from detectron2.data import MetadataCatalog
 
 # Project-specific modules
 from detectron2.modeling.meta_arch.mm_ehoi_net_v1 import MMEhoiNetv1
@@ -121,16 +117,13 @@ def process_images(model: torch.nn.Module, mapper, visualizer, device):
         latencies.append(end_time - start_time)
         # ----------------------------------------
 
-        # Salvataggio risultati (come da script originale)
         original_image = cv2.imread(image_path)
         if original_image is None: continue
         base_fname = os.path.splitext(os.path.basename(image_path))[0]
-
-        # Logica Depth/Masks/Visualizer (Ometta qui per brevità, resta uguale a quella fornita)
         vis_output = visualizer.draw_results(original_image, predictions)
         cv2.imwrite(os.path.join(save_dir_images, f"{base_fname}_annotated.png"), vis_output)
 
-    # --- REPORT FINALE ---
+    # --- FINAL REPORT ---
     if args.benchmark and latencies:
         avg_ms = np.mean(latencies) * 1000
         std_ms = np.std(latencies) * 1000
