@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GlovEgo-Net | Progetto VISAPP 2026</title>
+    <title>GlovEgo-Net | VISAPP 2026 Project</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
@@ -22,8 +22,8 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="#abstract">Abstract</a></li>
                     <li class="nav-item"><a class="nav-link" href="#dataset">Dataset</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#results">Risultati</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#authors">Il Team</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#results">Results</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#authors">Team</a></li>
                 </ul>
             </div>
         </div>
@@ -32,122 +32,201 @@
     <header class="py-5 text-center bg-light border-bottom">
         <div class="container" data-aos="fade-up">
             <h1 class="display-4 fw-bold">GlovEgo-Net</h1>
-            <p class="lead text-muted">Leveraging Synthetic and Real-world Data for Industrial Egocentric Human-Object Interaction</p>
-            <p class="badge bg-primary text-wrap" style="font-size: 1.1rem;">VISAPP 2026</p>
+            <p class="lead text-muted">
+                Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human–Object Interaction
+            </p>
+            <p class="badge bg-primary text-wrap" style="font-size: 1.1rem;">VISAPP @ VISIGRAPP 2026</p>
             <div class="mt-4">
-                <a href="https://github.com/NextVisionLab/GlovEgo-HOI" class="btn btn-dark btn-lg px-4 me-2">GitHub Code</a>
-                <a href="#" class="btn btn-outline-primary btn-lg px-4">Paper PDF</a>
+                <a href="https://github.com/NextVisionLab/GlovEgo-HOI" class="btn btn-dark btn-lg px-4 me-2">GitHub Repository</a>
+                <a href="#" class="btn btn-outline-primary btn-lg px-4">Paper (PDF)</a>
             </div>
         </div>
     </header>
 
     <main class="container">
+
         <section id="abstract" class="my-5 py-5" data-aos="fade-right">
             <h2 class="fw-bold mb-4">Abstract</h2>
-            <p class="lead text-justify">
-                GlovEgo-Net affronta le sfide della rilevazione delle interazioni uomo-oggetto (EHOI) in ambienti industriali. 
-                Utilizzando il dataset <strong>GlovEgo-HOI</strong>, dimostriamo come il pre-training su dati sintetici 
-                fotorealistici e l'aumento dei dati reali tramite modelli di diffusione (FLUX) permettano di superare 
-                il plateau di performance delle tecniche tradizionali.
+            <p class="lead">
+                <strong>GlovEgo-Net</strong> addresses the problem of
+                <strong>Egocentric Human–Object Interaction (EHOI)</strong> detection in industrial environments.
+                The proposed framework mitigates the <em>synthetic-to-real domain gap</em> by combining
+                large-scale photorealistic synthetic data with diffusion-augmented real-world imagery.
+                Our approach explicitly models hand–object interactions, contact states, 21-keypoint hand pose,
+                and Personal Protective Equipment (PPE), with a particular focus on industrial work gloves.
             </p>
         </section>
 
         <section id="dataset" class="my-5 py-5" data-aos="fade-up">
             <h2 class="fw-bold mb-4">GlovEgo-HOI Dataset</h2>
-            <p class="mb-4">Il dataset comprende 28.738 immagini annotate con keypoints, profondità e stati di contatto.</p>
+            <p class="mb-4">
+                The <strong>GlovEgo-HOI</strong> dataset is a benchmark for industrial EHOI detection,
+                composed of <strong>28,738 annotated images</strong> integrating synthetic and real data.
+            </p>
             <div class="row g-4 text-center">
                 <div class="col-md-6">
-                    <img src="https://raw.githubusercontent.com/NextVisionLab/GlovEgo-HOI/main/assets/images/sample_synth.png" class="img-fluid rounded shadow" alt="Synth Sample">
-                    <p class="mt-2 text-muted">GlovEgo-HOI-Synth (Unity Perception)</p>
+                    <img src="assets/images/sample_synth.png"
+                         class="img-fluid rounded shadow"
+                         style="width:100%; height:260px; object-fit:cover;"
+                         alt="Synthetic Sample">
+                    <p class="mt-2 text-muted">
+                        GlovEgo-HOI-Synth – Photorealistic synthetic data generated with Unity Perception
+                    </p>
                 </div>
                 <div class="col-md-6">
-                    <img src="https://raw.githubusercontent.com/NextVisionLab/GlovEgo-HOI/main/assets/images/FLUX_sample.jpg" class="img-fluid rounded shadow" alt="Real Sample">
-                    <p class="mt-2 text-muted">GlovEgo-HOI-Real (FLUX Augmented)</p>
+                    <img src="assets/images/sample_real.png"
+                         class="img-fluid rounded shadow"
+                         style="width:100%; height:260px; object-fit:cover;"
+                         alt="Real Sample">
+                    <p class="mt-2 text-muted">
+                        GlovEgo-HOI-Real – Real images augmented via FLUX.1 Diffusion
+                    </p>
                 </div>
             </div>
         </section>
 
         <section id="results" class="my-5 py-5" data-aos="fade-left">
-            <h2 class="fw-bold mb-4">Risultati Sperimentali</h2>
+            <h2 class="fw-bold mb-4">Experimental Results</h2>
+            <p class="mb-3">
+            GlovEgo-Net consistently outperforms real-only baselines, demonstrating the effectiveness
+            of synthetic pre-training for industrial EHOI detection.
+            </p>
             <div class="table-responsive">
-                <table class="table table-hover border">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Strategia</th>
-                            <th>Real Data %</th>
-                            <th>AP Hand+State</th>
-                            <th>mAP Hand+All</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Real-Only (Baseline)</td>
-                            <td>100%</td>
-                            <td>49.42</td>
-                            <td>18.12</td>
-                        </tr>
-                        <tr class="table-primary fw-bold">
-                            <td>Synth+Real (Ours)</td>
-                            <td>100%</td>
-                            <td>51.16</td>
-                            <td>19.06</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <table class="table table-hover border">
+                <thead class="table-dark">
+                <tr>
+                    <th>Model ID</th>
+                    <th>Real Data %</th>
+                    <th>Keypoint Head</th>
+                    <th>mAP Hand+ALL</th>
+                    <th>Weights</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>glovego_ft_10</td>
+                    <td>10%</td>
+                    <td>✓</td>
+                    <td>12.34</td>
+                    <td><a href="placeholder_link">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ft_25</td>
+                    <td>25%</td>
+                    <td>✓</td>
+                    <td>13.10</td>
+                    <td><a href="placeholder_link">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ft_50</td>
+                    <td>50%</td>
+                    <td>✓</td>
+                    <td>14.45</td>
+                    <td><a href="placeholder_link">Download</a></td>
+                </tr>
+                <tr class="table-primary fw-bold">
+                    <td>glovego_net</td>
+                    <td>100%</td>
+                    <td>✓</td>
+                    <td><strong>19.06</strong></td>
+                    <td><a href="placeholder_link">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ro_10</td>
+                    <td>10%</td>
+                    <td>✗</td>
+                    <td>12.07</td>
+                    <td><a href="placeholder_link">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ro_25</td>
+                    <td>25%</td>
+                    <td>✗</td>
+                    <td>12.00</td>
+                    <td><a href="placeholder_link">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ro_50</td>
+                    <td>50%</td>
+                    <td>✗</td>
+                    <td>11.84</td>
+                    <td><a href="placeholder_link">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ro_100</td>
+                    <td>100%</td>
+                    <td>✗</td>
+                    <td><strong>18.12</strong></td>
+                    <td><a href="placeholder_link">Download</a></td>
+                </tr>
+                </tbody>
+            </table>
             </div>
         </section>
 
         <section id="authors" class="my-5 py-5 bg-light rounded" data-aos="fade-up">
             <div class="text-center">
-                <h2 class="fw-bold mb-5">Il Team di Ricerca</h2>
+                <h2 class="fw-bold mb-5">Research Team</h2>
                 <div id="authorCarousel" class="carousel slide" data-bs-ride="carousel">
                     <div class="carousel-inner">
+
                         <div class="carousel-item active">
                             <div class="py-4">
-                                <img src="assets/authors/alfio_spoto.png" class="rounded-circle shadow mb-3" style="width:150px; height:150px; object-fit:cover;" alt="Alfio Spoto">
+                                <img src="assets/authors/alfio_spoto.png" class="rounded-circle shadow mb-3"
+                                     style="width:200px; height:200px; object-fit:cover;" alt="Alfio Spoto">
                                 <h4>Alfio Spoto</h4>
-                                <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
+                                <p class="text-muted">University of Catania · Next Vision s.r.l.</p>
                             </div>
                         </div>
+
                         <div class="carousel-item">
                             <div class="py-4">
-                                <img src="assets/authors/rosario_leonardi.jpg" class="rounded-circle shadow mb-3" style="width:150px; height:150px; object-fit:cover;" alt="Rosario Leonardi">
+                                <img src="assets/authors/rosario_leonardi.jpg" class="rounded-circle shadow mb-3"
+                                     style="width:200px; height:200px; object-fit:cover;" alt="Rosario Leonardi">
                                 <h4>Rosario Leonardi</h4>
-                                <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
+                                <p class="text-muted">University of Catania · Next Vision s.r.l.</p>
                             </div>
                         </div>
+
                         <div class="carousel-item">
                             <div class="py-4">
-                                <img src="assets/authors/francesco_ragusa.jpg" class="rounded-circle shadow mb-3" style="width:150px; height:150px; object-fit:cover;" alt="Francesco Ragusa">
+                                <img src="assets/authors/francesco_ragusa.jpg" class="rounded-circle shadow mb-3"
+                                     style="width:200px; height:200px; object-fit:cover;" alt="Francesco Ragusa">
                                 <h4>Francesco Ragusa</h4>
-                                <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
+                                <p class="text-muted">University of Catania · Next Vision s.r.l.</p>
                             </div>
                         </div>
+
                         <div class="carousel-item">
                             <div class="py-4">
-                                <img src="assets/authors/giovanni_maria_farinella.jpg" class="rounded-circle shadow mb-3" style="width:150px; height:150px; object-fit:cover;" alt="Giovanni Maria Farinella">
+                                <img src="assets/authors/giovanni_maria_farinella.jpg" class="rounded-circle shadow mb-3"
+                                     style="width:200px; height:200px; object-fit:cover;" alt="Giovanni Maria Farinella">
                                 <h4>Giovanni Maria Farinella</h4>
-                                <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
+                                <p class="text-muted">University of Catania · Next Vision s.r.l.</p>
                             </div>
                         </div>
+
                     </div>
                     <button class="carousel-control-prev" type="button" data-bs-target="#authorCarousel" data-bs-slide="prev">
-                        <span class="carousel-control-prev-icon bg-secondary rounded-circle" aria-hidden="true"></span>
+                        <span class="carousel-control-prev-icon bg-secondary rounded-circle"></span>
                     </button>
                     <button class="carousel-control-next" type="button" data-bs-target="#authorCarousel" data-bs-slide="next">
-                        <span class="carousel-control-next-icon bg-secondary rounded-circle" aria-hidden="true"></span>
+                        <span class="carousel-control-next-icon bg-secondary rounded-circle"></span>
                     </button>
                 </div>
             </div>
         </section>
+
     </main>
 
     <footer class="py-4 text-center border-top text-muted">
-        <p>&copy; 2026 NextVisionLab - University of Catania</p>
+        <p>&copy; 2026 NextVisionLab · University of Catania</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
-    <script src="js/script.js"></script>
+    <script>
+        AOS.init();
+    </script>
 </body>
 </html>
