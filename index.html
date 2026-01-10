@@ -1,52 +1,153 @@
-<section id="authors" class="my-5 py-5 bg-light" data-aos="fade-up">
-    <div class="container text-center">
-        <h2 class="section-title mb-5">Il Team di Ricerca</h2>
-        
-        <div id="authorCarousel" class="carousel slide" data-bs-ride="carousel">
-            <div class="carousel-inner">
-                
-                <div class="carousel-item active">
-                    <div class="author-card mx-auto">
-                        <img src="assets/authors/alfio_spoto.jpg" class="rounded-circle mb-3 shadow" alt="Alfio Spoto">
-                        <h4>Alfio Spoto</h4>
-                        <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
-                    </div>
-                </div>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlovEgo-Net | Progetto VISAPP 2026</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-bs-spy="scroll" data-bs-target="#navbar-example">
 
-                <div class="carousel-item">
-                    <div class="author-card mx-auto">
-                        <img src="assets/authors/rosario_leonardi.jpg" class="rounded-circle mb-3 shadow" alt="Rosario Leonardi">
-                        <h4>Rosario Leonardi</h4>
-                        <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
-                    </div>
-                </div>
-
-                <div class="carousel-item">
-                    <div class="author-card mx-auto">
-                        <img src="assets/authors/francesco_ragusa.jpg" class="rounded-circle mb-3 shadow" alt="Francesco Ragusa">
-                        <h4>Francesco Ragusa</h4>
-                        <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
-                    </div>
-                </div>
-
-                <div class="carousel-item">
-                    <div class="author-card mx-auto">
-                        <img src="assets/authors/giovanni_farinella.jpg" class="rounded-circle mb-3 shadow" alt="Giovanni Maria Farinella">
-                        <h4>Giovanni Maria Farinella</h4>
-                        <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
-                    </div>
-                </div>
-
+    <nav id="navbar-example" class="navbar navbar-expand-lg navbar-light bg-white sticky-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">GlovEgo-Net</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="#abstract">Abstract</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#dataset">Dataset</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#results">Risultati</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#authors">Il Team</a></li>
+                </ul>
             </div>
-            
-            <button class="carousel-control-prev" type="button" data-bs-target="#authorCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon bg-dark rounded-circle" aria-hidden="true"></span>
-                <span class="visually-hidden">Precedente</span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#authorCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon bg-dark rounded-circle" aria-hidden="true"></span>
-                <span class="visually-hidden">Successivo</span>
-            </button>
         </div>
-    </div>
-</section>
+    </nav>
+
+    <header class="py-5 text-center bg-light border-bottom">
+        <div class="container" data-aos="fade-up">
+            <h1 class="display-4 fw-bold">GlovEgo-Net</h1>
+            <p class="lead text-muted">Leveraging Synthetic and Real-world Data for Industrial Egocentric Human-Object Interaction</p>
+            <p class="badge bg-primary text-wrap" style="font-size: 1.1rem;">VISAPP 2026</p>
+            <div class="mt-4">
+                <a href="https://github.com/NextVisionLab/GlovEgo-HOI" class="btn btn-dark btn-lg px-4 me-2">GitHub Code</a>
+                <a href="#" class="btn btn-outline-primary btn-lg px-4">Paper PDF</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <section id="abstract" class="my-5 py-5" data-aos="fade-right">
+            <h2 class="fw-bold mb-4">Abstract</h2>
+            <p class="lead text-justify">
+                GlovEgo-Net affronta le sfide della rilevazione delle interazioni uomo-oggetto (EHOI) in ambienti industriali. 
+                Utilizzando il dataset <strong>GlovEgo-HOI</strong>, dimostriamo come il pre-training su dati sintetici 
+                fotorealistici e l'aumento dei dati reali tramite modelli di diffusione (FLUX) permettano di superare 
+                il plateau di performance delle tecniche tradizionali.
+            </p>
+        </section>
+
+        <section id="dataset" class="my-5 py-5" data-aos="fade-up">
+            <h2 class="fw-bold mb-4">GlovEgo-HOI Dataset</h2>
+            <p class="mb-4">Il dataset comprende 28.738 immagini annotate con keypoints, profondità e stati di contatto.</p>
+            <div class="row g-4 text-center">
+                <div class="col-md-6">
+                    <img src="https://raw.githubusercontent.com/NextVisionLab/GlovEgo-HOI/main/assets/images/sample_synth.png" class="img-fluid rounded shadow" alt="Synth Sample">
+                    <p class="mt-2 text-muted">GlovEgo-HOI-Synth (Unity Perception)</p>
+                </div>
+                <div class="col-md-6">
+                    <img src="https://raw.githubusercontent.com/NextVisionLab/GlovEgo-HOI/main/assets/images/FLUX_sample.jpg" class="img-fluid rounded shadow" alt="Real Sample">
+                    <p class="mt-2 text-muted">GlovEgo-HOI-Real (FLUX Augmented)</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="results" class="my-5 py-5" data-aos="fade-left">
+            <h2 class="fw-bold mb-4">Risultati Sperimentali</h2>
+            <div class="table-responsive">
+                <table class="table table-hover border">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Strategia</th>
+                            <th>Real Data %</th>
+                            <th>AP Hand+State</th>
+                            <th>mAP Hand+All</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Real-Only (Baseline)</td>
+                            <td>100%</td>
+                            <td>49.42</td>
+                            <td>18.12</td>
+                        </tr>
+                        <tr class="table-primary fw-bold">
+                            <td>Synth+Real (Ours)</td>
+                            <td>100%</td>
+                            <td>51.16</td>
+                            <td>19.06</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="authors" class="my-5 py-5 bg-light rounded" data-aos="fade-up">
+            <div class="text-center">
+                <h2 class="fw-bold mb-5">Il Team di Ricerca</h2>
+                <div id="authorCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        <div class="carousel-item active">
+                            <div class="py-4">
+                                <img src="assets/authors/alfio_spoto.png" class="rounded-circle shadow mb-3" style="width:150px; height:150px; object-fit:cover;" alt="Alfio Spoto">
+                                <h4>Alfio Spoto</h4>
+                                <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
+                            </div>
+                        </div>
+                        <div class="carousel-item">
+                            <div class="py-4">
+                                <img src="assets/authors/rosario_leonardi.jpg" class="rounded-circle shadow mb-3" style="width:150px; height:150px; object-fit:cover;" alt="Rosario Leonardi">
+                                <h4>Rosario Leonardi</h4>
+                                <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
+                            </div>
+                        </div>
+                        <div class="carousel-item">
+                            <div class="py-4">
+                                <img src="assets/authors/francesco_ragusa.jpg" class="rounded-circle shadow mb-3" style="width:150px; height:150px; object-fit:cover;" alt="Francesco Ragusa">
+                                <h4>Francesco Ragusa</h4>
+                                <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
+                            </div>
+                        </div>
+                        <div class="carousel-item">
+                            <div class="py-4">
+                                <img src="assets/authors/giovanni_maria_farinella.jpg" class="rounded-circle shadow mb-3" style="width:150px; height:150px; object-fit:cover;" alt="Giovanni Maria Farinella">
+                                <h4>Giovanni Maria Farinella</h4>
+                                <p class="text-muted">Università di Catania | Next Vision s.r.l.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#authorCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon bg-secondary rounded-circle" aria-hidden="true"></span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#authorCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon bg-secondary rounded-circle" aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="py-4 text-center border-top text-muted">
+        <p>&copy; 2026 NextVisionLab - University of Catania</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>

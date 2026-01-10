@@ -14,6 +14,7 @@ wheels/
 *.pth
 *.pkl
 *.npy
+*.DS_Store
 *.ts
 model_ts*.txt
 
