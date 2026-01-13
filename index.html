@@ -3,51 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GlovEgo-HOI Project Page</title>
+    <title>GlovEgo-HOI: Industrial Interaction Detection</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
     <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="logos">
-                <img src="assets/unict.png" alt="Università di Catania" class="logo-unict">
-                <img src="assets/nextvision.png" alt="Next Vision" class="logo-nextvision">
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top shadow-sm">
+        <div class="container">
+            <div class="d-flex align-items-center">
+                <img src="assets/unict_logo.png" alt="UNICT" height="45" class="me-3">
+                <img src="assets/next_vision_logo.png" alt="Next Vision" height="45">
             </div>
-            <ul class="nav-links">
-                <li><a href="#abstract">ABSTRACT</a></li>
-                <li><a href="#pipeline">EHOI GENERATION PIPELINE</a></li>
-                <li><a href="#dataset">DATASET</a></li>
-                <li><a href="#approach">PROPOSED APPROACH</a></li>
-                <li><a href="#paper">PAPER</a></li>
-                <li><a href="#people">PEOPLE</a></li>
-            </ul>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto fw-bold">
+                    <li class="nav-item"><a class="nav-link" href="#abstract">ABSTRACT</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#model">GLOVEGO-NET</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#dataset">DATASET</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#results">RESULTS</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#people">PEOPLE</a></li>
+                </ul>
+            </div>
         </div>
     </nav>
 
-    <header class="hero" id="abstract">
-        <div class="hero-overlay"></div>
-        <div class="hero-content">
-            <h1>Abstract</h1>
-            <h2 class="project-title">GlovEgo-HOI: Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human-Object Interaction Detection</h2>
-            
-            <p class="abstract-text">
-                Egocentric Human-Object Interaction (EHOI) analysis is crucial for industrial safety[cite: 6, 12], 
-                yet the development of robust models is hindered by the scarcity of annotated domain-specific data[cite: 6, 15]. 
-                We address this challenge by introducing a data generation framework that combines synthetic data with a 
-                diffusion-based process to augment real-world images with realistic Personal Protective Equipment (PPE)[cite: 7, 21]. 
-                We present <strong>GlovEgo-HOI</strong>, a new benchmark dataset for industrial EHOI[cite: 8, 22], 
-                and <strong>GlovEgo-Net</strong>, a model integrating <strong>Glove-Head</strong> and <strong>Keypoint-Head</strong> 
-                modules to leverage hand pose information for enhanced interaction detection[cite: 8, 23]. 
-                Extensive experiments demonstrate the effectiveness of the proposed data generation framework and GlovEgo-Net[cite: 9, 27].
-                <br><br>
-                To foster further research, we release the GlovEgo-HOI dataset, augmentation pipeline, and pre-trained models.
-            </p>
-
-            <div class="hero-buttons">
-                <a href="https://github.com/NextVisionLab/GlovEgo-HOI" class="btn btn-teal">Code</a>
-                <a href="#dataset" class="btn btn-white">Data</a>
+    <header class="hero-section text-white d-flex align-items-center" id="abstract">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-10" data-aos="fade-right">
+                    <h1 class="display-3 fw-bold mb-3">GlovEgo-HOI</h1>
+                    
+                    <p class="lead mb-4 glow-bold">
+                        Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human-Object Interaction Detection
+                    </p>
+    
+                    <div class="bg-dark bg-opacity-60 p-4 rounded-3 mb-4 border-start border-teal border-4 shadow">
+                        <p class="mb-0 text-justify">
+                            Egocentric Human-Object Interaction (EHOL) analysis is crucial for industrial safety, yet the development of robust models is hindered by the scarcity of annotated domain-specific data. We address this challenge by introducing a data generation framework that combines synthetic data with a diffusion-based process to augment real-world images with realistic Personal Protective Equipment (PPE). We present GlovEgo-HOI, a new benchmark dataset for industrial EHOI, and GlovEgo-Net, a model integrating Glove-Head and Keypoint-Head modules to leverage hand pose information for enhanced interaction detection. Extensive experiments demonstrate the effectiveness of the proposed data generation framework and GlovEgo-Net.
+                        </p>
+                    </div>
+    
+                    <div class="d-flex gap-3 mt-4">
+                        <a href="placeholder_link" class="btn btn-teal btn-lg px-5 shadow">Paper</a>
+                        <a href="https://github.com/NextVisionLab/GlovEgo-HOI" class="btn btn-outline-light btn-lg px-5 shadow">GitHub Repo</a>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
+    <section id="model" class="container my-5 py-5" data-aos="fade-up">
+        <h2 class="fw-bold mb-5 section-title text-center">GlovEgo-Net Architecture</h2>
+        
+        <div class="text-center mb-5">
+            
+            <img src="assets/images/Schema.png" class="img-fluid rounded shadow-lg border" alt="GlovEgo-Net Schema" style="max-width: 100%; height: auto;">
+            <p class="text-center text-muted small mt-2">Overview of the GlovEgo-Net Multimodal Architecture</p>
+        </div>
+    
+        <div class="mx-auto" style="max-width: 900px;">
+            <p class="mb-4">
+                <strong>GlovEgo-Net</strong> extends multimodal frameworks by integrating a dedicated <strong>Glove-Head</strong> for PPE recognition and a <strong>Keypoint-Head</strong> for hand pose information. The system leverages a ResNet-101 backbone coupled with a Feature Pyramid Network (FPN) to extract multi-scale feature maps that drive several parallel branches:
+            </p>
+            
+            <ul class="list-group list-group-flush mb-4 custom-list">
+                <li class="list-group-item bg-transparent">
+                    <strong>Faster R-CNN:</strong> Handles the primary detection of hands and industrial objects within the frame.
+                </li>
+                <li class="list-group-item bg-transparent">
+                    <strong>Mask R-CNN:</strong> Performs precise instance segmentation to define the boundaries of each detected element.
+                </li>
+                <li class="list-group-item bg-transparent">
+                    <strong>MiDaS Branch:</strong> Provides spatial context through monocular depth estimation, essential for understanding 3D relationships.
+                </li>
+                <li class="list-group-item bg-transparent border-bottom-0">
+                    <strong>Hand Feature Vector (HFV):</strong> For every hand instance, a 1024-dimensional vector is extracted via RoI pooling to feed specialized heads, including Side, State, Offset Vector, and the new Glove Head.
+                </li>
+            </ul>
+    
+            <p class="mb-4">
+                The final prediction follows a two-stage process. First, the hand's contact state is determined via <strong>Late Fusion</strong>. This stage combines appearance based features with multimodal signals such as depth and keypoints to produce a stable interaction estimate that is more accurate than any single modality could achieve alone.
+                In the second stage, a custom <strong>Matching Algorithm</strong> associates hands with the relevant active objects in the scene. For hands classified as "in contact," the <strong>Offset Vector</strong> projects a specific interaction point. 
+            </p>
+        </div>
+    </section>
+
+    <div class="bg-light-teal">
+        <div class="container">
+            <section id="dataset" class="my-5 py-5" data-aos="fade-up">
+                <h2 class="fw-bold mb-4 section-title">GlovEgo-HOI Dataset</h2>
+                
+                <div class="row align-items-center mb-5">
+                    <div class="col-lg-8">
+                        <p class="lead mb-0">
+                            The <strong>GlovEgo-HOI</strong> dataset is a comprehensive benchmark for industrial EHOI detection,
+                            composed of <strong>28,738 annotated images</strong> integrating synthetic and real-world data.
+                        </p>
+                    </div>
+                    <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+                        <a href="placeholder_link" class="btn btn-teal btn-lg px-4 shadow">
+                            <i class="bi bi-download me-2"></i> Download Dataset
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row g-4 text-center">
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <img src="assets/images/sample_synth.png"
+                                 class="card-img-top rounded-top"
+                                 style="height:280px; object-fit:cover;"
+                                 alt="Synthetic Sample">
+                            <div class="card-body bg-white rounded-bottom">
+                                <p class="card-text text-muted">
+                                    <strong>GlovEgo-HOI-Synth:</strong> 12,790 photorealistic synthetic images with automatic 21-keypoint labels and simulated PPE.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <img src="assets/images/sample_real.png"
+                                 class="card-img-top rounded-top"
+                                 style="height:280px; object-fit:cover;"
+                                 alt="Real Sample">
+                            <div class="card-body bg-white rounded-bottom">
+                                <p class="card-text text-muted">
+                                    <strong>GlovEgo-HOI-Real:</strong> 15,948 real-world industrial images augmented via FLUX.1 Context-Dev Diffusion to include realistic work gloves.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div class="container">
+        <section id="results" class="my-5 py-5" data-aos="fade-left">
+            <h2 class="fw-bold mb-4">Experimental Results</h2>
+            <p class="mb-3">
+                GlovEgo-Net consistently overcomes the "performance plateau" found in real-only training, achieving <strong>19.06% mAP</strong> and a throughput of <strong>6.75 FPS</strong> on an NVIDIA Tesla V100S.
+            </p>
+            <div class="table-responsive">
+            <table class="table table-hover border bg-white shadow-sm">
+                <thead class="table-dark">
+                <tr>
+                    <th>Model ID</th>
+                    <th>Real Data %</th>
+                    <th>Keypoint Head</th>
+                    <th>mAP Hand+ALL</th>
+                    <th>Weights</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td>glovego_ft_10</td>
+                    <td>10%</td>
+                    <td>✓</td>
+                    <td>12.34</td>
+                    <td><a href="placeholder_link" class="text-teal">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ft_25</td>
+                    <td>25%</td>
+                    <td>✓</td>
+                    <td>13.10</td>
+                    <td><a href="placeholder_link" class="text-teal">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ft_50</td>
+                    <td>50%</td>
+                    <td>✓</td>
+                    <td>14.45</td>
+                    <td><a href="placeholder_link" class="text-teal">Download</a></td>
+                </tr>
+                <tr class="table-highlight fw-bold">
+                    <td>glovego_net</td>
+                    <td>100%</td>
+                    <td>✓</td>
+                    <td>19.06</td>
+                    <td><a href="placeholder_link" class="text-teal">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ro_10</td>
+                    <td>10%</td>
+                    <td>✗</td>
+                    <td>12.07</td>
+                    <td><a href="placeholder_link" class="text-teal">Download</a></td>
+                </tr>
+                <tr>
+                    <td>glovego_ro_100</td>
+                    <td>100%</td>
+                    <td>✗</td>
+                    <td>18.12</td>
+                    <td><a href="placeholder_link" class="text-teal">Download</a></td>
+                </tr>
+                </tbody>
+            </table>
+            </div>
+            
+            <div class="row mt-5">
+                <div class="col-12 text-center">
+                    <img src="assets/images/inference_examples.png" class="img-fluid rounded border" style="max-width: 80%;" alt="Inference Examples">
+                    <p class="text-muted small mt-2">Qualitative comparison of GlovEgo-Net training strategies.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <section id="people" class="bg-dark text-white py-5 mt-5">
+        <div class="container py-4">
+            <h2 class="fw-bold mb-5 text-center text-teal">Meet the Team</h2>
+            <div class="row g-4 justify-content-center">
+                <div class="col-6 col-md-3" data-aos="zoom-in">
+                    <div class="author-card text-center p-3">
+                        <div class="img-wrapper mb-3 shadow">
+                            <img src="assets/authors/alfio_spoto.png" alt="Alfio Spoto">
+                        </div>
+                        <h5 class="fw-bold mb-1">Alfio Spoto</h5>
+                        <p class="text-teal small mb-0">University of Catania</p>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3" data-aos="zoom-in" data-aos-delay="100">
+                    <div class="author-card text-center p-3">
+                        <div class="img-wrapper mb-3 shadow">
+                            <img src="assets/authors/rosario_leonardi.jpg" alt="Rosario Leonardi">
+                        </div>
+                        <h5 class="fw-bold mb-1">Rosario Leonardi</h5>
+                        <p class="text-teal small mb-0">University of Catania</p>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3" data-aos="zoom-in" data-aos-delay="200">
+                    <div class="author-card text-center p-3">
+                        <div class="img-wrapper mb-3 shadow">
+                            <img src="assets/authors/francesco_ragusa.jpg" alt="Francesco Ragusa">
+                        </div>
+                        <h5 class="fw-bold mb-1">Francesco Ragusa</h5>
+                        <p class="text-teal small mb-0">University of Catania</p>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3" data-aos="zoom-in" data-aos-delay="300">
+                    <div class="author-card text-center p-3">
+                        <div class="img-wrapper mb-3 shadow">
+                            <img src="assets/authors/giovanni_maria_farinella.jpg" alt="Giovanni Maria Farinella">
+                        </div>
+                        <h5 class="fw-bold mb-1">G. M. Farinella</h5>
+                        <p class="text-teal small mb-0">University of Catania</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-5 text-center" id="paper">
+                <div class="col-12">
+                    <h5 class="text-white-50 mb-3">Proceeding of VISAPP 2026</h5>
+                    <div class="bg-secondary bg-opacity-25 p-4 rounded text-start mx-auto shadow" style="max-width: 800px; border: 1px solid #444;">
+                        <pre class="mb-0 text-teal overflow-auto small"><code>@inproceedings{spoto2026glovego,
+  title={GlovEgo-HOI: Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human-Object Interaction Detection},
+  author={Spoto, Alfio and Leonardi, Rosario and Ragusa, Francesco and Farinella, Giovanni Maria},
+  booktitle={VISAPP},
+  year={2026}
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-black text-white-50 py-3 text-center border-top border-secondary">
+        <p class="mb-0 small">© 2026 Next Vision Lab | Supported by PNRR MUR Cod. PE0000013</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+      AOS.init({ duration: 800, once: true });
+    </script>
 </body>
 </html>
