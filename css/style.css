@@ -94,3 +94,16 @@ body {
     border-bottom: 4px solid #00b5ad;
     padding-bottom: 5px;
 }
+
+#acknowledgements strong {
+    color: #e0e0e0; 
+}
+
+#acknowledgements img {
+    max-width: 150px;
+    transition: opacity 0.3s ease;
+}
+
+#acknowledgements img:hover {
+    opacity: 1 !important;
+}
