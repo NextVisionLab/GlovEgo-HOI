@@ -78,7 +78,7 @@ The **GlovEgo-HOI** dataset is available for download at the following links:
 
 - [GlovEgo-HOI](placeholder_link) (15.4 GB)
 
-Please refer to the [Dataset Composition](#dataset-composition) section for details on the subsets.
+### Please refer to the [Dataset Composition](#dataset-composition) section for details on the subsets.
 ---
 
 ## Installation
