@@ -5,7 +5,7 @@ This repository provides the official implementation of the paper:
 **GlovEgo-HOI: Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human-Object Interaction Detection**  
 (*VISAPP @ VISIGRAPP 2026*)
 
-Project Website: [[placeholder_link](https://nextvisionlab.github.io/GlovEgo-HOI/)]  
+Project Website: [https://nextvisionlab.github.io/GlovEgo-HOI/](https://nextvisionlab.github.io/GlovEgo-HOI/)  
 Paper: [placeholder_link]
 
 If you find **GlovEgo-Net** or the **GlovEgo-HOI** dataset useful for your research, please consider citing:

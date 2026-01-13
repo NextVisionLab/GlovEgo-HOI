@@ -64,3 +64,10 @@ GlovEgo-Net*/
 ###telegram notifier
 telegram_notifier/
 kpt_debug.py
+
+###github page
+js/
+css/
+index.html/
+assets/*
+!assets/images
