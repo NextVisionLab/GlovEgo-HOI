@@ -1,16 +1,13 @@
-<div align="center">
-  <h1>GlovEgo-HOI</h1>
-  <p>Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human-Object Interaction Detection</p>
-  
-  <a href="https://nextvisionlab.github.io/GlovEgo-HOI/">
-    <img src="https://img.shields.io/badge/VIEW_PROJECT_WEBSITE-00b5ad?style=for-the-badge&logo=google-chrome&logoColor=white" />
-  </a>
-  <a href="placeholder_link">
-    <img src="https://img.shields.io/badge/READ_THE_PAPER-red?style=for-the-badge&logo=arxiv&logoColor=white" />
-  </a>
-</div>
+# GlovEgo-HOI: Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human-Object Interaction Detection
 
----
+<p align="center">
+  <a href="https://nextvisionlab.github.io/GlovEgo-HOI/">
+    <img src="https://img.shields.io/badge/Project%20Website-Online-006d6f?style=flat-square"/>
+  </a>
+  <a href="https://arxiv.org/abs/submit/7161545">
+    <img src="https://img.shields.io/badge/Paper-arXiv-B31B1B?style=flat-square"/>
+  </a>
+</p>
 
 If you find **GlovEgo-Net** or the **GlovEgo-HOI** dataset useful for your research, please consider citing:
 
@@ -211,3 +208,12 @@ wandb sync wandb/latest-run/
 
 This research has been supported by **Next Vision s.r.l.** and by the project  
 **Future Artificial Intelligence Research (FAIR)** – PNRR MUR Cod. PE0000013 – CUP: E63C22001940006.
+
+---
+
+<p align="center">
+  <em>
+    Accepted as a Short Paper for Oral Presentation at
+    <a href="https://visapp.scitevents.org">VISAPP 2026</a>
+  </em>
+</p>
