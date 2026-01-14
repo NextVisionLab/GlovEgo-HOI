@@ -1,12 +1,16 @@
-# GlovEgo-Net
+<div align="center">
+  <h1>GlovEgo-HOI</h1>
+  <p>Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human-Object Interaction Detection</p>
+  
+  <a href="https://nextvisionlab.github.io/GlovEgo-HOI/">
+    <img src="https://img.shields.io/badge/VIEW_PROJECT_WEBSITE-00b5ad?style=for-the-badge&logo=google-chrome&logoColor=white" />
+  </a>
+  <a href="placeholder_link">
+    <img src="https://img.shields.io/badge/READ_THE_PAPER-red?style=for-the-badge&logo=arxiv&logoColor=white" />
+  </a>
+</div>
 
-This repository provides the official implementation of the paper:
-
-**GlovEgo-HOI: Bridging the Synthetic-to-Real Gap for Industrial Egocentric Human-Object Interaction Detection**  
-(*VISAPP @ VISIGRAPP 2026*)
-
-Project Website: [https://nextvisionlab.github.io/GlovEgo-HOI/](https://nextvisionlab.github.io/GlovEgo-HOI/)  
-Paper: [placeholder_link]
+---
 
 If you find **GlovEgo-Net** or the **GlovEgo-HOI** dataset useful for your research, please consider citing:
 
