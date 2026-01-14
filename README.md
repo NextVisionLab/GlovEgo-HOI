@@ -79,7 +79,7 @@ The **GlovEgo-HOI** dataset is available for download at the following links:
 
 - [GlovEgo-HOI](https://iplab.dmi.unict.it/sharing2/GlovEgo-HOI/GlovEgo-HOI.tar.gz) (15.4 GB)
 
-### Please refer to the [Dataset Composition](#dataset-composition) section for details on the subsets.
+#### Please refer to the [Dataset Composition](#dataset-composition) section for details on the subsets.
 ---
 
 ## Installation
