@@ -76,7 +76,7 @@ The approach explicitly models:
 
 The **GlovEgo-HOI** dataset is available for download at the following links:
 
-- [GlovEgo-HOI](placeholder_link) (15.4 GB)
+- [GlovEgo-HOI](https://iplab.dmi.unict.it/sharing2/GlovEgo-HOI/GlovEgo-HOI.tar.gz) (15.4 GB)
 
 ### Please refer to the [Dataset Composition](#dataset-composition) section for details on the subsets.
 ---
@@ -105,32 +105,39 @@ Download the desired files and place them in the `./weights/` directory.
 
 ### 1. Sim-to-Real Scaling (Synth → Real)
 
-| Model ID        | Real Data % | Keypoint Head | mAP Hand+ALL | Weights |
-|-----------------|-------------|---------------|--------------|---------|
-| glovego_ft_10   | 10%         | ✓             | 12.34        | [Download](placeholder_link) |
-| glovego_ft_25   | 25%         | ✓             | 13.10        | [Download](placeholder_link) |
-| glovego_ft_50   | 50%         | ✓             | 14.45        | [Download](placeholder_link) |
-| glovego_net     | 100%        | ✓             | **19.06**    | [Download](placeholder_link) |
+| Model ID        | Real Data % | Keypoint Head | mAP Hand+ALL |
+|-----------------|-------------|---------------|--------------|
+| glovego_ft_10   | 10%         | ✓             | 12.34        |
+| glovego_ft_25   | 25%         | ✓             | 13.10        |
+| glovego_ft_50   | 50%         | ✓             | 14.45        |
+| glovego_net     | 100%        | ✓             | **19.06**    |
 
 > `ft`: fine-tuned on real data after synthetic pre-training
 
 ### 2. Real-Only Baselines
 
-| Model ID        | Real Data % | Keypoint Head | mAP Hand+ALL | Weights |
-|-----------------|-------------|---------------|--------------|---------|
-| glovego_ro_10   | 10%         | ✗             | 12.07        | [Download](placeholder_link) |
-| glovego_ro_25   | 25%         | ✗             | 12.00        | [Download](placeholder_link) |
-| glovego_ro_50   | 50%         | ✗             | 11.84        | [Download](placeholder_link) |
-| glovego_ro_100  | 100%        | ✗             | **18.12**    | [Download](placeholder_link) |
+| Model ID        | Real Data % | Keypoint Head | mAP Hand+ALL |
+|-----------------|-------------|---------------|--------------|
+| glovego_ro_10   | 10%         | ✗             | 12.07        |
+| glovego_ro_25   | 25%         | ✗             | 12.00        |
+| glovego_ro_50   | 50%         | ✗             | 11.84        |
+| glovego_ro_100  | 100%        | ✗             | **18.12**    |
 
 > `ro`: trained only on real data
 
 ### 3. Synthetic-Only & Ablation
 
-| Model ID             | Architecture        | Modalities              | mAP (Real) | Weights |
-|----------------------|---------------------|--------------------------|------------|---------|
-| glovego_so_no_kpts   | GlovEgo-Net w/o Kpts| RGB                      | 5.44       | [Download](placeholder_link) |
-| glovego_so           | GlovEgo-Net         | RGB+Depth+Mask+Kpts      | **6.22**   | [Download](placeholder_link) |
+| Model ID             | Architecture        | Modalities              | mAP (Real) |
+|----------------------|---------------------|--------------------------|------------|
+| glovego_so_no_kpts   | GlovEgo-Net w/o Kpts| RGB                      | 5.44       |
+| glovego_so           | GlovEgo-Net         | RGB+Depth+Mask+Kpts      | **6.22**   |
+
+---
+
+### Download Weights
+
+All pre-trained weights are available for download at the following link: [GlovEgo-Net Weights](https://iplab.dmi.unict.it/sharing2/GlovEgo-HOI/GlovEgo-Net.tar.gz)
+
 
 ---
 
@@ -138,7 +145,7 @@ Download the desired files and place them in the `./weights/` directory.
 
 ### Training
 
-Ensure backbone weights are available at:
+To replicate the results of the paper, train your model using these pre-trained [weights](https://iplab.dmi.unict.it/sharing/egoism-hoi/weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth). Ensure backbone weights are available at:
 
 ```
 ./weights/faster_rcnn_R_101_FPN_3x_midas_v21-f6b98070.pth
