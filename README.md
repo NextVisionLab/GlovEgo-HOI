@@ -4,7 +4,7 @@
   <a href="https://nextvisionlab.github.io/GlovEgo-HOI/">
     <img src="https://img.shields.io/badge/Project%20Website-Online-006d6f?style=flat-square"/>
   </a>
-  <a href="https://arxiv.org/abs/submit/7161545">
+  <a href="https://arxiv.org/abs/2601.09528">
     <img src="https://img.shields.io/badge/Paper-arXiv-B31B1B?style=flat-square"/>
   </a>
 </p>
