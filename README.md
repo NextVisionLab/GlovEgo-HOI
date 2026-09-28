@@ -77,7 +77,7 @@ The approach explicitly models:
 
 The **GlovEgo-HOI** dataset is available for download at the following links:
 
-- [GlovEgo-HOI](https://iplab.dmi.unict.it/sharing2/GlovEgo-HOI/GlovEgo-HOI.tar.gz) (15.4 GB)
+- [GlovEgo-HOI](https://iplab.dmi.unict.it/sharing/GlovEgo-HOI/GlovEgo-HOI.tar.gz) (15.4 GB)
 
 #### Please refer to the [Dataset Composition](#dataset-composition) section for details on the subsets.
 ---
@@ -137,7 +137,7 @@ Download the desired files and place them in the `./weights/` directory.
 
 ### Download Weights
 
-All pre-trained weights are available for download at the following link: [GlovEgo-Net Weights](https://iplab.dmi.unict.it/sharing2/GlovEgo-HOI/GlovEgo-Net.tar.gz)
+All pre-trained weights are available for download at the following link: [GlovEgo-Net Weights](https://iplab.dmi.unict.it/sharing/GlovEgo-HOI/GlovEgo-Net.tar.gz)
 
 
 ---
